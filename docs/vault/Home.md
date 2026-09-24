@@ -26,15 +26,17 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
-**Stage 0 (Bootstrap) — done.** Package + `dojo` console script scaffolded, public repo pushed, CI
-running `pytest` + `livedocs verify`, this vault live. The engine and game land in Stages 1–10.
+**Stage 1 (Simulator core) — done.** Deterministic integer-clock, whole-node discrete-event
+simulator with FIFO + shortest-first, scoring (metrics + 0..1000 score), seeded synthetic trace
+generators, `dojo run`, golden-trajectory + hardening tests (74 passing). Reviewed (correctness +
+adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-dojo ; CI green.
 
 ## The plan (stage ladder)
 
 | Stage | Deliverable | State |
 |---|---|---|
 | 0 | Bootstrap: repo, package, CI, vault, Determinism note | ✅ done |
-| 1 | Simulator core (headless): events/cluster/jobs, scoring, trace generators, FIFO + shortest-first, `dojo run` | next |
+| 1 | Simulator core (headless): events/cluster/jobs, scoring, trace generators, FIFO + shortest-first, `dojo run` | ✅ done |
 | 2 | Kata language: spec → lexer/parser/AST, interpreter + step budget + builtins, formatter, `dojo kata check` | planned |
 | 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | planned |
 | 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | planned |
@@ -47,7 +49,10 @@ running `pytest` + `livedocs verify`, this vault live. The engine and game land 
 
 ## Deferred
 
-(empty — nothing deferred yet; will fill as decisions are made)
+- **O(n²) FIFO rescan on over-subscribed loads**: non-blocking FIFO rescans the whole queue each
+  decision; an over-subscribed (util > 1) load has an unbounded backlog and is slow. Levels are
+  provisioned to util < 1 so it does not bite; revisit with an incrementally-maintained free-set
+  before Stage 7's endless mode if a level ever runs hot. See [[Decision Log]].
 
 ## Decisions a human should review
 

@@ -1,0 +1,38 @@
+{
+  "1:fifo": {
+    "end_time": 21792,
+    "n_jobs": 120,
+    "node_seconds_busy": 84996,
+    "trajectory_hash": "1df7f321bb4893247e6dbffd3abaae2070a7d9497341fa2565c5fc72b9080193"
+  },
+  "1:shortest_first": {
+    "end_time": 22250,
+    "n_jobs": 120,
+    "node_seconds_busy": 84996,
+    "trajectory_hash": "04512fb5a3c2668eaed35446b2a47ad1086d7c1a1e23bdae974e1d56cd0fa364"
+  },
+  "2:fifo": {
+    "end_time": 22589,
+    "n_jobs": 120,
+    "node_seconds_busy": 88101,
+    "trajectory_hash": "012a3b3cb38aec62154778e88b333084f222bcb99aae4495c44ccf26c577e64d"
+  },
+  "2:shortest_first": {
+    "end_time": 22815,
+    "n_jobs": 120,
+    "node_seconds_busy": 88101,
+    "trajectory_hash": "5d28ed76dcaaf08bdd7b70923ec19f80f99db87bdb64e8e78cb25abb429fb9cf"
+  },
+  "3:fifo": {
+    "end_time": 25028,
+    "n_jobs": 120,
+    "node_seconds_busy": 97579,
+    "trajectory_hash": "32c7e15dddfca38f75bd1e7b4dd0f7b77a9c56be68d9c480f0361e07f1337586"
+  },
+  "3:shortest_first": {
+    "end_time": 25936,
+    "n_jobs": 120,
+    "node_seconds_busy": 97579,
+    "trajectory_hash": "717435a9b295b031555837c7effa6ac5b3f36586088c6d52c613e8d2d4485168"
+  }
+}

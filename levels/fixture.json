@@ -1,0 +1,25 @@
+{
+  "title": "Stage 1 fixture",
+  "duration": 200000,
+  "cluster": {
+    "partition": "batch",
+    "nodes": [
+      {"id": "n0", "cpus": 8, "mem": 32},
+      {"id": "n1", "cpus": 8, "mem": 32},
+      {"id": "n2", "cpus": 8, "mem": 32},
+      {"id": "n3", "cpus": 8, "mem": 32}
+    ]
+  },
+  "generator": {
+    "n_jobs": 120,
+    "users": [
+      {"name": "alice", "weight": 3.0},
+      {"name": "bob", "weight": 2.0},
+      {"name": "carol", "weight": 1.0}
+    ],
+    "arrival": {"type": "poisson", "rate_per_hour": 60},
+    "nodes": {"type": "discrete", "choices": [[1, 0.8], [2, 0.15], [4, 0.05]]},
+    "walltime": {"type": "lognormal", "median": 900, "sigma": 0.6},
+    "runtime_ratio": {"type": "lognormal", "median": 0.5, "sigma": 0.7}
+  }
+}
