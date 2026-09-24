@@ -10,7 +10,7 @@
 (malformed level definition — Stage 3, codes `level_schema`/`level_metric`/`level_bars`),
 `DeterminismError`
 (internal invariant violated, should never fire). Module-level code constants: `UNKNOWN_JOB`,
-`ALREADY_RUNNING`, `DEPS_UNMET`, `NO_NODES`, `MISMATCH`, `PAST_TIME`.
+`ALREADY_RUNNING`, `DEPS_UNMET`, `NO_NODES`, `MISMATCH`, `PAST_TIME`, `NOT_RUNNING`.
 
 ## How it works
 

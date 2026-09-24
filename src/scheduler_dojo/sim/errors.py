@@ -41,6 +41,7 @@ DEPS_UNMET = "deps_unmet"
 NO_NODES = "no_nodes"
 MISMATCH = "mismatch"
 PAST_TIME = "past_time"
+NOT_RUNNING = "not_running"
 
 # Level-definition error codes (spec Stage 3).
 LEVEL_SCHEMA = "level_schema"

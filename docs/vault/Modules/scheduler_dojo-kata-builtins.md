@@ -17,6 +17,9 @@ kata value to a Python sort key; `truth(x)`, `_plain(v)` normalize for operators
 - **Tiers** (`TIERS`) gate builtins and gated fields: calling a locked builtin → `slot_locked`;
   reading a gated field like `job.actual_runtime` → `sensor_locked`. `check_builtin(name, nargs,
   line)` enforces arity (`ARITY`) and unlock before dispatch.
+- **`preempt(job)` is live** (Stage 8): once the `preempt` tier unlocks, `bi_preempt` calls
+  `ctx.preempt` → `Scheduler.preempt` (real requeue, stale-`FINISH` guarded); the engine rejects a
+  non-running target with `not_running`. `route`/`transfer_cost` remain stubs until the multi-site level.
 - **Determinism of the views**: `queue()` is a **stable** `sorted` of the id-ordered `ctx.queued`
   under the decision's `order_key` (installed from the `order` module), so ties keep job-id order;
   `nodes()`/`running()`/`free_nodes()` are in defined order. This is what makes a kata's decisions

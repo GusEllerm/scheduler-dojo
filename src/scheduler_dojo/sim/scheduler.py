@@ -81,6 +81,10 @@ class PolicyContext:
     def place(self, job: Job | str, nodes: list[str] | None = None) -> Job:
         return self._sched.place(job, nodes, self.now)
 
+    def preempt(self, job: Job | str) -> Job:
+        """Preempt a running job now (free its nodes, requeue it). Requires the `preempt` tier in a kata."""
+        return self._sched.preempt(job, self.now)
+
 
 @dataclass
 class RunResult:
@@ -191,9 +195,29 @@ class Scheduler:
         j.state = JobState.RUNNING
         j.start_time = t
         j.placed_nodes = tuple(sorted(chosen))
+        j.run_epoch += 1  # invalidates any FINISH from a prior (preempted) placement
         self.queued.discard(j.id)
         self.running[j.id] = j
-        self._events.add(t + run, EventKind.FINISH, j.id)
+        self._events.add(t + run, EventKind.FINISH, f"{j.id}#{j.run_epoch}")
+        return j
+
+    def preempt(self, job: Job | str, t: int) -> Job:
+        """Preempt a running job: free its nodes now and return it to the queue (no checkpoint — it
+        must be re-placed from the start). Invalidates its pending FINISH via `run_epoch`. The engine
+        validates the target; a policy uses this only when the `preempt` tier is unlocked."""
+        j = self.by_id[job] if isinstance(job, str) else job
+        if j.state != JobState.RUNNING:
+            raise errors.PolicyError(f"job {j.id} is not running", code=errors.NOT_RUNNING)
+        for nid in j.placed_nodes:
+            self.cluster.node(nid).release(j.id)
+        self.busy_node_slots -= len(j.placed_nodes)
+        self.running.pop(j.id, None)
+        j.run_epoch += 1  # its scheduled FINISH event is now stale
+        j.state = JobState.QUEUED
+        j.start_time = None
+        j.placed_nodes = ()
+        j.preempt_count += 1
+        self.queued.add(j.id)
         return j
 
     # --- loop ---
@@ -203,7 +227,11 @@ class Scheduler:
             if job.state == JobState.QUEUED:
                 self.queued.add(job.id)
         elif ev.kind == EventKind.FINISH:
-            job = self.running.pop(ev.key)
+            jid, _, epoch = str(ev.key).partition("#")
+            job = self.running.get(jid)
+            if job is None or (epoch and int(epoch) != job.run_epoch):
+                return  # stale FINISH (job was preempted/re-run) — ignore
+            self.running.pop(jid)
             job.end_time = self.now
             job.state = (
                 JobState.TIMEOUT if job.actual_runtime > job.walltime_req

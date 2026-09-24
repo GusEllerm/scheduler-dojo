@@ -49,6 +49,8 @@ class Job:
     start_time: int | None = None
     end_time: int | None = None
     placed_nodes: tuple[str, ...] = ()
+    run_epoch: int = 0        # bumped on every (re)place/preempt; stale FINISH events carry an old epoch
+    preempt_count: int = 0    # how many times this job has been preempted (livelock guard signal)
 
     # Derived quantities used by scoring; None until the job has run.
     @property

@@ -440,7 +440,8 @@ class Env:
 
     # --- preempt / route tiers (stubs until their levels land) -------------------------
     def bi_preempt(self, job):
-        raise PolicyError("preemption lands in a later level", code="slot_locked")
+        self.ctx.preempt(_job_of(job))
+        return True
 
     def bi_route(self, job, site):
         raise PolicyError("multi-site routing lands in a later level", code="slot_locked")

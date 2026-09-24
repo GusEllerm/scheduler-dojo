@@ -18,7 +18,8 @@ is whole-node: it occupies `nodes_req` whole nodes for `runtime_used` seconds.
 - `Job.id` is a stable string and the deterministic sort tiebreaker everywhere downstream — it is
   assigned by the trace generator after sorting by `(submit_time, index)`.
 - Fields `state`/`start_time`/`end_time`/`placed_nodes` are runtime state the scheduler mutates;
-  the rest are immutable inputs.
+  `run_epoch` (bumped on every place/preempt, to invalidate stale `FINISH` events) and `preempt_count`
+  (a livelock-guard signal) are likewise scheduler-owned. The rest are immutable inputs.
 
 ## Depends on / used by
 

@@ -19,8 +19,13 @@ for animated playback in the browser). `fifo`, `shortest_first`, and `idle`
 
 - **Whole-node placement:** `place` allocates each chosen node for `[t, t + runtime_used)`
   where `runtime_used = max(1, min(actual_runtime, walltime_req))`, marks the job `RUNNING`,
-  and schedules a `FINISH`. Nodes free themselves by interval expiry (no explicit free step),
-  so `first_fit`/backfill see future frees.
+  bumps its `run_epoch`, and schedules a `FINISH` keyed `id#epoch`. Nodes free themselves by interval
+  expiry (no explicit free step), so `first_fit`/backfill see future frees.
+- **Preemption:** `preempt(job, t)` (the Stage-8 primitive; the kata `preempt` builtin calls it once
+  the `preempt` tier is unlocked) releases the running job's nodes, returns it to `QUEUED` with no
+  checkpoint (it re-runs in full), and bumps `run_epoch` and `preempt_count`. The `FINISH` handler
+  ignores any event whose `#epoch` does not equal the job's current `run_epoch`, so a preempted
+  placement's stale `FINISH` can never finish a re-run job early. A non-running target raises `NOT_RUNNING`.
 - **Validation → `PolicyError`:** `place` raises a structured `PolicyError` with a stable `code`
   (`UNKNOWN_JOB`, `ALREADY_RUNNING`, `DEPS_UNMET`, `NO_NODES`, `MISMATCH`) instead of crashing.
   Deps are enforced by the *engine* even if a policy ignores them.
