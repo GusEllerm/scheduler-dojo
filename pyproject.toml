@@ -1,0 +1,17 @@
+[project]
+name = "scheduler-dojo"
+version = "0.1.0"
+description = "Be the scheduler. Then automate yourself out of the job."
+readme = "README.md"
+authors = [
+    { name = "Gus Ellerm", email = "ellermaugustus@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+dojo = "scheduler_dojo.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.10.4,<0.11.0"]
+build-backend = "uv_build"
