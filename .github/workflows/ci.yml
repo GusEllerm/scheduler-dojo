@@ -19,10 +19,12 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
-      - name: Install drift (fingerprinter, public installer)
+      - name: Install drift (fingerprinter, pinned to the version that wrote drift.lock)
         run: |
-          curl -fsSL https://drift.fp.dev/install.sh | sh
+          curl -fsSL https://drift.fp.dev/install.sh | sh -s -- --version "$DRIFT_VERSION"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        env:
+          DRIFT_VERSION: v0.10.1
 
       - name: Install livedocs (docs gate, PyPI)
         run: uv tool install livedocs

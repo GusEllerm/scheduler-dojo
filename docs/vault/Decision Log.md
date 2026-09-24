@@ -20,14 +20,21 @@ language features to Pyodide's bundled CPython minor (see [[Determinism]]). Alte
 
 ## 2026-09-24 — CI installs drift (public installer) + livedocs (PyPI) `[agent decision]`
 
-`ci.yml` installs the `drift` fingerprinter from `https://drift.fp.dev/install.sh` (public,
-installs to `~/.local/bin`) and `livedocs` from PyPI (`uv tool install livedocs`, stdlib-only).
+`ci.yml` installs the `drift` fingerprinter from `https://drift.fp.dev/install.sh` (**pinned to
+`v0.10.1`** via `--version`) and `livedocs` from PyPI (`uv tool install livedocs`, stdlib-only).
 The brief first suggested a git install from `GusEllerm/vault-drift`, but that repo is **private**,
 so the Actions runner's token cannot fetch it (`could not read Username … terminal prompts
 disabled`). Making it public or adding a PAT secret are account/security changes only a human
-should make, so we switched to the public sources instead. Pin a version (drift via `--install-dir`,
-livedocs `==<ver>`) if a future release changes the stamp/hash format — note the local dev install is
-an editable checkout, so its subcommand surface must stay compatible with the pinned PyPI version.
+should make, so we switched to the public sources instead.
+
+**Why pin drift:** `drift.lock` stores content fingerprints written by a specific drift build; CI's
+`livedocs verify` recomputes them and fails if a file-level fingerprint drifts. The unpinned
+installer default (`stable`) produced different fingerprints than the local build that wrote
+`drift.lock` — CI reported 12 notes CHANGED (all *benign*, members unchanged) where a clean local
+checkout of the same commit reported fresh. Pinning drift to the version that generated `drift.lock`
+makes the two agree. **If CI ever goes back to `changed 12`,** drift's fingerprint is build-sensitive
+in a way beyond version — regenerate `drift.lock` on CI or upgrade both sides together. Keep the
+drift pin and the local drift build in lockstep with `drift.lock`.
 
 ## 2026-09-24 — Whole-node allocation model `[agent decision]`
 
