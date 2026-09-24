@@ -11,7 +11,8 @@ keyword (dict) args, wrapping any exception as `{"error": {"code", "message"}}` 
 kata is a message the UI shows, never a throw across the boundary. Functions: `ping`, `version`, `run`,
 `start`/`step_n`/`step_until`/`step_result` (interactive stepping), `hand_start`/`hand_place`/
 `hand_tick`/`hand_result` (hand placement, Stage 5), `progression_view`/`_completion`/`_buy`/`_drift`
-(belts/credits/upgrades, Stage 7), `check_kata`.
+(belts/credits/upgrades, Stage 7), `share_encode`/`share_replay` (tamper-evident share cards, Stage 9),
+`check_kata`.
 
 `run(level, seed=, policy=, kata=)` validates, runs, and returns a JSON-safe summary: `nodes`, `jobs`
 (id/user/nodes/submit/start/end/runtime/state), `metrics`, `score`, `trajectory_hash`, `end_time`,

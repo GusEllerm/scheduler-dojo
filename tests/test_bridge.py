@@ -12,6 +12,7 @@ from scheduler_dojo import bridge
 
 ROOT = Path(__file__).resolve().parent.parent
 LEVEL1 = json.loads((ROOT / "levels" / "level1.json").read_text())
+LEVEL2 = json.loads((ROOT / "levels" / "level2.json").read_text())
 
 
 def test_version_and_ping():
@@ -156,3 +157,22 @@ def test_dispatch_progression_round_trip():
     view = bridge.dispatch("progression_view", {"state": st})["result"]
     assert "reserve" in view["unlocked"] and view["credits"] == 140
     assert bridge.dispatch("progression_buy", {"state": st, "upgrade_id": "nope"})["error"]["code"]
+
+
+def test_share_encode_replay_roundtrip():
+    REF = (ROOT / "levels" / "reference_katas" / "shortest_first.kata").read_text()
+    enc = bridge.dispatch("share_encode", {"level": LEVEL2, "kata": REF})["result"]
+    assert enc["payload"].startswith("#c=") and enc["hash"]
+    rep = bridge.dispatch("share_replay", {"payload": enc["payload"]})["result"]
+    assert rep["ok"] is True and rep["trajectory_hash"] == enc["hash"]
+
+
+def test_share_replay_detects_tamper():
+    from scheduler_dojo.share.card import _b64url_encode, decode_card
+
+    REF = (ROOT / "levels" / "reference_katas" / "shortest_first.kata").read_text()
+    enc = bridge.dispatch("share_encode", {"level": LEVEL2, "kata": REF})["result"]
+    card = decode_card(enc["payload"])
+    card["kata"] = "order by t:\n  key = job.submit_time\n"   # different run, same hash
+    rep = bridge.dispatch("share_replay", {"payload": "#c=" + _b64url_encode(card)})["result"]
+    assert rep["ok"] is False

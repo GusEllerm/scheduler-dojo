@@ -302,6 +302,34 @@ def progression_drift(state: dict, *, now: int) -> dict:
     return prog.apply_drift(_ensure_state(state), now=now)
 
 
+# --- share cards (Stage 9: mint + verify a replayable, tamper-evident card) ------
+
+
+def share_encode(level: Any, seed: int | None = None, policy: str = "fifo",
+                 kata: Any | None = None, level_id: str | None = None) -> dict:
+    """Run then mint a share card. Pass the inline `level` dict (a sandbox run) or a `level_id`
+    (a shipped puzzle the browser already has). Returns {payload, hash} — the payload is the URL."""
+    from scheduler_dojo.share.card import encode_card
+
+    if level is not None:
+        lvl = _coerce_level(level)
+        result = run_level(lvl, seed=seed, policy=policy, kata=kata)
+        sid = seed if seed is not None else int(lvl.get("seed", 0))
+        payload = encode_card(level=lvl, seed=sid, policy=policy, kata=kata, result=result)
+    else:
+        payload = encode_card(level_id=level_id, seed=int(seed or 0), policy=policy, kata=kata)
+    from scheduler_dojo.share.card import decode_card
+
+    return {"payload": payload, "hash": decode_card(payload).get("hash")}
+
+
+def share_replay(payload: str, level: Any | None = None) -> dict:
+    """Replay a card payload and check its hash. `level` is required only for a level_id card."""
+    from scheduler_dojo.share.card import replay_card
+
+    return replay_card(payload, level=_coerce_level(level) if level is not None else None)
+
+
 
 # --- dispatch (the worker's `{id, call, args}` protocol) ------------------------
 
@@ -313,6 +341,7 @@ _DISPATCH = {
     "hand_result": hand_result,
     "progression_view": progression_view, "progression_completion": progression_completion,
     "progression_buy": progression_buy, "progression_drift": progression_drift,
+    "share_encode": share_encode, "share_replay": share_replay,
 }
 
 

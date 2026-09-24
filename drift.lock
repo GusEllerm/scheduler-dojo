@@ -378,7 +378,7 @@ sig = "8e781e03d7ff75e3"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/bridge.py"
-sig = "dd5ab2f20dfcddff"
+sig = "abea933c93a9593c"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -429,6 +429,16 @@ sig = "8c03d718ab41256d"
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/bridge.py#run"
 sig = "593658e158d08307"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#share_encode"
+sig = "fdd1925a1b8a917b"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#share_replay"
+sig = "8ebcd406eb2b54eb"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
