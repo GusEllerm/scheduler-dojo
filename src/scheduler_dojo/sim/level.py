@@ -59,14 +59,54 @@ def load_jobs(level: dict[str, Any], seed: int) -> list[Job]:
     return generate_jobs(gen, seed, horizon=horizon)
 
 
-def run_level(level: dict[str, Any], *, seed: int, policy: str = "fifo") -> RunResult:
-    if policy not in POLICIES:
-        raise ValueError(f"unknown policy {policy!r}; have {sorted(POLICIES)}")
+def run_level(level: dict[str, Any], *, seed: int, policy: str = "fifo",
+              kata: str | Path | None = None) -> RunResult:
+    """Run a level with a built-in `policy`, or with a `kata` (source string or path).
+
+    When `kata` is given, the level's `unlocks` list gates which Kata slots/builtins are enabled,
+    and the policy is a ``scheduler_dojo.kata.KataPolicy`` over the parsed program (with the
+    built-in `policy` as its per-decision fallback).
+    """
     cluster = build_cluster(level["cluster"])
     jobs = load_jobs(level, seed)
-    sched = Scheduler(cluster, jobs, POLICIES[policy])
+    if kata is not None:
+        from scheduler_dojo.kata import parse
+        from scheduler_dojo.kata.policy import KataPolicy
+
+        src = _kata_source(kata)
+        program = parse(src)
+        unlocked = frozenset(level.get("unlocks", ["core"]))
+        active: Any = KataPolicy(program, unlocked=unlocked)
+    else:
+        if policy not in POLICIES:
+            raise ValueError(f"unknown policy {policy!r}; have {sorted(POLICIES)}")
+        active = POLICIES[policy]
+    sched = Scheduler(cluster, jobs, active)
     duration = level.get("duration")
     return sched.run(until=duration)
+
+
+def fifo_policy():
+    from scheduler_dojo.sim.scheduler import fifo
+
+    return fifo
+
+
+def _kata_source(kata: str | Path) -> str:
+    """Resolve a kata argument to source text: a readable path wins, otherwise it is literal source.
+
+    A path test on a multi-line program string can raise `OSError` (name too long) or be ambiguous,
+    so only treat `kata` as a path when it looks like one (single line, no newline, reasonable length).
+    """
+    text = str(kata)
+    if "\n" not in text and len(text) <= 512:
+        try:
+            p = Path(text)
+            if p.exists():
+                return p.read_text()
+        except OSError:
+            pass
+    return text
 
 
 def load_level_file(path: str | Path) -> dict[str, Any]:

@@ -187,6 +187,38 @@ def test_poisson_schedule_golden():
     assert digest == GOLDEN_HASH
 
 
+def test_bad_spec_raises_before_any_draw():
+    # NaN/inf/unknown kinds are rejected with a clear ValueError, not a downstream crash.
+    import math
+
+    bad = [
+        {"n_jobs": 5, "arrival": {"type": "step"}},
+        {"n_jobs": 5, "arrival": {"rate_per_hour": math.inf}},
+        {"n_jobs": 5, "arrival": {"rate_per_hour": -1}},
+        {"n_jobs": math.nan},
+        {"n_jobs": 5, "users": [{"name": "a", "weight": math.nan}]},
+        {"n_jobs": 5, "users": [{"name": "a", "weight": 0}]},
+        {"n_jobs": 5, "nodes": {"type": "discrete", "choices": []}},
+        {"n_jobs": 5, "nodes": {"type": "discrete", "choices": [[1, math.inf]]}},
+        {"n_jobs": 5, "nodes": {"type": "discrete", "choices": [[1, -0.5]]}},
+        {"n_jobs": 5, "nodes": {"type": "discrete", "choices": [[1, 0.0]]}},
+        {"n_jobs": 5, "nodes": {"type": "normal", "value": 2}},
+        {"n_jobs": 5, "walltime": {"type": "lognormal", "median": math.inf}},
+        {"n_jobs": 5, "walltime": {"type": "lognormal", "median": 0}},
+        {"n_jobs": 5, "walltime": {"type": "lognormal", "median": 60, "sigma": float("nan")}},
+        {"n_jobs": 5, "walltime": {"type": "uniform"}},
+        {"n_jobs": 5, "runtime_ratio": {"type": "lognormal", "median": math.nan}},
+        {"n_jobs": 5, "runtime_ratio": {"type": "uniform"}},
+    ]
+    for spec in bad:
+        try:
+            generate_jobs(spec, 1)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"expected ValueError for {spec}")
+
+
 def test_sacct_import_is_a_stage8_stub():
     try:
         import_sacct_csv("nope.csv")

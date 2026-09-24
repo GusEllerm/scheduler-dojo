@@ -6,10 +6,12 @@
 
 ## What it does
 
-`main(argv)` builds an argparse parser with a `--version` flag and a `run` subcommand
-(`--level <json> | --level-json`, `--seed`, `--policy fifo|shortest_first`) that prints a JSON
+`main(argv)` builds an argparse parser with a `--version` flag, a `run` subcommand
+(`--level <json> | --level-json`, `--seed`, `--policy fifo|shortest_first`, `--kata <file>`), and a
+`kata` subcommand (`check | format | run` over a kata file or `-` for stdin). `run` prints a JSON
 summary: `n_jobs`, `end_time`, `node_seconds_busy`, `metrics`, `trajectory_hash`, and — when the
-level declares them — a normalized `score`.
+level declares them — a normalized `score`. `_cmd_run` and `_cmd_kata` are the handlers; `kata check`
+prints a caret report and exits 2 on an unreadable file rather than a traceback.
 
 ## How it works
 
@@ -19,5 +21,5 @@ engine imports exist. It adds no logic of its own; every number is whatever `run
 
 ## Depends on / used by
 
-Uses `scheduler_dojo.sim` (level, scoring, trajectory). The entry point `dojo =
-scheduler_dojo.cli:main` is declared in `pyproject.toml`.
+Uses `scheduler_dojo.sim` (level, scoring, trajectory) and `scheduler_dojo.kata` (parse/format/check,
+KataPolicy). The entry point `dojo = scheduler_dojo.cli:main` is declared in `pyproject.toml`.

@@ -8,9 +8,11 @@
 
 `build_cluster(spec)` accepts either the full `sites` topology or a `nodes` shorthand (one implicit
 site + partition). `load_jobs(level, seed)` delegates arrival generation to
-`sim.trace.generate_jobs`. `run_level(level, seed=, policy=)` builds, schedules with a named
-policy from `sim.scheduler.POLICIES`, and runs to the level's `duration`. `load_level_file` reads
-JSON.
+`sim.trace.generate_jobs`. `run_level(level, seed=, policy=, kata=)` builds, schedules — with a named
+policy from `sim.scheduler.POLICIES`, or a `KataPolicy` over the level's `unlocks` when `kata` is
+passed — and runs to the level's `duration`. `load_level_file` reads JSON; `_kata_source` resolves a
+kata argument to source text (a readable path vs literal source, guarding a multi-line program from
+being stat'd as a filename).
 
 ## How it works
 

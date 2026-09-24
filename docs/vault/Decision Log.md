@@ -89,3 +89,49 @@ and delegated the separable `scoring` and `trace` modules instead. Rationale: de
 of the event loop is worth more than parallelizing it, and a shared-vocabulary mismatch between
 builders would cost more than the speedup. Reviewers (one correctness, one adversarial) still
 reviewed the whole Stage-1 diff.
+
+## 2026-09-24 — Kata fills engine slots; silent slots use defaults `[agent decision]`
+
+Kata is a set of **slot modules** (`order`/`place`/`preempt`/`route`) the `Scheduler` consults at
+decision points, not a program that owns the loop. A missing slot falls back to the built-in default
+(FIFO order, first-fit place), so a one-line `order by shortest_first:` kata is already a complete,
+runnable policy. **Why:** this is the teaching gradient — level 2 is one line, and each level adds a
+slot/builtin — and it means the interpreter never has to reimplement placement. The `order` module's
+key is applied by `Env.queue()` so the `place` module sees the chosen order for the *same* decision
+(no order/place desync). See [[Kata]].
+
+## 2026-09-24 — reserve()/earliest_fit() record intent, don't touch the timeline `[agent decision]`
+
+`reserve(job, t)` validates `t >= now` and stores the intended start in a per-decision dict that
+`reservation_start(job)` reads back; it does **not** write a future-dated cluster allocation. A real
+reservation would occupy nodes and then block that same job's legal `place()` (the engine has no
+reservation→commit step yet), so committing now would break backfill. The spec's `backfill.kata` works
+unchanged against the intent model. **Revisit in Stage 3** when levels 3+ make reservations load-bearing
+(add an `Allocation` in the future and a commit-on-place path).
+
+## 2026-09-24 — Kata strings: literals only in equality against name-typed fields `[agent decision]`
+
+No general string type (would invite concatenation/prints/IO); but bare comparisons like
+`job.partition == "gpu"` are essential to real katas, so STRING literals are admitted **only** on the
+`==`/`!=` right side against a `name`/`partition`/`tags` field and are a `type` error everywhere else
+(store, arithmetic, non-name compare). Cheapest thing that keeps katas compact without widening the
+attack/determinism surface. See `spec.md` §4.
+
+## 2026-09-24 — `check()` lives on the `kata.check` submodule, not the package namespace `[agent decision]`
+
+Python sets a package attribute to a submodule on import, so a package-level `check` **function**
+would be shadowed by the `check.py` **module**. The checker is reached via `scheduler_dojo.kata.check`,
+and `kata/__init__.py` uses a lazy `importlib`-based `__getattr__` (so the package imports even while a
+sibling submodule is mid-build). Same reason `format` (submodule `formatter`) is safe but `check` is not.
+
+## 2026-09-24 — Stage 2 split + adversarial-review outcome `[agent decision]`
+
+Three builders on disjoint files (lexer+parser, interp+builtins+policy, formatter+check); I owned the
+contract (`ast.py`, `errors.py`, `spec.md`) and the CLI/level wiring. Adversarial review flagged two
+issues: (1) *real* — `dojo kata check <missing-file>` raised a raw traceback, violating "errors are
+teaching moments"; fixed to a clean `kata: cannot read …` + exit 2 with a regression test. (2) *false
+positive* — a claim that a bare-`Attribute` expression statement formatted to the empty string; it does
+round-trip (all `ExprStmt` node types verified to re-parse to an equal AST), so no change. Also fixed
+two of my own cross-cutting bugs found while integrating: `EngineError` now stores `self.message` (the
+frozen `caret()` needs it) and `run_level`'s source-vs-path detection no longer stats a multi-line
+program as a filename (OSError). 158 tests green.

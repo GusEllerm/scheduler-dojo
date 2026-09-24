@@ -26,9 +26,15 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
+**Stage 2 (Kata language) — done.** A small, safe, deterministic policy language: `lexer.py` +
+`parser.py` → AST, a tree-walking `interp.py` with a per-decision step budget, tier-gated `builtins.py`
+bound to the scheduler, `KataPolicy` (plugs into `Scheduler` with a clean FIFO fallback on any error),
+a canonical `formatter.py` (idempotent + round-trip), and `check.py`/`dojo kata check|format|run`.
+Reference katas beat FIFO; the step budget stops infinite loops without crashing. 158 tests passing.
+
 **Stage 1 (Simulator core) — done.** Deterministic integer-clock, whole-node discrete-event
 simulator with FIFO + shortest-first, scoring (metrics + 0..1000 score), seeded synthetic trace
-generators, `dojo run`, golden-trajectory + hardening tests (74 passing). Reviewed (correctness +
+generators, `dojo run`, golden-trajectory + hardening tests. Reviewed (correctness +
 adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-dojo ; CI green.
 
 ## The plan (stage ladder)
@@ -37,7 +43,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 |---|---|---|
 | 0 | Bootstrap: repo, package, CI, vault, Determinism note | ✅ done |
 | 1 | Simulator core (headless): events/cluster/jobs, scoring, trace generators, FIFO + shortest-first, `dojo run` | ✅ done |
-| 2 | Kata language: spec → lexer/parser/AST, interpreter + step budget + builtins, formatter, `dojo kata check` | planned |
+| 2 | Kata language: spec → lexer/parser/AST, interpreter + step budget + builtins, formatter, `dojo kata check` | ✅ done |
 | 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | planned |
 | 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | planned |
 | 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | planned |

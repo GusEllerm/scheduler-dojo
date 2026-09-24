@@ -1,0 +1,12 @@
+# Reference kata: reserve the head of the queue, backfill short jobs around it.
+# Teaches Level 3's starvation pain — a big job is reserved its slot so it stops
+# slipping, while short jobs backfill the gap and don't waste the reservation.
+
+place by easy_backfill:
+    head = first(queue())
+    if head != nil:
+        reserve(head, earliest_fit(head))
+        for j in rest(queue()):
+            if fits_now(j) and end_if_started_now(j) <= reservation_start(head):
+                place(j)
+        place(head)

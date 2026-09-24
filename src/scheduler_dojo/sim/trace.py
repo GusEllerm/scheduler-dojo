@@ -7,8 +7,9 @@ Determinism (see ``docs/vault/Concepts/Determinism.md``): one ``random.Random(se
 every draw and nothing else — no global ``random``, no wall clock. Per job the draws happen in
 a fixed order (arrival delta, then user, then nodes, then walltime, then runtime ratio), and
 ids are assigned after sorting by ``(submit_time, index)``, so the same spec + seed always
-produces byte-identical jobs. Only ``random`` is imported — exponentials are written as powers
-of the literal ``E`` so the module needs no ``math`` (no reliance on runtime-specific helpers).
+produces byte-identical jobs. Draws come only from that one ``Random`` (never the ``random``
+module functions, never ``random.seed``); ``math`` is used for ``isfinite`` input validation only
+— exponentials are powers of the literal ``E``, so no ``math.exp`` (runtime-portable).
 
 Spec keys and defaults (every sub-key optional)::
 
@@ -66,11 +67,11 @@ def generate_jobs(spec: dict[str, Any] | None, seed: int, *,
     arrival_type = str(arrival.get("type", "poisson"))
     if arrival_type not in ("poisson", "uniform"):
         raise ValueError(f"unknown arrival type {arrival_type!r} (want poisson|uniform)")
-    rate = float(arrival.get("rate_per_hour", DEFAULT_RATE_PER_HOUR))
+    rate = _finite(arrival.get("rate_per_hour", DEFAULT_RATE_PER_HOUR), "arrival.rate_per_hour")
     if arrival_type == "poisson" and rate <= 0:
         raise ValueError("arrival.rate_per_hour must be > 0")
-    first = int(arrival.get("first", DEFAULT_FIRST))
-    last = int(arrival.get("last", DEFAULT_LAST))
+    first = int(_finite(arrival.get("first", DEFAULT_FIRST), "arrival.first"))
+    last = int(_finite(arrival.get("last", DEFAULT_LAST), "arrival.last"))
 
     names, weights = _users(spec.get("users"))
 
@@ -85,6 +86,10 @@ def generate_jobs(spec: dict[str, Any] | None, seed: int, *,
     nodes_dist = _as_dict(spec.get("nodes"))
     wall_dist = _as_dict(spec.get("walltime"))
     ratio_dist = _as_dict(spec.get("runtime_ratio"))
+    # Validate the whole spec BEFORE any draw: a bad value raises up front, never mid-stream.
+    _validate_nodes(nodes_dist)
+    _validate_walltime(wall_dist)
+    _validate_ratio(ratio_dist)
 
     rows: list[tuple[int, str, int, int, int]] = []  # (submit, user, nodes, walltime, actual)
     total = 0.0
@@ -160,7 +165,7 @@ def _finite(value: Any, what: str) -> float:
 def _users(value: Any) -> tuple[list[str], list[float]]:
     items = list(value) if value else [{"name": "user0", "weight": 1.0}]
     names = [str(dict(u).get("name", f"user{k}")) for k, u in enumerate(items)]
-    weights = [float(dict(u).get("weight", 1.0)) for u in items]
+    weights = [_finite(dict(u).get("weight", 1.0), "users.weight") for u in items]
     if any(w < 0 for w in weights) or sum(weights) <= 0:
         raise ValueError("users weights must be non-negative and sum to > 0")
     return names, weights
@@ -176,6 +181,50 @@ def _weighted(rng: random.Random, names: list[str], weights: list[float]) -> str
         if r < acc:
             return name
     return names[-1]
+
+
+def _validate_nodes(dist: dict[str, Any]) -> None:
+    """Up-front check of a nodes block (no draws): unknown kinds, empty/bad choices."""
+    kind = str(dist.get("type", "fixed"))
+    if kind not in ("fixed", "discrete"):
+        raise ValueError(f"unknown nodes distribution type {kind!r} (want fixed|discrete)")
+    if "value" in dist:
+        _finite(dist["value"], "nodes.value")
+    if kind == "discrete":
+        choices = list(dist.get("choices", []))
+        if not choices:
+            raise ValueError("nodes choices must not be empty")
+        probs = []
+        for pair in choices:
+            nodes, prob = pair
+            _finite(nodes, "nodes.choices nodes")
+            probs.append(_finite(prob, "nodes.choices prob"))
+        if any(p < 0 for p in probs):
+            raise ValueError("nodes choice probabilities must be non-negative")
+        if sum(probs) <= 0:
+            raise ValueError("nodes choice probabilities must sum to > 0")
+
+
+def _validate_walltime(dist: dict[str, Any]) -> None:
+    kind = str(dist.get("type", "fixed"))
+    if kind not in ("fixed", "lognormal"):
+        raise ValueError(f"unknown walltime distribution type {kind!r} (want fixed|lognormal)")
+    for key in ("value", "median", "sigma"):
+        if key in dist:
+            _finite(dist[key], f"walltime.{key}")
+    if kind == "lognormal" and float(dist.get("median", DEFAULT_WALLTIME_MEDIAN)) <= 0:
+        raise ValueError("walltime.median must be > 0")
+
+
+def _validate_ratio(dist: dict[str, Any]) -> None:
+    kind = str(dist.get("type", "lognormal"))
+    if kind not in ("fixed", "lognormal"):
+        raise ValueError(f"unknown runtime_ratio type {kind!r} (want lognormal|fixed)")
+    for key in ("value", "median", "sigma"):
+        if key in dist:
+            _finite(dist[key], f"runtime_ratio.{key}")
+    if kind == "lognormal" and float(dist.get("median", DEFAULT_RATIO_MEDIAN)) <= 0:
+        raise ValueError("runtime_ratio.median must be > 0")
 
 
 def _nodes(rng: random.Random, dist: dict[str, Any]) -> int:

@@ -1,0 +1,6 @@
+# Reference kata: shortest walltime request first.
+# Teaches Level 2's "you cannot keep up by hand" — a one-line order key drains
+# short jobs first and crushes bounded slowdown versus plain FIFO.
+
+order by shortest_first:
+    key = (job.walltime_req, job.submit_time)

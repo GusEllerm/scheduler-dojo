@@ -13,6 +13,7 @@ class EngineError(Exception):
 
     def __init__(self, message: str, *, code: str, line: int | None = None) -> None:
         super().__init__(message)
+        self.message = message
         self.code = code
         self.line = line  # kata line number when the error came from a kata
 
