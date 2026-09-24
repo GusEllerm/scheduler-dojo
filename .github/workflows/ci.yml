@@ -26,8 +26,10 @@ jobs:
         env:
           DRIFT_VERSION: v0.10.1
 
-      - name: Install livedocs (docs gate, PyPI)
-        run: uv tool install livedocs
+      - name: Install livedocs (docs gate, PyPI, pinned to the project's Python 3.12)
+        # livedocs's astdiff.member_hash uses ast.dump, which is CPython-minor-sensitive; the
+        # stamps in drift.lock/stamps.jsonl are written under 3.12, so CI must verify on 3.12 too.
+        run: uv tool install --python 3.12 livedocs
 
       - name: Run tests
         run: uv run pytest

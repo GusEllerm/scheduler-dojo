@@ -27,14 +27,17 @@ so the Actions runner's token cannot fetch it (`could not read Username … term
 disabled`). Making it public or adding a PAT secret are account/security changes only a human
 should make, so we switched to the public sources instead.
 
-**Why pin drift:** `drift.lock` stores content fingerprints written by a specific drift build; CI's
-`livedocs verify` recomputes them and fails if a file-level fingerprint drifts. The unpinned
-installer default (`stable`) produced different fingerprints than the local build that wrote
-`drift.lock` — CI reported 12 notes CHANGED (all *benign*, members unchanged) where a clean local
-checkout of the same commit reported fresh. Pinning drift to the version that generated `drift.lock`
-makes the two agree. **If CI ever goes back to `changed 12`,** drift's fingerprint is build-sensitive
-in a way beyond version — regenerate `drift.lock` on CI or upgrade both sides together. Keep the
-drift pin and the local drift build in lockstep with `drift.lock`.
+**Why pin drift + why livedocs is pinned to Python 3.12:** CI initially reported all 12 code-mentioning
+notes CHANGED (all *benign*, members unchanged) where a clean local checkout reported fresh — the
+totals matched (23 notes, snapshot 6, unknown 5), only fresh→changed differed. `drift` was ruled out
+(it recomputes 0/96 non-fresh identically on macOS and Linux). The real cause: `livedocs` computes
+`astdiff.member_hash` via `ast.dump`, which is **CPython-minor-version-sensitive** — the same source
+hashed `4cf0419e…` on 3.12 vs `04d98fa8…` on 3.13. My stamps were written by a livedocs running on
+3.13 while CI ran livedocs on 3.12, so every symbol hash mismatched (but the symbol *signature*
+hashed equal → classified benign). Fix: run livedocs on the project's Python (**3.12**) in CI
+(`uv tool install --python 3.12 livedocs`) and re-stamp every note under 3.12. drift is also pinned to
+`v0.10.1` for hygiene. **Golden rule:** always run `livedocs` (stamping and verifying) under the same
+CPython minor the project targets, or the hashes diverge. See [[Determinism]].
 
 ## 2026-09-24 — Whole-node allocation model `[agent decision]`
 

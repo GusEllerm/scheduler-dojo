@@ -44,3 +44,11 @@ Every source of run-to-run variation is pinned:
 `bounded_slowdown` and `utilization` mix integer counts and float ratios. Keep the accumulation
 order fixed and avoid `math.fsum` unless every runtime has it (Pyodide does, but pin behaviour with
 a golden regardless).
+
+## Docs-gate caveat (not the engine, but determinism-adjacent)
+
+`livedocs`/`drift` bind notes to code via hashes. `livedocs`'s `astdiff.member_hash` uses `ast.dump`,
+which is **CPython-minor-version-sensitive**, so note stamps must be written and verified under the
+same CPython minor (this project pins that to **3.12**, matching the engine and Pyodide). Running the
+gate on a different minor (e.g. 3.13) re-hashes every symbol and makes `livedocs verify` report
+benign-CHANGED everywhere. See [[Decision Log]].
