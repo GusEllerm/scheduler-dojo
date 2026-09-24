@@ -71,6 +71,21 @@ target = "tests/goldens/levels.json"
 sig = "2183da87072a01af"
 
 [[bindings]]
+doc = "docs/vault/Concepts/Progression.md"
+target = "src/scheduler_dojo/progression.py#belt"
+sig = "5fe29fb4e3deccdc"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Progression.md"
+target = "src/scheduler_dojo/progression.py#unlocked_tiers"
+sig = "23677cc7591cff26"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Progression.md"
+target = "src/scheduler_dojo/sim/scoring.py#fairness"
+sig = "e8534d29c115e0c7"
+
+[[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
 target = "scripts/build_wheel.sh"
 sig = "d50429d7f2095511"
@@ -363,7 +378,12 @@ sig = "8e781e03d7ff75e3"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/bridge.py"
-sig = "f9802fce958fc8a2"
+sig = "dd5ab2f20dfcddff"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#_suggestions"
+sig = "c7dbb480a27dd253"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -377,8 +397,33 @@ sig = "06861949a637fb12"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#hand_place"
+sig = "3dd704dfe9d4a73a"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#hand_result"
+sig = "1e3a815e1592225b"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#hand_start"
+sig = "9c05fe7ede6ff0bb"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#hand_tick"
+sig = "dc81fbbf9409a828"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/bridge.py#ping"
 sig = "a221ff3989406c54"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#progression_view"
+sig = "8c03d718ab41256d"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -929,6 +974,81 @@ sig = "7f97687ceb8d22a4"
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
 target = "src/scheduler_dojo/sim/scheduler.py#fifo"
 sig = "6c88a909d3c715c7"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py"
+sig = "e4bb8263ef14c775"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#_migrate"
+sig = "2905919d3b8f2637"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#apply_completion"
+sig = "3a0e2c4d05f3ee2d"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#apply_drift"
+sig = "632c66bbebf82161"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#belt"
+sig = "5fe29fb4e3deccdc"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#buy"
+sig = "09a11b272073d2a5"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#can_buy"
+sig = "05606ebde089bdb7"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#new_state"
+sig = "ada180d1b8daeb6d"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#next_belt"
+sig = "0e87fbee7537433c"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#unlocked_tiers"
+sig = "23677cc7591cff26"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "src/scheduler_dojo/share/card.py"
+sig = "c99c46ed1ba252ea"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "src/scheduler_dojo/share/card.py#decode_card"
+sig = "26df57c57f9343bc"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "src/scheduler_dojo/share/card.py#encode_card"
+sig = "cb4f710672e5947d"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "src/scheduler_dojo/share/card.py#replay_card"
+sig = "547c8ce9823556a9"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "src/scheduler_dojo/sim/trajectory.py#trajectory_hash"
+sig = "2728adb840ec72c5"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-cluster.md"

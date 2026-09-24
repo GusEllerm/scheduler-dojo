@@ -96,3 +96,63 @@ def test_dispatch_wraps_errors():
 def test_dispatch_positional_and_kwargs():
     assert bridge.dispatch("run", [LEVEL1, None, "idle"])["result"]["score"] == 300
     assert bridge.dispatch("ping")["result"]["ok"] is True
+
+
+# --- hand placement (Stage 5) ---------------------------------------------------
+
+
+def _play_by_hand(level):
+    h = bridge.hand_start(level)["handle"]
+    for _ in range(2000):
+        st = bridge._snapshot(bridge._SESSIONS[h])
+        for jid in list(st["queued"]):
+            bridge.hand_place(h, jid)
+        if bridge.hand_tick(h)["done"]:
+            break
+    return bridge.hand_result(h)
+
+
+def test_hand_start_returns_nodes_and_suggestions():
+    out = bridge.hand_start(LEVEL1)
+    assert "nodes" in out and "suggestions" in out and "handle" in out
+
+
+def test_hand_suggestions_do_not_mutate():
+    h = bridge.hand_start(LEVEL1)["handle"]
+    before = bridge._snapshot(bridge._SESSIONS[h])
+    bridge._suggestions(bridge._SESSIONS[h])
+    assert bridge._snapshot(bridge._SESSIONS[h]) == before
+
+
+def test_hand_placement_completes_deterministically():
+    r = _play_by_hand(LEVEL1)
+    states = {j["state"] for j in r["jobs"]}
+    assert states <= {"done", "timeout"} and "unfinished" not in states
+    # A hand run equals the deterministic reference run for the same placements.
+    assert r["trajectory_hash"] == _play_by_hand(LEVEL1)["trajectory_hash"]
+    assert r["metrics"]["utilization"] > 0.3
+
+
+def test_hand_place_surfaces_errors_without_crashing():
+    h = bridge.hand_start(LEVEL1)["handle"]
+    # Place a job on too many nodes -> engine error, run stays alive.
+    out = bridge.hand_place(h, "0", ["n0", "n1", "n2", "n3"])  # most jobs want 1 node
+    assert out["ok"] is False and "error" in out
+    assert bridge.hand_tick(h) is not None  # still steppable
+
+
+def test_dispatch_reaches_hand_api():
+    assert bridge.dispatch("hand_start", {"level": LEVEL1})["result"]["nodes"]
+
+
+def test_dispatch_progression_round_trip():
+    st = bridge.dispatch("progression_completion",
+                         {"state": None, "level_id": "level1", "score": 800, "seed": 1})["result"]
+    assert st["credits"] == 105  # 80 + gold bonus
+    st["credits"] = 200
+    st["lifetime"] = 200
+    st = bridge.dispatch("progression_buy", {"state": st, "upgrade_id": "reserve"})["result"]
+    assert st["credits"] == 140
+    view = bridge.dispatch("progression_view", {"state": st})["result"]
+    assert "reserve" in view["unlocked"] and view["credits"] == 140
+    assert bridge.dispatch("progression_buy", {"state": st, "upgrade_id": "nope"})["error"]["code"]

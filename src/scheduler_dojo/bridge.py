@@ -166,12 +166,153 @@ def check_kata(kata: Any) -> dict:
     return {"ok": report.ok, "errors": report.errors}
 
 
+# --- hand placement (§ stage 5: levels 1-2 are played by hand) ------------------
+
+
+def hand_start(level: Any, seed: int | None = None) -> dict:
+    """Start a *manual* run: nothing auto-places; the player places jobs via `hand_place`/`hand_tick`.
+
+    The scheduler runs under a manual policy (a no-op), so a decision never places unless the player
+    does — the engine still validates every action. The `suggestions` field shows what FIFO would do
+    (a hint the UI can optionally show).
+    """
+    lvl = _coerce_level(level)
+    validate_level(lvl)
+    sseed = seed if seed is not None else int(lvl.get("seed", 0))
+    jobs = load_jobs(lvl, sseed)
+    sched = Scheduler(build_cluster(lvl["cluster"]), jobs, _manual)
+    handle = _NEXT_HANDLE[0]
+    _NEXT_HANDLE[0] += 1
+    _SESSIONS[handle] = sched
+    sched.step_events(1)  # process the t=min-submit arrivals so there is a queue to act on
+    return {"handle": handle, "state": _snapshot(sched),
+            "suggestions": _suggestions(sched), "nodes": _nodes_json(sched.cluster)}
+
+
+def _manual(ctx) -> None:
+    """Manual policy: place nothing automatically (the player drives placement via the bridge)."""
+    return None
+
+
+def _suggestions(sched: Scheduler) -> dict:
+    """What FIFO *would* place now (job id -> node ids) — a read-only hint, it never mutates state.
+
+    Uses `Cluster.first_fit` at `sched.now` (no allocation) and tracks claimed nodes so the hint does
+    not double-book the same node across two jobs.
+    """
+    from scheduler_dojo.sim.scheduler import PolicyContext, runtime_used
+
+    ctx = PolicyContext(sched)
+    cluster = sched.cluster
+    claimed: set[str] = set()
+    out: dict[str, list[str]] = {}
+    if not ctx.has_free_node():
+        return out
+    for job in sorted(ctx.queued, key=lambda j: (j.submit_time, j.id)):
+        if not ctx._deps_done(job):
+            continue
+        fit = cluster.first_fit(job.nodes_req, sched.now, runtime_used(job),
+                                partition=job.partition, cpus=job.cpus_req, mem=job.mem_req,
+                                gpus=job.gpus_req, tags=job.tags)
+        if fit is None:
+            continue
+        ids = [n.id for n in fit]
+        if any(nid in claimed for nid in ids):
+            continue
+        for nid in ids:
+            claimed.add(nid)
+        out[job.id] = ids
+    return out
+
+
+def hand_place(handle: int, job_id: str, nodes: list[str] | None = None) -> dict:
+    """Place one job by hand at the current time; the engine validates and either runs it or errors."""
+    sched = _SESSIONS[handle]
+    from scheduler_dojo.sim.scheduler import PolicyContext
+
+    try:
+        ctx = PolicyContext(sched)
+        ctx.place(job_id, nodes)
+        return {"ok": True, "state": _snapshot(sched)}
+    except Exception as exc:  # surface the teaching error to the UI, keep the run alive
+        code = getattr(exc, "code", type(exc).__name__)
+        return {"ok": False, "error": {"code": code, "message": str(exc)},
+                "state": _snapshot(sched)}
+
+
+def hand_tick(handle: int, until: int | None = None) -> dict:
+    """Advance the manual run's clock to the next arrival/finish (or to `until`) without placing.
+
+    Returns the new state plus `suggestions`. Placement decisions made since the last tick stand."""
+    sched = _SESSIONS[handle]
+    if until is None:
+        sched.step_events(1)  # one timestamp batch (arrivals/frees), manual policy places nothing
+    else:
+        sched.run_until(until)
+    return {"state": _snapshot(sched), "suggestions": _suggestions(sched),
+            "done": bool(getattr(sched, "_finished", False))}
+
+
+def hand_result(handle: int) -> dict:
+    """Finish the manual run and return metrics/score/hash (identical determinism to any run)."""
+    return step_result(handle)
+
+
+# --- progression (Stage 7: belts, credits, upgrades, offline drift) ------------
+
+
+def progression_view(state: dict | None = None, *, now: int = 0) -> dict:
+    """A read-only snapshot for the HUD: belt, next belt, credits, upgrades + what is buyable."""
+    from scheduler_dojo import progression as prog
+
+    st = prog._migrate(state if state is not None else prog.new_state(now=now))
+    return {
+        "belt": prog.belt(st.get("lifetime", st.get("credits", 0))),
+        "next_belt": list(prog.next_belt(st.get("lifetime", 0))) if prog.next_belt(st.get("lifetime", 0)) else None,
+        "credits": st.get("credits", 0),
+        "lifetime": st.get("lifetime", 0),
+        "unlocked": sorted(prog.unlocked_tiers(st)),
+        "upgrades": {uid: {**u, "owned": uid in st.get("upgrades", []),
+                           "buyable": prog.can_buy(st, uid)}
+                     for uid, u in prog.UPGRADES.items()},
+    }
+
+
+def _ensure_state(state: dict | None):
+    from scheduler_dojo import progression as prog
+
+    return prog._migrate(state if state is not None else prog.new_state())
+
+
+def progression_completion(state: dict, level_id: str, score: int, *, seed: int) -> dict:
+    from scheduler_dojo import progression as prog
+
+    return prog.apply_completion(_ensure_state(state), level_id, score, seed=seed)
+
+
+def progression_buy(state: dict, upgrade_id: str) -> dict:
+    from scheduler_dojo import progression as prog
+
+    return prog.buy(_ensure_state(state), upgrade_id)
+
+
+def progression_drift(state: dict, *, now: int) -> dict:
+    from scheduler_dojo import progression as prog
+
+    return prog.apply_drift(_ensure_state(state), now=now)
+
+
+
 # --- dispatch (the worker's `{id, call, args}` protocol) ------------------------
 
 
 _DISPATCH = {
     "ping": ping, "version": version, "run": run, "start": start, "step_n": step_n,
     "step_until": step_until, "step_result": step_result, "check_kata": check_kata,
+    "hand_start": hand_start, "hand_place": hand_place, "hand_tick": hand_tick,
+    "hand_result": hand_result,
+    "progression_view": progression_view, "progression_completion": progression_completion,
+    "progression_buy": progression_buy, "progression_drift": progression_drift,
 }
 
 
