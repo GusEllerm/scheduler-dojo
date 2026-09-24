@@ -24,6 +24,41 @@ commit that changes the code is blocked until the note is updated or acknowledge
   note is still right.
 - Dated records go in `Sessions/` or are named `Reference/Review …`; they are snapshots and never block.
 
+## Status
+
+**Stage 0 (Bootstrap) — done.** Package + `dojo` console script scaffolded, public repo pushed, CI
+running `pytest` + `livedocs verify`, this vault live. The engine and game land in Stages 1–10.
+
+## The plan (stage ladder)
+
+| Stage | Deliverable | State |
+|---|---|---|
+| 0 | Bootstrap: repo, package, CI, vault, Determinism note | ✅ done |
+| 1 | Simulator core (headless): events/cluster/jobs, scoring, trace generators, FIFO + shortest-first, `dojo run` | next |
+| 2 | Kata language: spec → lexer/parser/AST, interpreter + step budget + builtins, formatter, `dojo kata check` | planned |
+| 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | planned |
+| 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | planned |
+| 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | planned |
+| 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | planned |
+| 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | planned |
+| 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | planned |
+| 9 | Share cards: encode/decode, replay-verify, PNG card, `dojo verify-card` | planned |
+| 10 | Polish, a11y, Pages deploy, README/researchers page, final vault sweep | planned |
+
+## Deferred
+
+(empty — nothing deferred yet; will fill as decisions are made)
+
+## Decisions a human should review
+
+See [[Decision Log]]. Currently only the bootstrap choices in §3 of `PROMPT.md`.
+
+## Reading order
+
+1. [[Determinism]] — the invariant every other note assumes.
+2. `PROMPT.md` (repo root) — the full product brief.
+3. Stage session logs under [[Sessions]].
+
 ## Map
 
 - [[Modules]] · [[Concepts]] · [[Reference]] · [[Sessions]]
