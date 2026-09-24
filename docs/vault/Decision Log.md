@@ -18,9 +18,13 @@ that satisfies the floor. If cross-runtime determinism ever diverges we will pin
 language features to Pyodide's bundled CPython minor (see [[Determinism]]). Alternative: pin `==3.12`
 — rejected for now to keep native installs flexible; revisit at Stage 4 if Pyodide's version needs it.
 
-## 2026-09-24 — CI installs livedocs from the GusEllerm/vault-drift git source `[agent decision]`
+## 2026-09-24 — CI installs drift (public installer) + livedocs (PyPI) `[agent decision]`
 
-The brief names `uv tool install git+https://github.com/GusEllerm/vault-drift` as the fallback
-installer, so `ci.yml` uses that exact source for `livedocs verify`. Alternatives: a published PyPI
-package (none found under that name) or a brew formula for livedocs (drift is brew, livedocs is the
-python tool). If the git install proves flaky in CI, pin a commit SHA.
+`ci.yml` installs the `drift` fingerprinter from `https://drift.fp.dev/install.sh` (public,
+installs to `~/.local/bin`) and `livedocs` from PyPI (`uv tool install livedocs`, stdlib-only).
+The brief first suggested a git install from `GusEllerm/vault-drift`, but that repo is **private**,
+so the Actions runner's token cannot fetch it (`could not read Username … terminal prompts
+disabled`). Making it public or adding a PAT secret are account/security changes only a human
+should make, so we switched to the public sources instead. Pin a version (drift via `--install-dir`,
+livedocs `==<ver>`) if a future release changes the stamp/hash format — note the local dev install is
+an editable checkout, so its subcommand surface must stay compatible with the pinned PyPI version.

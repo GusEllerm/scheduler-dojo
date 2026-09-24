@@ -3,4 +3,4 @@ version = 1
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
 target = ".github/workflows/ci.yml"
-sig = "63788d789d84742c"
+sig = "68ae7c27e61a610f"

@@ -19,8 +19,13 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
-      - name: Install livedocs (docs gate)
-        run: uv tool install git+https://github.com/GusEllerm/vault-drift
+      - name: Install drift (fingerprinter, public installer)
+        run: |
+          curl -fsSL https://drift.fp.dev/install.sh | sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Install livedocs (docs gate, PyPI)
+        run: uv tool install livedocs
 
       - name: Run tests
         run: uv run pytest
