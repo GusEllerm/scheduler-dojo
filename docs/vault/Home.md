@@ -69,6 +69,12 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 
 ## Deferred
 
+- **Browser-interactive stages (5–10) need live verification.** Stages 0–4 are verified headlessly (the
+  Node smoke test drives real Pyodide and matches the golden). From Stage 5 on, the deliverables are
+  DOM/UI (drag-and-drop, the kata editor, progression shop, share-card PNG), which I verify by
+  screenshotting a real dev server with `agent-browser` — good for structure/paint, weaker for feel and
+  edge-case UX than a human playtest. The brief also asks for **playtester sub-agents from Stage 4 on**;
+  those produce subjective feedback best paired with a human looking at builds.
 - **O(n²) FIFO rescan on over-subscribed loads**: non-blocking FIFO rescans the whole queue each
   decision; an over-subscribed (util > 1) load has an unbounded backlog and is slow. Levels are
   provisioned to util < 1 so it does not bite; revisit with an incrementally-maintained free-set
