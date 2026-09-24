@@ -55,7 +55,25 @@ export interface RunResult {
 
 export interface KataReport {
   ok: boolean;
-  errors: string[];
+  /** `check_kata` returns `{code, message, line (1-based), col}` dicts. */
+  errors: KataError[];
+}
+
+/** One `check_kata` error — `line` is 1-based (see kata/check.py). */
+export interface KataError {
+  code: string;
+  message: string;
+  line?: number;
+  col?: number;
+}
+
+/** Format a `check_kata` error list for a one-line message (used by watch mode). */
+export function formatKataErrors(errors: readonly (KataError | string)[]): string {
+  return errors
+    .map((error) =>
+      typeof error === "string" ? error : `${error.line ?? "?"}: ${error.code} — ${error.message}`,
+    )
+    .join("; ");
 }
 
 /** A level document (the JSON in levels/*.json); kept loose — Python validates it. */
@@ -132,6 +150,14 @@ export class DojoBridge {
 
   checkKata(kata: string): Promise<KataReport> {
     return this.call<KataReport>("check_kata", { kata });
+  }
+
+  /**
+   * Run a level under a kata source string (`bridge.run` with `kata` set — the policy label
+   * becomes "kata"). Sugar over `runLevel(level, { policy: "kata", kata })`.
+   */
+  runKata(level: Level | string, kata: string, options: { seed?: number | null } = {}): Promise<RunResult> {
+    return this.runLevel(level, { policy: "kata", kata, seed: options.seed ?? null });
   }
 
   /** Start an interactive run; returns a handle for step_n / step_until. */

@@ -5,8 +5,9 @@
  */
 
 import "./style.css";
-import { bridge, BridgeError, type Level, type RunResult } from "./bridge";
+import { bridge, BridgeError, formatKataErrors, type Level, type RunResult } from "./bridge";
 import { HandGame } from "./hand";
+import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
 import { formatTime, mountTimeline, type TimelineHandle } from "./render/timeline";
 import type { Stage, WorkerEvent } from "./worker";
@@ -87,10 +88,14 @@ bridge.onEvent((event: WorkerEvent) => {
 // --- boot the app ----------------------------------------------------------------------
 
 type Variant = { key: string; label: string; run: RunResult };
-type Mode = "watch" | "hand";
+type Mode = "watch" | "hand" | "kata";
 
-/** Levels the hand mode is offered for (sandbox / warm-up levels). */
-const LEVELS = ["level1", "level2"];
+/** Every level the picker offers. */
+const LEVELS = ["level1", "level2", "level3", "level4", "level5"];
+/** Levels played by hand (sandbox / warm-up). */
+const HAND_LEVELS = ["level1", "level2"];
+/** Levels where you write a kata (Stages 6+). */
+const KATA_LEVELS = ["level3", "level4", "level5"];
 
 let timeline: TimelineHandle | null = null;
 let variants: Variant[] = [];
@@ -99,14 +104,17 @@ let levelDuration = 0;
 let level: Level = {};
 let mode: Mode = "watch";
 let hand: HandGame | null = null;
+let kata: KataPlayHandle | null = null;
 
-// Hand chrome built at boot (index.html stays untouched).
+// Hand/kata chrome built at boot (index.html stays untouched).
 let modePicker: HTMLElement;
 let levelPicker: HTMLElement;
 let handBadge: HTMLElement;
 let handPanel: HTMLElement;
 let handStage: HTMLElement;
 let handGauges: HTMLElement;
+let kataPanel: HTMLElement;
+let kataStage: HTMLElement;
 const modeButtons = new Map<Mode, HTMLButtonElement>();
 const levelButtons = new Map<string, HTMLButtonElement>();
 
@@ -124,7 +132,8 @@ async function fetchText(path: string): Promise<string> {
 
 async function main(): Promise<void> {
   const prefs = loadStore().prefs;
-  mode = prefs.mode === "hand" ? "hand" : "watch";
+  const savedMode = prefs.mode as string | undefined;
+  mode = savedMode === "hand" || savedMode === "kata" ? savedMode : "watch";
   buildChrome();
   const start = typeof prefs.level === "string" && LEVELS.includes(prefs.level) ? prefs.level : "level1";
   await loadLevel(start);
@@ -136,7 +145,7 @@ function levelId(): string {
   return String(level.id ?? "level1");
 }
 
-/** Create the mode/level pickers, the "hand" badge and the hand panel (before the timeline). */
+/** Create the mode/level pickers, the "hand" badge and the hand/kata panels (before the timeline). */
 function buildChrome(): void {
   const header = dom.app.querySelector(".app-header") ?? dom.app;
   const controls = document.createElement("div");
@@ -159,6 +168,7 @@ function buildChrome(): void {
   for (const [key, text] of [
     ["watch", "Watch (auto)"],
     ["hand", "Play by hand"],
+    ["kata", "Write a kata"],
   ] as const) {
     const button = document.createElement("button");
     button.type = "button";
@@ -184,13 +194,33 @@ function buildChrome(): void {
   handPanel.append(heading, handGauges, handStage);
   const timelinePanel = dom.timeline.closest(".panel") ?? dom.timeline;
   dom.app.insertBefore(handPanel, timelinePanel);
+
+  kataPanel = document.createElement("section");
+  kataPanel.className = "panel";
+  kataPanel.hidden = true;
+  const kataHeading = document.createElement("h2");
+  kataHeading.textContent = "Write a kata";
+  kataStage = document.createElement("div");
+  kataPanel.append(kataHeading, kataStage);
+  dom.app.insertBefore(kataPanel, timelinePanel);
+}
+
+/** Is a mode available for the level currently loaded? */
+function modeAllowed(m: Mode): boolean {
+  if (m === "watch") return true;
+  if (m === "hand") return HAND_LEVELS.includes(levelId());
+  return KATA_LEVELS.includes(levelId());
 }
 
 function paintControls(): void {
-  for (const [key, button] of modeButtons) button.setAttribute("aria-pressed", String(key === mode));
+  for (const [key, button] of modeButtons) {
+    button.setAttribute("aria-pressed", String(key === mode));
+    button.hidden = !modeAllowed(key);
+  }
   for (const [id, button] of levelButtons) button.setAttribute("aria-pressed", String(id === levelId()));
   handBadge.hidden = mode !== "hand";
   handPanel.hidden = mode !== "hand";
+  kataPanel.hidden = mode !== "kata";
   dom.picker.hidden = mode !== "watch";
 }
 
@@ -199,26 +229,29 @@ async function loadLevel(id: string): Promise<void> {
   levelDuration = Number(level.duration ?? 0);
   dom.title.textContent = String(level.title ?? level.id ?? "Level");
   dom.story.textContent = String(level.story ?? "");
-  destroyHand();
+  if (!modeAllowed(mode)) mode = "watch";
+  destroyModes();
   timeline?.destroy();
   timeline = null;
   variants = [];
   dom.readout.replaceChildren();
   if (mode === "hand") await enterHand();
+  else if (mode === "kata") await enterKata();
   else await enterWatch();
   paintControls();
 }
 
 async function setMode(next: Mode): Promise<void> {
-  if (next === mode) return;
+  if (next === mode || !modeAllowed(next)) return;
   mode = next;
-  saveStore({ prefs: { mode } });
-  destroyHand();
+  saveStore({ prefs: { mode: mode as "watch" } });
+  destroyModes();
   timeline?.destroy();
   timeline = null;
   variants = [];
   dom.readout.replaceChildren();
   if (next === "hand") await enterHand();
+  else if (next === "kata") await enterKata();
   else await enterWatch();
   paintControls();
 }
@@ -229,11 +262,14 @@ async function setLevel(id: string): Promise<void> {
   await loadLevel(id);
 }
 
-function destroyHand(): void {
+function destroyModes(): void {
   hand?.destroy();
   hand = null;
   handStage.textContent = "";
   handGauges.textContent = "";
+  kata?.destroy();
+  kata = null;
+  kataStage.textContent = "";
 }
 
 /** Existing behaviour: run the level under its default policy + the reference kata. */
@@ -250,7 +286,7 @@ async function enterWatch(): Promise<void> {
   if (kataPath) {
     const kata = await fetchText(`levels/${kataPath}`);
     const report = await bridge.checkKata(kata);
-    if (!report.ok) throw new Error(`reference kata invalid: ${report.errors.join("; ")}`);
+    if (!report.ok) throw new Error(`reference kata invalid: ${formatKataErrors(report.errors)}`);
     const reference = await bridge.runLevel(level, { policy: "kata", kata });
     variants.push({ key: "kata", label: "reference kata", run: reference });
   }
@@ -280,6 +316,17 @@ async function enterHand(): Promise<void> {
     onFinished: (run) => {
       // renderReadout already appends the persisted-best line for hand runs.
       renderReadout({ key: "hand", label: "hand", run });
+    },
+  });
+}
+
+/** Kata mode (Stage 6, levels 3-5): mount the write-check-run controller. */
+async function enterKata(): Promise<void> {
+  dom.picker.textContent = "";
+  kata = mountKataPlay(kataStage, level, {
+    timeline: dom.timeline,
+    onRun: (run) => {
+      renderReadout({ key: "kata", label: "kata", run });
     },
   });
 }

@@ -67,9 +67,9 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | ✅ done |
 | 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | ✅ done |
 | 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | ✅ done |
-| 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | planned |
+| 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | ✅ done |
 | 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | planned |
-| 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | planned |
+| 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | ◐ engine (preempt + trace import) done; levels/route pending |
 | 9 | Share cards: encode/decode, replay-verify, PNG card, `dojo verify-card` | planned |
 | 10 | Polish, a11y, Pages deploy, README/researchers page, final vault sweep | planned |
 
