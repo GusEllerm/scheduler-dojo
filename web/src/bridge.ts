@@ -154,6 +154,34 @@ export class DojoBridge {
     return this.call("step_result", { handle });
   }
 
+  // --- hand placement (Stage 5; bridge.py hand_*) -------------------------------------
+
+  /** Start a manual run: nothing auto-places; the player drives `handPlace` / `handTick`. */
+  handStart(level: Level | string, seed?: number | null): Promise<HandStartResult> {
+    const args: Record<string, unknown> = { level };
+    if (seed !== undefined && seed !== null) args.seed = seed;
+    return this.call<HandStartResult>("hand_start", args);
+  }
+
+  /** Place one queued job by hand; the engine validates and answers `{ok, state, error?}`. */
+  handPlace(handle: number, jobId: string, nodes?: string[] | null): Promise<HandPlaceResult> {
+    const args: Record<string, unknown> = { handle, job_id: jobId };
+    if (nodes !== undefined && nodes !== null) args.nodes = nodes;
+    return this.call<HandPlaceResult>("hand_place", args);
+  }
+
+  /** Advance the manual clock to the next arrival/finish event (or to absolute `until`). */
+  handTick(handle: number, until?: number | null): Promise<HandTickResult> {
+    const args: Record<string, unknown> = { handle };
+    if (until !== undefined && until !== null) args.until = until;
+    return this.call<HandTickResult>("hand_tick", args);
+  }
+
+  /** Finish the manual run: metrics + jobs + hash (identical determinism to any run). */
+  handResult(handle: number): Promise<HandResultPayload> {
+    return this.call<HandResultPayload>("hand_result", { handle });
+  }
+
   /** Tear the worker down (page teardown / tests). */
   dispose(): void {
     this.worker.terminate();
@@ -180,6 +208,37 @@ export class DojoBridge {
   private emit(event: WorkerEvent): void {
     for (const listener of this.listeners) listener(event);
   }
+}
+
+/** What `hand_start` / `hand_tick` suggest: job id -> node ids FIFO *would* use (hint only). */
+export type HandSuggestions = Record<string, string[]>;
+
+export interface HandStartResult {
+  handle: number;
+  state: StepState;
+  suggestions: HandSuggestions;
+  nodes: NodeInfo[];
+}
+
+/** `hand_place` never rejects for a rules violation — it answers `{ok:false, error}` instead. */
+export interface HandPlaceResult {
+  ok: boolean;
+  state: StepState;
+  error?: { code: string; message: string };
+}
+
+export interface HandTickResult {
+  state: StepState;
+  suggestions?: HandSuggestions;
+  done: boolean;
+}
+
+export interface HandResultPayload {
+  metrics: Metrics;
+  jobs: JobInfo[];
+  end_time: number;
+  trajectory_hash: string;
+  score?: number;
 }
 
 export interface StepState {

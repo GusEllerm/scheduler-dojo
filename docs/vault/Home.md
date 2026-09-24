@@ -26,6 +26,12 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
+**Stage 5 (Hand placement) — done.** A manual-placement bridge API (`hand_start/place/tick/result`, a
+no-op manual policy with a read-only FIFO `suggestions` hint) drives a click-to-place UI: queue chips,
+node lanes, a Place/cancel confirm bar, live utilization + queue gauges, and Finish → scorecard +
+painted timeline, with best-score/gold persisted to localStorage. Verified end-to-end by screenshot
+(hand-placed job renders as a done-bar; score 440 > pass 350; "saved best" shown).
+
 **Stage 4 (Pyodide bridge & web shell) — engine path done.** `bridge.py` is the single JSON-in/JSON-out
 WASM boundary; `Scheduler` gained a stepping API (`step_events`/`run_until`) sharing the exact `run`
 loop body so a stepped run ≡ a full run. A pure `py3-none-any` wheel builds via `scripts/build_wheel.sh`
@@ -60,7 +66,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 2 | Kata language: spec → lexer/parser/AST, interpreter + step budget + builtins, formatter, `dojo kata check` | ✅ done |
 | 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | ✅ done |
 | 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | ✅ done |
-| 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | planned |
+| 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | ✅ done |
 | 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | planned |
 | 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | planned |
 | 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | planned |
