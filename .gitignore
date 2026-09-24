@@ -5,3 +5,8 @@ web/dist/
 __pycache__/
 *.egg-info/
 .pytest_cache/
+
+# Obsidian per-machine state (livedocs new-vault)
+docs/vault/.obsidian/workspace.json
+docs/vault/.obsidian/workspace-mobile.json
+docs/vault/.trash/
