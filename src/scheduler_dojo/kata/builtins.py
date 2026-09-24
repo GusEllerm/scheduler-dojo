@@ -443,14 +443,22 @@ class Env:
         self.ctx.preempt(_job_of(job))
         return True
 
+    def _site_id(self, x) -> str:
+        if isinstance(x, SiteRec):
+            return x.site.id
+        if isinstance(x, NameVal):
+            return str(x.value)
+        raise _type("route/transfer_cost need a site", None)
+
     def bi_route(self, job, site):
-        raise PolicyError("multi-site routing lands in a later level", code="slot_locked")
+        self.ctx.route(_job_of(job), self._site_id(site))
+        return True
 
     def bi_transfer_cost(self, job, site):
-        return 0  # single-site: every transfer is free
+        return self.ctx.transfer_secs(_job_of(job), self._site_id(site))
 
     def bi_sites(self):
-        return [SiteRec(s) for s in self.cluster.sites]
+        return [SiteRec(s) for s in sorted(self.cluster.sites, key=lambda s: s.id)]
 
     def bi_current_site(self):
         return SiteRec(self.cluster.sites[0])

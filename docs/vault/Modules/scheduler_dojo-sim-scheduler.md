@@ -26,6 +26,10 @@ for animated playback in the browser). `fifo`, `shortest_first`, and `idle`
   checkpoint (it re-runs in full), and bumps `run_epoch` and `preempt_count`. The `FINISH` handler
   ignores any event whose `#epoch` does not equal the job's current `run_epoch`, so a preempted
   placement's stale `FINISH` can never finish a re-run job early. A non-running target raises `NOT_RUNNING`.
+- **Multi-site routing:** `route(job, site, t)` (Stage 8; the `route` builtin calls it once the tier
+  unlocks) records the job's `run_site`. At `place`, if `run_site != home_site` the run is lengthened
+  by `transfer_secs = ceil(data_mb / transfer_rate_mbs)` and `first_fit(..., site=run_site)` restricts
+  placement to that site's nodes. Single-site (no `home_site`) adds nothing, so existing hashes are unchanged.
 - **Validation → `PolicyError`:** `place` raises a structured `PolicyError` with a stable `code`
   (`UNKNOWN_JOB`, `ALREADY_RUNNING`, `DEPS_UNMET`, `NO_NODES`, `MISMATCH`) instead of crashing.
   Deps are enforced by the *engine* even if a policy ignores them.

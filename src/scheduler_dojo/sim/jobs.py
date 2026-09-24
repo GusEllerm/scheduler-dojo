@@ -43,6 +43,11 @@ class Job:
     deps: tuple[str, ...] = ()    # job ids that must complete first
     actual_runtime: int = 3600    # hidden from the policy unless `est_runtime` is unlocked
     sla: int | None = None        # must start within sla seconds of submit, if set
+    # Multi-site (Stage 8): data lives at `home_site`; routing elsewhere adds a data-transfer delay.
+    home_site: str | None = None
+    data_mb: int = 0
+    # --- routing state (mutated by the scheduler's route action) ---
+    run_site: str | None = None   # site chosen for this run (None = default to home_site)
 
     # --- runtime state (mutated by the scheduler) ---
     state: JobState = JobState.QUEUED

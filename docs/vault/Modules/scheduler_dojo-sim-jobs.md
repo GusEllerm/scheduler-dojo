@@ -19,7 +19,8 @@ is whole-node: it occupies `nodes_req` whole nodes for `runtime_used` seconds.
   assigned by the trace generator after sorting by `(submit_time, index)`.
 - Fields `state`/`start_time`/`end_time`/`placed_nodes` are runtime state the scheduler mutates;
   `run_epoch` (bumped on every place/preempt, to invalidate stale `FINISH` events) and `preempt_count`
-  (a livelock-guard signal) are likewise scheduler-owned. The rest are immutable inputs.
+  (a livelock-guard signal) are likewise scheduler-owned. `home_site`/`data_mb` are multi-site inputs;
+  `run_site` (set by `Scheduler.route`) records the site a job is routed to. The rest are immutable inputs.
 
 ## Depends on / used by
 

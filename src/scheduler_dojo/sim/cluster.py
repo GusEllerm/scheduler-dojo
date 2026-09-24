@@ -116,6 +116,21 @@ class Cluster:
         # iteration/first-fit order depends only on ids, never on site/partition/node input order
         # (determinism across runtimes and across JSON vs hand-built clusters — see Determinism).
         self._nodes_sorted: list[Node] = sorted(self._nodes.values(), key=lambda n: n.id)
+        # node id -> site id, from the partition→site chain (for multi-site routing / first_fit).
+        self._node_site: dict[str, str] = {
+            node.id: part.site_id for site in sites for part in site.partitions
+            for node in part.nodes}
+
+    # --- sites (multi-site, Stage 8) ---
+    def site_ids(self) -> list[str]:
+        """Site ids in stable (id) order (`sites` is the Site-object list)."""
+        return sorted(self._sites)
+
+    def sites_by_id(self) -> dict[str, Site]:
+        return self._sites
+
+    def node_site(self, node_id: str) -> str | None:
+        return self._node_site.get(node_id)
 
     # --- lookups ---
     @property
@@ -138,9 +153,11 @@ class Cluster:
         return self.num_nodes * max(0, end - start)
 
     def _iter_compatible(self, *, partition: str | None, cpus: int, mem: int,
-                         gpus: int, tags: tuple[str, ...]):
+                         gpus: int, tags: tuple[str, ...], site: str | None = None):
         """Lazily yield compatible nodes in stable (id) order — so first_fit can stop early."""
         for node in self.nodes:
+            if site is not None and self._node_site.get(node.id) != site:
+                continue
             if partition is not None and self._partitions[node.partition_id].name != partition:
                 continue
             if node.meets(cpus, mem, gpus, tags):
@@ -162,14 +179,16 @@ class Cluster:
         ]
 
     def first_fit(self, count: int, t: int, duration: int, *, partition: str | None,
-                  cpus: int, mem: int, gpus: int, tags: tuple[str, ...]) -> list[Node] | None:
+                  cpus: int, mem: int, gpus: int, tags: tuple[str, ...],
+                  site: str | None = None) -> list[Node] | None:
         """First-fit: the `count` lowest-id compatible nodes that stay free for [t, t+duration).
 
+        `site` (when given) restricts candidates to that site's nodes (multi-site routing).
         Returns the nodes, or None if not enough are free for the whole window.
         """
         chosen: list[Node] = []
         for n in self._iter_compatible(partition=partition, cpus=cpus, mem=mem,
-                                       gpus=gpus, tags=tags):
+                                       gpus=gpus, tags=tags, site=site):
             if n.free_for(t, duration):
                 chosen.append(n)
                 if len(chosen) == count:

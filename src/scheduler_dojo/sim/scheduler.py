@@ -85,6 +85,13 @@ class PolicyContext:
         """Preempt a running job now (free its nodes, requeue it). Requires the `preempt` tier in a kata."""
         return self._sched.preempt(job, self.now)
 
+    def route(self, job: Job | str, site: str) -> Job:
+        """Route a queued job to a site (requires the `route` tier)."""
+        return self._sched.route(job, site, self.now)
+
+    def transfer_secs(self, job: Job, site: str | None = None) -> int:
+        return self._sched.transfer_secs(job, site)
+
 
 @dataclass
 class RunResult:
@@ -98,8 +105,10 @@ class RunResult:
 
 class Scheduler:
     def __init__(self, cluster: Cluster, jobs: list[Job], policy: Policy,
-                 tick: int | None = None) -> None:
+                 tick: int | None = None, *, transfer_rate_mbs: float = 0.0) -> None:
         self.cluster = cluster
+        # MB/s inter-site data movement; 0 means transfer is instantaneous (single-site).
+        self.transfer_rate_mbs = transfer_rate_mbs
         if len({j.id for j in jobs}) != len(jobs):
             raise errors.DeterminismError("duplicate job id", code="duplicate_job")
         self.by_id = {j.id: j for j in jobs}
@@ -151,6 +160,10 @@ class Scheduler:
             raise errors.PolicyError(f"job {j.id} has unmet dependencies", code=errors.DEPS_UNMET)
 
         run = runtime_used(j)
+        target_site = j.run_site or j.home_site
+        if target_site is not None and j.home_site is not None and j.run_site is not None \
+                and j.run_site != j.home_site:
+            run += self.transfer_secs(j)  # routing off the data's home site adds a transfer delay
         if j.nodes_req < 1:
             raise errors.PolicyError(
                 f"job {j.id} requests {j.nodes_req} nodes (must be >= 1)", code=errors.MISMATCH)
@@ -158,7 +171,7 @@ class Scheduler:
         if chosen is None:
             fit = self.cluster.first_fit(
                 j.nodes_req, t, run, partition=j.partition, cpus=j.cpus_req,
-                mem=j.mem_req, gpus=j.gpus_req, tags=j.tags)
+                mem=j.mem_req, gpus=j.gpus_req, tags=j.tags, site=target_site)
             if fit is None:
                 raise errors.PolicyError(
                     f"job {j.id} does not fit now", code=errors.NO_NODES)
@@ -218,6 +231,26 @@ class Scheduler:
         j.placed_nodes = ()
         j.preempt_count += 1
         self.queued.add(j.id)
+        return j
+
+    def transfer_secs(self, job: Job, site: str | None = None) -> int:
+        """Data-transfer delay (s) to run `job` at `site` (default its run_site): ceil(data_mb / rate)
+        when the target differs from the data's home site, else 0. 0 rate ⇒ instantaneous."""
+        target = site if site is not None else job.run_site
+        if not job.data_mb or self.transfer_rate_mbs <= 0:
+            return 0
+        if target is None or target == job.home_site:
+            return 0
+        return max(1, -(-job.data_mb // int(self.transfer_rate_mbs)))
+
+    def route(self, job: Job | str, site: str, t: int) -> Job:
+        """Route a queued job to run at `site` (Stage-8 multi-site). Records `run_site`; placement then
+        restricts to that site's nodes and adds the inter-site data-transfer delay. Unknown site →
+        MISMATCH."""
+        j = self.by_id[job] if isinstance(job, str) else job
+        if site not in self.cluster.sites_by_id():
+            raise errors.PolicyError(f"unknown site {site}", code=errors.MISMATCH)
+        j.run_site = site
         return j
 
     # --- loop ---

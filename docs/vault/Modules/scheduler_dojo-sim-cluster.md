@@ -9,8 +9,9 @@
 `Cluster` holds flat id-indexed maps over `Site`/`Partition`/`Node`. `Node` keeps an
 `allocations: list[Allocation]` timeline; `free_at(t)` / `free_for(t, duration)` /
 `next_free_time(t)` answer occupancy; `allocate(start, end, job_id, is_reservation)` records a hold
-and `release(job_id)` drops a finished job's hold. `Cluster.first_fit(count, t, duration, ...)`
-returns the `count` lowest-id compatible nodes free across `[t, t+duration)` or `None`.
+and `release(job_id)` drops a finished job's hold. `Cluster.first_fit(count, t, duration, ..., site=)`
+returns the `count` lowest-id compatible nodes free across `[t, t+duration)` or `None`; `site` restricts
+candidates to one site (multi-site routing).
 `Cluster.can_host(count, ...)` is the same compatibility test with the *time* window removed — a
 capacity ceiling for `fits_later`/backfill (could `count` compatible nodes ever host this job?).
 
