@@ -10,7 +10,8 @@
 docstring): `n_jobs`, `users[{name,weight}]`, `arrival` (`poisson` with `rate_per_hour`, or
 `uniform` with `first`/`last`), `nodes` (`fixed`/`discrete`), `walltime` (`fixed`/`lognormal`),
 `runtime_ratio` (`lognormal`/`fixed`). `poisson_jobs(...)` is a convenience wrapper.
-`import_sacct_csv` is a Stage-8 stub.
+`import_sacct_csv` reads a Slurm sacct CSV (JobID/User/Submit/Elapsed/NNodes/ReqTimelimit) into an
+id-ordered job list anchored at t=0; `level_from_jobs` wraps it in an explicit-`jobs` playable level.
 
 ## How it works
 

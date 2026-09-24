@@ -8,7 +8,9 @@
 
 `build_cluster(spec)` accepts either the full `sites` topology or a `nodes` shorthand (one implicit
 site + partition). `load_jobs(level, seed)` delegates arrival generation to
-`sim.trace.generate_jobs`. `validate_level(level)` is the single schema gate (raises `LevelError`
+`sim.trace.generate_jobs`, or (trace mode) materializes a level's explicit `jobs` list via
+`jobs_from_level`. `validate_level(level)` is the single schema gate — it accepts a `generator` *or*
+an explicit `jobs` list (raises `LevelError`
 with a `level_schema`/`level_metric`/`level_bars` code). `run_level(level, seed=, policy=, kata=)`
 validates, defaults `seed` to the level's fixed puzzle `seed` and `policy` to the level's
 `default_policy`, schedules with a named policy from `sim.scheduler.POLICIES` or a `KataPolicy` over

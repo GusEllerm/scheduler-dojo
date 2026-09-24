@@ -83,6 +83,21 @@ def _cmd_kata(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_import_trace(args: argparse.Namespace) -> int:
+    from scheduler_dojo.sim.trace import import_sacct_csv, level_from_jobs
+
+    jobs = import_sacct_csv(args.csv)
+    level = level_from_jobs(jobs, level_id=args.id, nodes=args.nodes, cpus=args.cpus)
+    text = json.dumps(level, indent=2, sort_keys=True)
+    if args.out:
+        Path(args.out).write_text(text + "\n")
+        print(json.dumps({"wrote": args.out, "n_jobs": len(jobs),
+                          "nodes": len(level["cluster"]["nodes"])}, sort_keys=True))
+    else:
+        print(text)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="dojo", description="Scheduler Dojo engine")
     parser.add_argument("--version", action="store_true", help="print version and exit")
@@ -104,6 +119,14 @@ def main(argv: list[str] | None = None) -> int:
     kata.add_argument("--policy", default="fifo", choices=["fifo", "shortest_first"],
                       help="fallback policy for 'run'")
     kata.set_defaults(func=_cmd_kata)
+
+    imp = sub.add_parser("import-trace", help="import a Slurm sacct CSV export as a playable level")
+    imp.add_argument("csv", help="path to a sacct CSV export")
+    imp.add_argument("--out", help="write the level JSON here (default: stdout)")
+    imp.add_argument("--nodes", type=int, help="override the node count (default: peak demand)")
+    imp.add_argument("--cpus", type=int, default=1, help="cpus per node")
+    imp.add_argument("--id", default="trace", help="level id")
+    imp.set_defaults(func=_cmd_import_trace)
 
     args = parser.parse_args(argv)
     if getattr(args, "version", False):

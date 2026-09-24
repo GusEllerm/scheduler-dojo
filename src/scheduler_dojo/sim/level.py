@@ -31,15 +31,24 @@ def validate_level(level: dict[str, Any]) -> None:
     """
     if not isinstance(level, dict):
         raise LevelError("level must be an object", code=LEVEL_SCHEMA)
-    for key in ("id", "title", "cluster", "generator"):
+    for key in ("id", "title", "cluster"):
         if key not in level:
             raise LevelError(f"level missing required key {key!r}", code=LEVEL_SCHEMA)
+    if "generator" not in level and "jobs" not in level:
+        raise LevelError("level needs a 'generator' or an explicit 'jobs' list", code=LEVEL_SCHEMA)
     if not isinstance(level["cluster"], dict) or not (
         "sites" in level["cluster"] or "nodes" in level["cluster"]
     ):
         raise LevelError("cluster needs 'sites' or 'nodes'", code=LEVEL_SCHEMA)
-    if not isinstance(level["generator"], dict):
-        raise LevelError("generator must be an object", code=LEVEL_SCHEMA)
+    if level.get("generator") is not None and "generator" in level:
+        if not isinstance(level["generator"], dict):
+            raise LevelError("generator must be an object", code=LEVEL_SCHEMA)
+    if "jobs" in level:
+        if not isinstance(level["jobs"], list) or not level["jobs"]:
+            raise LevelError("jobs must be a non-empty list", code=LEVEL_SCHEMA)
+        for jd in level["jobs"]:
+            if not isinstance(jd, dict) or "id" not in jd or "submit_time" not in jd:
+                raise LevelError("each explicit job needs 'id' and 'submit_time'", code=LEVEL_SCHEMA)
 
     dur = level.get("duration")
     if dur is not None and (not isinstance(dur, int) or dur <= 0):
@@ -116,11 +125,31 @@ def build_cluster(spec: dict[str, Any]) -> Cluster:
 
 
 def load_jobs(level: dict[str, Any], seed: int) -> list[Job]:
+    """Materialize a level's jobs: an explicit list (trace mode) wins, else the generator draws."""
+    if level.get("jobs"):
+        return jobs_from_level(level)
     gen = level.get("generator")
     if gen is None:
-        raise ValueError("level has no 'generator' block")
+        raise ValueError("level has neither 'generator' nor 'jobs'")
     horizon = level.get("duration")
     return generate_jobs(gen, seed, horizon=horizon)
+
+
+def jobs_from_level(level: dict[str, Any]) -> list[Job]:
+    """Build `Job`s from a level's explicit `jobs` list (trace-imported or hand-authored)."""
+    out: list[Job] = []
+    for jd in level["jobs"]:
+        out.append(Job(
+            id=str(jd["id"]), user=str(jd.get("user", "u")), submit_time=int(jd["submit_time"]),
+            nodes_req=int(jd.get("nodes_req", 1)), walltime_req=int(jd.get("walltime_req", 3600)),
+            cpus_req=int(jd.get("cpus_req", 1)), mem_req=int(jd.get("mem_req", 0)),
+            gpus_req=int(jd.get("gpus_req", 0)),
+            partition=jd.get("partition"), tags=tuple(jd.get("tags", ())),
+            priority=int(jd.get("priority", 0)), deps=tuple(jd.get("deps", ())),
+            actual_runtime=int(jd.get("actual_runtime", jd.get("walltime_req", 3600))),
+            sla=jd.get("sla"),
+        ))
+    return out
 
 
 def run_level(level: dict[str, Any], *, seed: int | None = None, policy: str | None = None,

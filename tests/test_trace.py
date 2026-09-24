@@ -219,10 +219,14 @@ def test_bad_spec_raises_before_any_draw():
             raise AssertionError(f"expected ValueError for {spec}")
 
 
-def test_sacct_import_is_a_stage8_stub():
+def test_sacct_import_reads_a_real_file():
+    # Stage 8 shipped: a real CSV imports; a missing file is an OSError (no longer a stub).
+    from pathlib import Path
+    csv = str(Path(__file__).parent / "data" / "sample_sacct.csv")
+    assert len(import_sacct_csv(csv)) == 5
     try:
-        import_sacct_csv("nope.csv")
-    except NotImplementedError as exc:
-        assert "Stage 8" in str(exc)
+        import_sacct_csv("definitely-missing.csv")
+    except OSError:
+        pass
     else:
-        raise AssertionError("import_sacct_csv should raise NotImplementedError")
+        raise AssertionError("missing file should raise OSError")

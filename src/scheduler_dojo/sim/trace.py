@@ -137,13 +137,103 @@ def poisson_jobs(seed: int, *, n_jobs: int = 200, rate_per_hour: float = DEFAULT
     return generate_jobs(spec, seed)
 
 
-def import_sacct_csv(path: str) -> list[Job]:
-    """Import a Slurm ``sacct`` CSV export as a job list (trace mode).
+def _dur_or_ts(s: str) -> int:
+    """Parse a sacct duration (``DD-HH:MM:SS``/``HH:MM:SS``/``MM:SS``) or ISO timestamp to seconds."""
+    s = (s or "").strip()
+    if not s or s in ("Unknown", "N/A", "NOW", "00:00:00"):
+        return 0
+    days = 0
+    if "T" in s:                            # ISO timestamp -> seconds within the day
+        s = s.split("T", 1)[1]
+    elif "-" in s.split(":")[0]:            # duration with a day component
+        d, s = s.split("-", 1)
+        days = int(d)
+    parts = [float(p) for p in s.split(":")]
+    while len(parts) < 3:
+        parts.insert(0, 0.0)
+    h, m, sec = parts[-3], parts[-2], parts[-1]
+    return days * 86400 + int(h) * 3600 + int(m) * 60 + int(sec)
 
-    Not implemented yet: Stage 8 ships trace mode, including the column mapping
-    (JobID/User/Submit/Elapsed/NNodes/ReqTimelimit) and the anonymized sample trace.
+
+def import_sacct_csv(path: str) -> list[Job]:
+    """Import a Slurm ``sacct`` CSV export as an id-ordered job list (trace mode).
+
+    Column mapping (case-insensitive, first match wins): ``JobID``/``Job`` -> id, ``User``/``UserName``
+    -> user, ``Submit``/``Start`` -> submit_time, ``Elapsed``/``TotalCPU`` -> actual_runtime, ``NNodes``
+    /``Nnodes`` -> nodes_req, ``ReqTimelimit``/``Timelimit``/``WallTime`` -> walltime_req. Timestamps
+    are anchored at the earliest submit so a trace always starts at t=0. Unparseable rows are skipped.
     """
-    raise NotImplementedError("sacct trace import lands in Stage 8")
+    import csv
+
+    def pick(row: dict[str, str], *names: str) -> str:
+        low = {k.strip().lower(): v for k, v in row.items() if k}
+        for n in names:
+            if n.lower() in low:
+                return low[n.lower()]
+        return ""
+
+    raw: list[dict[str, Any]] = []
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            jid = pick(row, "JobID", "Job", "JobId")
+            if not jid:
+                continue
+            submit = _dur_or_ts(pick(row, "Submit", "Start", "Submitted"))
+            elapsed = _dur_or_ts(pick(row, "Elapsed", "TotalCPU", "Totalcpu"))
+            limit = _dur_or_ts(pick(row, "ReqTimelimit", "Timelimit", "WallTime", "Walltime"))
+            try:
+                nodes = int(float(pick(row, "NNodes", "Nnodes", "Nodes") or 1) or 1)
+            except ValueError:
+                nodes = 1
+            raw.append({
+                "id": jid, "user": pick(row, "User", "UserName", "Userid") or "u",
+                "submit_time": submit,
+                "actual_runtime": elapsed or limit or 1,
+                "nodes_req": max(1, nodes),
+                "walltime_req": max(1, limit or elapsed or 1),
+            })
+    if not raw:
+        return []
+    t0 = min(r["submit_time"] for r in raw)
+    jobs = [
+        Job(id=str(r["id"]), user=r["user"], submit_time=max(0, r["submit_time"] - t0),
+            nodes_req=r["nodes_req"], walltime_req=r["walltime_req"],
+            actual_runtime=r["actual_runtime"])
+        for r in raw
+    ]
+    return sorted(jobs, key=lambda j: (j.submit_time, j.id))
+
+
+def level_from_jobs(jobs: list[Job], *, level_id: str = "trace",
+                    title: str = "Imported trace", nodes: int | None = None,
+                    cpus: int = 1) -> dict[str, Any]:
+    """Wrap imported jobs in a minimal playable level (trace mode). Node count defaults to the peak
+    simultaneous demand; the level carries an explicit `jobs` list (no generator)."""
+    if not jobs:
+        raise ValueError("no jobs to build a level from")
+    if nodes is None:
+        events: list[tuple[int, int]] = []
+        for j in jobs:
+            end = j.submit_time + max(1, min(j.actual_runtime, j.walltime_req))
+            events += [(j.submit_time, j.nodes_req), (end, -j.nodes_req)]
+        cur = peak = 0
+        # Sweep by time, releases before acquisitions at ties (stable by delta sign).
+        for _, delta in sorted(events, key=lambda e: (e[0], e[1])):
+            cur += delta
+            peak = max(peak, cur)
+        nodes = max(1, peak)
+    horizon = max((j.submit_time + j.walltime_req) for j in jobs) + 1
+    return {
+        "id": level_id, "title": title,
+        "cluster": {"nodes": [{"id": f"n{k}", "cpus": cpus} for k in range(nodes)]},
+        "duration": horizon, "default_policy": "fifo",
+        "generator": None,
+        "jobs": [{
+            "id": j.id, "user": j.user, "submit_time": j.submit_time,
+            "nodes_req": j.nodes_req, "walltime_req": j.walltime_req,
+            "actual_runtime": j.actual_runtime,
+        } for j in jobs],
+    }
 
 
 # --- distribution helpers: every draw is a method call on the single seeded rng ---
