@@ -10,7 +10,9 @@
 each decision point calls `policy(ctx)`. `PolicyContext` exposes `now`, `queued`, `running`,
 `free_nodes()`, `fits_now(job)`, `fits_later(job)` (a time-agnostic capacity ceiling via
 `Cluster.can_host`, so backfill katas hold room for a job that cannot fit *now*), and
-`place(job[, nodes])`. `run(until=None)` returns a `RunResult`. `fifo`, `shortest_first`, and `idle`
+`place(job[, nodes])`. `run(until=None)` returns a `RunResult`; `step_events(n)`/`run_until(t)` drive
+the *same* event-loop body (`_advance`) so a stepped run is bit-for-bit a full run (the stepping API
+for animated playback in the browser). `fifo`, `shortest_first`, and `idle`
 (place-nothing, the calibration/hand baseline) are plain-Python policies registered in `POLICIES`.
 
 ## How it works

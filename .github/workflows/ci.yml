@@ -36,3 +36,32 @@ jobs:
 
       - name: Verify livedocs vault
         run: livedocs verify --repo . --vault docs/vault
+
+  smoke:
+    # Proves the browser's engine path: loads the pure wheel in real Pyodide and asserts the run's
+    # trajectory_hash equals the pytest golden (the same golden the CLI checks).
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv + build the wheel
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Stage the wheel
+        run: bash scripts/build_wheel.sh
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web deps
+        working-directory: web
+        run: npm ci
+
+      - name: Node-side Pyodide smoke test
+        run: node scripts/node_smoke.mjs

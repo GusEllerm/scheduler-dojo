@@ -10,3 +10,4 @@ __pycache__/
 docs/vault/.obsidian/workspace.json
 docs/vault/.obsidian/workspace-mobile.json
 docs/vault/.trash/
+web/public/wheels/*.whl

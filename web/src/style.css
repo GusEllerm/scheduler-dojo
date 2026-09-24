@@ -1,0 +1,246 @@
+:root {
+  color-scheme: dark;
+  --bg: #0d1117;
+  --panel: #151b24;
+  --line: #232c39;
+  --text: #dbe2ec;
+  --muted: #8b97a8;
+  --accent: #4f8ff7;
+  --good: #38b17a;
+  --warn: #e5a53c;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* --- loading screen ------------------------------------------------------------------ */
+
+.loader {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 30% 20%, #16202c, #0b0f14 70%);
+}
+
+.loader[hidden] {
+  display: none;
+}
+
+.loader-card {
+  width: min(520px, 90vw);
+}
+
+.loader-card h1 {
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  margin: 0 0 6px;
+}
+
+.loader-note {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  margin: 0 0 12px;
+  min-height: 1.2em;
+}
+
+.loader-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: #1d2632;
+  overflow: hidden;
+}
+
+.loader-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent), var(--good));
+  transition: width 120ms linear;
+}
+
+.loader-stages {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  display: grid;
+  gap: 4px;
+}
+
+/* --- shell --------------------------------------------------------------------------- */
+
+.app {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.app[hidden] {
+  display: none;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.app-header h1 {
+  font-size: 18px;
+  margin: 0 0 4px;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.panel h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.run-picker {
+  display: flex;
+  gap: 6px;
+}
+
+.run-picker button {
+  background: #1b2431;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.run-picker button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #21304a;
+}
+
+/* --- metrics readout ----------------------------------------------------------------- */
+
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  align-items: baseline;
+}
+
+.readout .stat {
+  display: grid;
+  gap: 2px;
+  min-width: 96px;
+}
+
+.readout .stat b {
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+.readout .stat span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+.readout .score b {
+  color: var(--good);
+}
+
+.readout .hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.readout .error {
+  color: var(--warn);
+}
+
+/* --- timeline ------------------------------------------------------------------------ */
+
+.dojo-timeline {
+  width: 100%;
+}
+
+.dojo-tl-canvas {
+  display: block;
+  width: 100%;
+}
+
+.dojo-tl-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.dojo-tl-play,
+.dojo-tl-speed {
+  background: #1b2431;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+.dojo-tl-scrub {
+  flex: 1 1 200px;
+  accent-color: var(--accent);
+}
+
+.dojo-tl-clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 110px;
+  text-align: right;
+}
+
+.dojo-tl-legend {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.dojo-tl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dojo-tl-chip i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}

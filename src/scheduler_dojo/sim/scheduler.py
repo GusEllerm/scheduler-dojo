@@ -227,12 +227,23 @@ class Scheduler:
             raise errors.DeterminismError(
                 "Scheduler.run called twice on the same Job/Cluster objects", code="rerun")
         self._ran = True
+        self._advance(until=until, max_events=max_events)
+        return self._result()
+
+    def _advance(self, *, until: int | None, max_events: int = 5_000_000,
+                 max_batches: int | None = None) -> bool:
+        """The single event-loop body. Processes timestamp batches (handle the whole batch, then one
+        decision) until the heap empties, the horizon `until` is reached, or `max_batches` batches
+        are done. Returns True iff the heap is empty (run finished). Shared by `run`, `step_events`,
+        and `run_until` so a stepped run is bit-for-bit identical to a full one."""
+        batches = 0
         while True:
             t = self._events.peek_time()
             if t is None:
-                break
+                self._finished = True
+                return True
             if until is not None and t > until:
-                break
+                return False
             self.now = t
             for ev in self._events.pop_batch():
                 self._handle(ev, until)
@@ -240,7 +251,25 @@ class Scheduler:
                 if self._events_processed > max_events:
                     raise errors.DeterminismError("event budget exhausted", code="event_budget")
             self._safe_policy()
-        return self._result()
+            batches += 1
+            if max_batches is not None and batches >= max_batches:
+                return False
+
+    def step_events(self, n: int = 1) -> bool:
+        """Advance at most `n` event *batches* (a batch = all events at one timestamp + its one
+        decision, which is the atomic decision unit). Returns True iff finished."""
+        self._require_unfinished()
+        return self._advance(until=None, max_batches=n)
+
+    def run_until(self, t: int) -> bool:
+        """Advance until the clock would exceed `t`, then stop (returns True iff the run finished).
+        The stepping API's time-sliced mode; identical event ordering to a full `run`."""
+        self._require_unfinished()
+        return self._advance(until=t)
+
+    def _require_unfinished(self) -> None:
+        if getattr(self, "_finished", False):
+            raise errors.DeterminismError("simulation already finished", code="finished")
 
     def _safe_policy(self) -> None:
         # Built-in policies cannot raise; the kata driver catches StepBudgetError here and

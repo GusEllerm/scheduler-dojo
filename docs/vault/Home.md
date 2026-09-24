@@ -26,6 +26,14 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
+**Stage 4 (Pyodide bridge & web shell) — engine path done.** `bridge.py` is the single JSON-in/JSON-out
+WASM boundary; `Scheduler` gained a stepping API (`step_events`/`run_until`) sharing the exact `run`
+loop body so a stepped run ≡ a full run. A pure `py3-none-any` wheel builds via `scripts/build_wheel.sh`
+and loads into Pyodide (pinned 0.29.5 / CPython 3.12) via micropip in a Vite worker; a Canvas timeline
+plays back level 1. A **Node-side** smoke test (`scripts/node_smoke.mjs`) loads the real wheel in
+Pyodide and asserts its `trajectory_hash` equals the pytest golden — CI proves the browser path without
+a browser. 188 tests + the smoke test pass.
+
 **Stage 3 (Levels 1–5) — done.** A validated level schema (`validate_level`), five calibrated
 levels — each a fixed-seed deterministic puzzle with a `baseline_policy` scoring 300 and a
 `reference_kata` scoring 800 (gold *earned* via a Pareto metric filter, not baked in),
@@ -51,7 +59,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 1 | Simulator core (headless): events/cluster/jobs, scoring, trace generators, FIFO + shortest-first, `dojo run` | ✅ done |
 | 2 | Kata language: spec → lexer/parser/AST, interpreter + step budget + builtins, formatter, `dojo kata check` | ✅ done |
 | 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | ✅ done |
-| 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | planned |
+| 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | ✅ done |
 | 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | planned |
 | 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | planned |
 | 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | planned |

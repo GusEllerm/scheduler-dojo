@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Scheduler Dojo — web tier</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <div id="loader" class="loader">
+      <div class="loader-card">
+        <h1>Scheduler Dojo</h1>
+        <p class="loader-note" id="loader-note">starting…</p>
+        <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+        <ul class="loader-stages" id="loader-stages"></ul>
+      </div>
+    </div>
+
+    <main id="app" class="app" hidden>
+      <header class="app-header">
+        <div>
+          <h1 id="level-title">Level</h1>
+          <p id="level-story" class="muted"></p>
+        </div>
+        <div class="run-picker" id="run-picker"></div>
+      </header>
+
+      <section class="panel">
+        <div class="readout" id="readout"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Timeline</h2>
+        <div id="timeline"></div>
+      </section>
+    </main>
+  </body>
+</html>

@@ -173,3 +173,21 @@ ordering kata can move it. Level 5 unlocks and *uses* `user_share` (the machiner
 scored on `bounded_slowdown`, and the story is framed as "keep the queue responsive under a flooding
 hog," which the ordering genuinely does. A real fairness lesson needs SLAs or guaranteed shares (later
 stages). Documented in [[Levels]] rather than faked with a rigged anchor.
+
+## 2026-09-24 — Stepping reuses the run() loop body, not a second engine `[agent decision]`
+
+The interactive API (`bridge.start/step_n/step_until`) and the CLI/golden `run` both call
+`Scheduler._advance` — `run` is just `_advance(until=…) + _result()`. The rejected alternative was a
+separate incremental path for the browser, which would have been a *second* thing to keep deterministic.
+Because it is literally one loop, draining a stepped run yields the identical `trajectory_hash`
+(asserted in `tests/test_bridge.py`). A batch (all events at one timestamp + its one decision) is the
+atomic step unit, so pausing never lands mid-decision. See [[Pyodide Bridge]].
+
+## 2026-09-24 — Browser runs the real Python via a pure wheel; smoke-tested in Node `[agent decision]`
+
+Rather than port the sim/Kata to TypeScript, the browser loads the same `scheduler_dojo` wheel
+(`py3-none-any`, built by `scripts/build_wheel.sh`) into Pyodide via micropip and calls
+`bridge.dispatch`. We pin the Pyodide runtime to the CPython-3.12 stable line (0.29.x) in one file to
+match the engine and the `livedocs` stamps. A **Node-side** `node scripts/node_smoke.mjs` loads Pyodide,
+installs the wheel, and asserts the run's `trajectory_hash` equals the pytest golden — so CI proves the
+browser path without a browser. Trade-off: a heavier first load (mitigated by progress + wheel cache).
