@@ -66,6 +66,37 @@ def test_encode_requires_level_or_id():
         encode_card(seed=0)
 
 
+def test_verify_card_cli_inline(tmp_path, capsys):
+    from scheduler_dojo import cli
+
+    payload = encode_card(level=LEVEL2, seed=LEVEL2["seed"], kata=REF)
+    assert cli.main(["verify-card", payload]) == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+
+def test_verify_card_cli_level_id_lookup(tmp_path, monkeypatch, capsys):
+    from scheduler_dojo import cli
+
+    monkeypatch.chdir(ROOT)  # so the default levels dir resolves
+    res = run_level(LEVEL2, seed=LEVEL2["seed"], kata=REF)
+    payload = encode_card(level_id="level2", seed=LEVEL2["seed"], kata=REF, result=res)
+    assert cli.main(["verify-card", payload]) == 0
+    assert json.loads(capsys.readouterr().out)["ok"] is True
+
+
+def test_verify_card_cli_detects_tamper(tmp_path, capsys):
+    from scheduler_dojo import cli
+    from scheduler_dojo.share.card import _b64url_encode
+
+    res = run_level(LEVEL2, seed=LEVEL2["seed"], kata=REF)
+    payload = encode_card(level=LEVEL2, seed=LEVEL2["seed"], kata=REF, result=res)
+    card = decode_card(payload)
+    card["kata"] = "order by t:\n  key = job.submit_time\n"  # different policy, same embedded hash
+    tampered = "#c=" + _b64url_encode(card)
+    assert cli.main(["verify-card", tampered]) == 1
+    assert json.loads(capsys.readouterr().out)["ok"] is False
+
+
 def test_card_json_body_is_ordered_keys_compact():
     card = decode_card(encode_card(level=LEVEL2, seed=1, policy="fifo"))
     assert card["policy"] == "fifo" and "kata" not in card

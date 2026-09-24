@@ -11,7 +11,9 @@
 `kata` subcommand (`check | format | run` over a kata file or `-` for stdin). `run` prints a JSON
 summary: `n_jobs`, `end_time`, `node_seconds_busy`, `metrics`, `trajectory_hash`, and — when the
 level declares them — a normalized `score`. `_cmd_run` and `_cmd_kata` are the handlers; `kata check`
-prints a caret report and exits 2 on an unreadable file rather than a traceback.
+prints a caret report and exits 2 on an unreadable file rather than a traceback. Two Stage-8/9
+subcommands: `import-trace <csv>` (sacct export → an explicit-jobs level, `dojo import-trace`), and
+`verify-card <payload>` (decode + `replay_card`, exit 1 if the trajectory hash disagrees).
 
 ## How it works
 

@@ -537,6 +537,11 @@ sig = "4df8eb7daa7b9e4e"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
+target = "src/scheduler_dojo/share/card.py#replay_card"
+sig = "547c8ce9823556a9"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-cli.md"
 target = "src/scheduler_dojo/sim/jobs.py#Job"
 sig = "64aa2e55be19d06c"
 

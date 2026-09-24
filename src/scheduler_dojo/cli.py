@@ -98,6 +98,27 @@ def _cmd_import_trace(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_verify_card(args: argparse.Namespace) -> int:
+    import json as _json
+    from pathlib import Path
+
+    from scheduler_dojo.share.card import decode_card, replay_card
+
+    payload = sys.stdin.read() if args.card == "-" else args.card
+    card = decode_card(payload)
+    level = None
+    if "level" not in card:  # level_id card -> look it up from the shipped set
+        cand = Path(args.levels_dir) / f"{card.get('level_id')}.json"
+        if not cand.exists():
+            print(_json.dumps({"ok": False, "error": f"level file not found: {cand}"}, sort_keys=True))
+            return 1
+        level = _json.loads(cand.read_text())
+    out = replay_card(card, level=level)
+    out["tamper_evident"] = card.get("hash") is not None
+    print(_json.dumps(out, indent=2, sort_keys=True))
+    return 0 if out["ok"] else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="dojo", description="Scheduler Dojo engine")
     parser.add_argument("--version", action="store_true", help="print version and exit")
@@ -127,6 +148,11 @@ def main(argv: list[str] | None = None) -> int:
     imp.add_argument("--cpus", type=int, default=1, help="cpus per node")
     imp.add_argument("--id", default="trace", help="level id")
     imp.set_defaults(func=_cmd_import_trace)
+
+    vc = sub.add_parser("verify-card", help="replay a share card and check its trajectory hash")
+    vc.add_argument("card", help="share-card payload (#c=…), or - for stdin")
+    vc.add_argument("--levels-dir", default="levels", help="where to find level_id references")
+    vc.set_defaults(func=_cmd_verify_card)
 
     args = parser.parse_args(argv)
     if getattr(args, "version", False):
