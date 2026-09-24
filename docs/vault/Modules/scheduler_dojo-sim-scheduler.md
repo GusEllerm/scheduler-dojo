@@ -8,9 +8,10 @@
 
 `Scheduler(cluster, jobs, policy)` seeds one `ARRIVE` per job, advances an integer clock, and at
 each decision point calls `policy(ctx)`. `PolicyContext` exposes `now`, `queued`, `running`,
-`free_nodes()`, `fits_now(job)`, and `place(job[, nodes])`. `run(until=None)` returns a
-`RunResult`. `fifo` and `shortest_first` are plain-Python policies (Kata's fallback defaults)
-registered in `POLICIES`.
+`free_nodes()`, `fits_now(job)`, `fits_later(job)` (a time-agnostic capacity ceiling via
+`Cluster.can_host`, so backfill katas hold room for a job that cannot fit *now*), and
+`place(job[, nodes])`. `run(until=None)` returns a `RunResult`. `fifo`, `shortest_first`, and `idle`
+(place-nothing, the calibration/hand baseline) are plain-Python policies registered in `POLICIES`.
 
 ## How it works
 

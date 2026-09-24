@@ -53,7 +53,8 @@ DEFAULT_WALLTIME_MEDIAN = 1800
 DEFAULT_SIGMA = 0.5
 DEFAULT_RATIO_MEDIAN = 0.5
 HOUR_SECONDS = 3600
-E = 2.718281828459045  # math.e as a literal: exp() is a power, so no `math` import (Pyodide-safe)
+E = 2.718281828459045  # math.e as a literal: exp(x) is written E**x, so the hot path never
+                      # depends on a runtime-specific math.exp shim (CPython vs Pyodide)
 MAX_LOG = 700.0  # clamp so exp(x) stays finite (E**700 ~ 1e304) for pathological sigma
 
 

@@ -175,3 +175,18 @@ class Cluster:
                 if len(chosen) == count:
                     return chosen
         return None
+
+    def can_host(self, count: int, *, partition: str | None, cpus: int, mem: int,
+                 gpus: int, tags: tuple[str, ...]) -> bool:
+        """Could ``count`` compatible nodes *ever* host a job (a capacity ceiling, time-agnostic).
+
+        Backfill katas use this to tell "a big job will fit eventually" from "it can never run here",
+        so they hold capacity for the former while backfilling short jobs around it.
+        """
+        seen = 0
+        for _n in self._iter_compatible(partition=partition, cpus=cpus, mem=mem,
+                                        gpus=gpus, tags=tags):
+            seen += 1
+            if seen >= count:
+                return True
+        return False

@@ -63,6 +63,13 @@ class PolicyContext:
             cpus=job.cpus_req, mem=job.mem_req, gpus=job.gpus_req, tags=job.tags,
         ) is not None
 
+    def fits_later(self, job: Job) -> bool:
+        """Could ``job`` run at all on this cluster (ignoring *when*) — a capacity ceiling, not a
+        time search. Used by backfill katas to hold capacity for a job that does not fit *now*."""
+        c = self._sched.cluster
+        return c.can_host(job.nodes_req, partition=job.partition, cpus=job.cpus_req,
+                          mem=job.mem_req, gpus=job.gpus_req, tags=job.tags)
+
     def _deps_done(self, job: Job) -> bool:
         return self._sched._deps_done(job)
 
@@ -275,4 +282,10 @@ def shortest_first(ctx: PolicyContext) -> None:
             ctx.place(job)
 
 
-POLICIES: dict[str, Policy] = {"fifo": fifo, "shortest_first": shortest_first}
+def idle(ctx: PolicyContext) -> None:
+    """Place nothing — the 'do nothing' baseline a hand level starts from, and the calibration
+    floor. Jobs queue forever; every cost metric goes to its worst."""
+    return None
+
+
+POLICIES: dict[str, Policy] = {"fifo": fifo, "shortest_first": shortest_first, "idle": idle}

@@ -127,7 +127,7 @@ engine sorts `queue()` by that key (stable, tie → job id).
 ## 6. Builtins (by tier; the level file lists enabled names)
 
 - **core** (always): `queue()`, `running()`, `now()`, `nodes()`, `free_nodes()`,
-  `fits_now(job)`, `place(job)`, `place(job, nodes)`, `end_if_started_now(job)`,
+  `fits_now(job)`, `fits_later(job)`, `place(job)`, `place(job, nodes)`, `end_if_started_now(job)`,
   `first(xs)`, `rest(xs)`, `len(xs)`, `min(xs|…)`, `max(xs|…)`, `sum(xs)`, `sorted(xs, key=…)`,
   `any(xs)`, `all(xs)`, `abs(x)`, `if(cond, a, b)`.
 - **reserve** (levels 3+): `earliest_fit(job)`, `reserve(job, t)`, `reservation_start(job)`.

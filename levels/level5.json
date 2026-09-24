@@ -1,0 +1,97 @@
+{
+  "id": "level5",
+  "title": "Everyone at the table",
+  "teaches": "fairness and shares",
+  "story": "One user dumps job after job and the queue tilts toward them. Order by who has been served least and watch Jain fairness climb back toward one.",
+  "unlocks": [
+    "core",
+    "fairness"
+  ],
+  "default_policy": "fifo",
+  "reference_kata": "reference_katas/fair_order.kata",
+  "cluster": {
+    "partition": "batch",
+    "nodes": [
+      {
+        "id": "n0",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n1",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n2",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n3",
+        "cpus": 8,
+        "mem": 32
+      }
+    ]
+  },
+  "generator": {
+    "n_jobs": 120,
+    "users": [
+      {
+        "name": "hog",
+        "weight": 6.0
+      },
+      {
+        "name": "alice",
+        "weight": 1.0
+      },
+      {
+        "name": "bob",
+        "weight": 1.0
+      }
+    ],
+    "arrival": {
+      "type": "poisson",
+      "rate_per_hour": 50
+    },
+    "nodes": {
+      "type": "discrete",
+      "choices": [
+        [
+          1,
+          0.85
+        ],
+        [
+          2,
+          0.15
+        ]
+      ]
+    },
+    "walltime": {
+      "type": "lognormal",
+      "median": 600,
+      "sigma": 0.6
+    },
+    "runtime_ratio": {
+      "type": "lognormal",
+      "median": 0.5,
+      "sigma": 0.5
+    }
+  },
+  "duration": 60000,
+  "score_weights": {
+    "bounded_slowdown": 1.0
+  },
+  "score_anchors": {
+    "bounded_slowdown": {
+      "baseline": 13.564781,
+      "reference": 11.615171
+    }
+  },
+  "bars": {
+    "pass_score": 360,
+    "gold_score": 720
+  },
+  "seed": 6,
+  "primary_metric": "bounded_slowdown"
+}

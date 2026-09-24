@@ -1,12 +1,14 @@
-# Reference kata: reserve the head of the queue, backfill short jobs around it.
-# Teaches Level 3's starvation pain — a big job is reserved its slot so it stops
-# slipping, while short jobs backfill the gap and don't waste the reservation.
+# Reference kata: order short jobs first, then *fill the gaps* a big job cannot use.
+# Teaches Level 3's starvation fix — when a queued job is too big to fit right now, do not
+# idle the free nodes and do not reach past it for another big one; backfill the short jobs
+# that fit, and leave the big job's capacity to accumulate until fits_later turns into fits_now.
 
-place by easy_backfill:
-    head = first(queue())
-    if head != nil:
-        reserve(head, earliest_fit(head))
-        for j in rest(queue()):
-            if fits_now(j) and end_if_started_now(j) <= reservation_start(head):
-                place(j)
-        place(head)
+order by shortest_first:
+    key = (job.walltime_req, job.submit_time)
+
+place by gap_fill:
+    for j in queue():
+        if fits_now(j):
+            place(j)
+        elif fits_later(j):
+            break

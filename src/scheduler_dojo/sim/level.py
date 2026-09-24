@@ -12,9 +12,73 @@ from pathlib import Path
 from typing import Any
 
 from scheduler_dojo.sim.cluster import Cluster, Node, Partition, Site
+from scheduler_dojo.sim.errors import (LEVEL_BARS, LEVEL_METRIC, LEVEL_SCHEMA, LevelError)
 from scheduler_dojo.sim.jobs import Job
 from scheduler_dojo.sim.scheduler import POLICIES, RunResult, Scheduler
 from scheduler_dojo.sim.trace import generate_jobs
+
+# Vocabulary the schema validator checks level files against.
+KNOWN_METRICS = frozenset({"utilization", "bounded_slowdown", "wait_p95", "fairness", "sla"})
+KNOWN_TIERS = frozenset({"core", "reserve", "fairness", "sensor", "preempt", "route"})
+KNOWN_SENSORS = frozenset({"actual_runtime", "est_runtime"})
+
+
+def validate_level(level: dict[str, Any]) -> None:
+    """Raise ``LevelError`` if a level dict is malformed. Cheap dict checks only (no simulation).
+
+    This is the single gate every level (fixture, shipped, or share-card sandbox) passes through, so
+    a bad level fails loudly with a code rather than producing a confusing run.
+    """
+    if not isinstance(level, dict):
+        raise LevelError("level must be an object", code=LEVEL_SCHEMA)
+    for key in ("id", "title", "cluster", "generator"):
+        if key not in level:
+            raise LevelError(f"level missing required key {key!r}", code=LEVEL_SCHEMA)
+    if not isinstance(level["cluster"], dict) or not (
+        "sites" in level["cluster"] or "nodes" in level["cluster"]
+    ):
+        raise LevelError("cluster needs 'sites' or 'nodes'", code=LEVEL_SCHEMA)
+    if not isinstance(level["generator"], dict):
+        raise LevelError("generator must be an object", code=LEVEL_SCHEMA)
+
+    dur = level.get("duration")
+    if dur is not None and (not isinstance(dur, int) or dur <= 0):
+        raise LevelError("duration must be a positive integer", code=LEVEL_SCHEMA)
+
+    if "unlocks" in level:
+        u = level["unlocks"]
+        if not isinstance(u, list) or not set(u) <= KNOWN_TIERS:
+            raise LevelError(f"unlocks must be a subset of {sorted(KNOWN_TIERS)}", code=LEVEL_SCHEMA)
+    if "sensors" in level:
+        s = level["sensors"]
+        if not isinstance(s, list) or not set(s) <= KNOWN_SENSORS:
+            raise LevelError(f"sensors must be a subset of {sorted(KNOWN_SENSORS)}", code=LEVEL_SCHEMA)
+
+    weights = level.get("score_weights")
+    anchors = level.get("score_anchors")
+    if weights is not None:
+        if not isinstance(weights, dict) or not weights:
+            raise LevelError("score_weights must be a non-empty object", code=LEVEL_METRIC)
+        unknown = set(weights) - KNOWN_METRICS
+        if unknown:
+            raise LevelError(f"score_weights has unknown metric(s) {sorted(unknown)}",
+                             code=LEVEL_METRIC)
+        if anchors is None:
+            raise LevelError("score_weights present but no score_anchors", code=LEVEL_METRIC)
+        if set(anchors) != set(weights):
+            raise LevelError("score_anchors must have the same metrics as score_weights",
+                             code=LEVEL_METRIC)
+        for m, pair in anchors.items():
+            if not isinstance(pair, dict) or "baseline" not in pair or "reference" not in pair:
+                raise LevelError(f"anchor for {m!r} needs baseline and reference", code=LEVEL_METRIC)
+
+    bars = level.get("bars")
+    if bars is not None:
+        if not isinstance(bars, dict) or "pass_score" not in bars or "gold_score" not in bars:
+            raise LevelError("bars needs pass_score and gold_score", code=LEVEL_BARS)
+        p, g = bars["pass_score"], bars["gold_score"]
+        if not (0 <= p <= g <= 1000):
+            raise LevelError(f"bars must satisfy 0 <= pass({p}) <= gold({g}) <= 1000", code=LEVEL_BARS)
 
 
 def build_cluster(spec: dict[str, Any]) -> Cluster:
@@ -59,16 +123,22 @@ def load_jobs(level: dict[str, Any], seed: int) -> list[Job]:
     return generate_jobs(gen, seed, horizon=horizon)
 
 
-def run_level(level: dict[str, Any], *, seed: int, policy: str = "fifo",
-              kata: str | Path | None = None) -> RunResult:
+def run_level(level: dict[str, Any], *, seed: int | None = None, policy: str | None = None,
+              kata: str | Path | None = None, validate: bool = True) -> RunResult:
     """Run a level with a built-in `policy`, or with a `kata` (source string or path).
 
-    When `kata` is given, the level's `unlocks` list gates which Kata slots/builtins are enabled,
-    and the policy is a ``scheduler_dojo.kata.KataPolicy`` over the parsed program (with the
-    built-in `policy` as its per-decision fallback).
+    `seed` defaults to the level's fixed ``seed`` (levels are deterministic puzzles). When `kata` is
+    given, the level's `unlocks` list gates which Kata slots/builtins are enabled, and the policy is
+    a ``scheduler_dojo.kata.KataPolicy`` over the parsed program (with FIFO first-fit fallback).
     """
+    if validate:
+        validate_level(level)
+    if seed is None:
+        seed = int(level.get("seed", 0))
     cluster = build_cluster(level["cluster"])
     jobs = load_jobs(level, seed)
+    if policy is None:
+        policy = level.get("default_policy", "fifo")
     if kata is not None:
         from scheduler_dojo.kata import parse
         from scheduler_dojo.kata.policy import KataPolicy

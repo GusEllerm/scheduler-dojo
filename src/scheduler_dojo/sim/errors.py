@@ -22,6 +22,10 @@ class PolicyError(EngineError):
     """An invalid policy action (place a job that doesn't fit, reserve in the past, ...)."""
 
 
+class LevelError(EngineError):
+    """A level definition is malformed (bad schema, unknown metric, bar/anchor inconsistency)."""
+
+
 class StepBudgetError(EngineError):
     """A kata exhausted its per-decision interpreter steps."""
 
@@ -37,3 +41,8 @@ DEPS_UNMET = "deps_unmet"
 NO_NODES = "no_nodes"
 MISMATCH = "mismatch"
 PAST_TIME = "past_time"
+
+# Level-definition error codes (spec Stage 3).
+LEVEL_SCHEMA = "level_schema"
+LEVEL_METRIC = "level_metric"
+LEVEL_BARS = "level_bars"

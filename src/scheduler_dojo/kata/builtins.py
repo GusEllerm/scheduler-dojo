@@ -37,7 +37,7 @@ from scheduler_dojo.sim.scheduler import runtime_used
 TIERS: dict[str, str] = {
     # core
     "queue": "core", "running": "core", "now": "core", "nodes": "core",
-    "free_nodes": "core", "fits_now": "core", "place": "core",
+    "free_nodes": "core", "fits_now": "core", "fits_later": "core", "place": "core",
     "end_if_started_now": "core", "has_tag": "core",
     "first": "core", "rest": "core", "len": "core", "min": "core", "max": "core",
     "sum": "core", "sorted": "core", "any": "core", "all": "core", "abs": "core",
@@ -60,7 +60,7 @@ TIERS: dict[str, str] = {
 # --- arity: builtin name -> (min_positional, max_positional or None = variadic) -
 ARITY: dict[str, tuple] = {
     "queue": (0, 0), "running": (0, 0), "now": (0, 0), "nodes": (0, 0),
-    "free_nodes": (0, 0), "fits_now": (1, 1), "place": (1, 2),
+    "free_nodes": (0, 0), "fits_now": (1, 1), "fits_later": (1, 1), "place": (1, 2),
     "end_if_started_now": (1, 1), "has_tag": (2, 2),
     "first": (1, 1), "rest": (1, 1), "len": (1, 1), "sum": (1, 1),
     "any": (1, 1), "all": (1, 1), "abs": (1, 1), "if": (3, 3),
@@ -242,7 +242,7 @@ class Env:
     # --- builtin dispatch (interp has already checked tier/arity) ----------------
     _METHODS = {
         "queue": "bi_queue", "running": "bi_running", "now": "bi_now", "nodes": "bi_nodes",
-        "free_nodes": "bi_free_nodes", "fits_now": "bi_fits_now", "place": "bi_place",
+        "free_nodes": "bi_free_nodes", "fits_now": "bi_fits_now", "fits_later": "bi_fits_later", "place": "bi_place",
         "end_if_started_now": "bi_end_if_started_now", "has_tag": "bi_has_tag",
         "first": "bi_first", "rest": "bi_rest", "len": "bi_len", "min": "bi_min",
         "max": "bi_max", "sum": "bi_sum", "sorted": "bi_sorted", "any": "bi_any",
@@ -277,6 +277,9 @@ class Env:
 
     def bi_fits_now(self, job):
         return bool(self.ctx.fits_now(_job_of(job)))
+
+    def bi_fits_later(self, job):
+        return bool(self.ctx.fits_later(_job_of(job)))
 
     def bi_place(self, job, nodes=None):
         j = _job_of(job)

@@ -135,3 +135,41 @@ round-trip (all `ExprStmt` node types verified to re-parse to an equal AST), so 
 two of my own cross-cutting bugs found while integrating: `EngineError` now stores `self.message` (the
 frozen `caret()` needs it) and `run_level`'s source-vs-path detection no longer stats a multi-line
 program as a filename (OSError). 158 tests green.
+
+## 2026-09-24 — Levels are fixed-seed puzzles, not seed-averaged `[agent decision]`
+
+Each level carries a single `seed` and calibration solves `score_anchors` **on that seed** so the
+`baseline_policy` scores exactly 300 and the `reference_kata` exactly 800. The rejected alternative was
+averaging metrics over several seeds: a single play is one seed, and `bounded_slowdown` variance across
+seeds is large enough that mean-anchored scores swing 0↔1000 on any one run. A fixed seed makes the
+level a deterministic puzzle (same for everyone, replayable from a share card) and pins
+`score(baseline)=300`/`score(reference)=800` as exact, goldens-checkable numbers. Calibration is
+idempotent (re-run → byte-identical files) and picks the seed where the lesson actually shows. See
+[[Levels]].
+
+## 2026-09-24 — Gold is earned: only reference-improved metrics are scored `[agent decision]`
+
+Anchors set at the reference's own values would make `score(reference)=800` *tautological* — true even
+if the reference were worse. So calibration Pareto-filters per metric on the level's seed: a metric is
+scored only if the reference is **at least as good** as the baseline on it (strictly better on the
+`primary_metric`). Consequence: a reference that trades a secondary metric away (shortest-first cuts
+slowdown but nudges utilization down) is scored only on what it improves, and a player who also holds
+the secondary metric scores above 800. The gold bar is then a real achievement, not an anchor artifact.
+
+## 2026-09-24 — `fits_later(job)`: a capacity ceiling to make backfill honest `[agent decision]`
+
+Level 3's first reference (reserve-based backfill) scored *worse* than FIFO, and calibration rightly
+rejected it. Gap-filling needs to tell "this big job will fit eventually" from "it can never run here",
+which the time-agnostic `Cluster.can_host` gives as `PolicyContext.fits_later` / the kata `fits_later`
+(core tier). The reference became "order short-first, place jobs that `fits_now`, stop at the first job
+that only `fits_later`" — which genuinely beats FIFO on slowdown. A real timeline `earliest_fit` is
+still deferred (see the reserve/`earliest_fit` decision above).
+
+## 2026-09-24 — Fairness is quiet at util < 1; deferred a real fairness level `[agent decision]`
+
+`fairness` is Jain's index of delivered-vs-entitled share; when all jobs complete (the normal Stage-3
+case), delivered ≈ entitled for every user and the index sits near 1 regardless of ordering — so no
+ordering kata can move it. Level 5 unlocks and *uses* `user_share` (the machinery is exercised) but is
+scored on `bounded_slowdown`, and the story is framed as "keep the queue responsive under a flooding
+hog," which the ordering genuinely does. A real fairness lesson needs SLAs or guaranteed shares (later
+stages). Documented in [[Levels]] rather than faked with a rigged anchor.

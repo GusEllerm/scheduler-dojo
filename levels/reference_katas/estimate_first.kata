@@ -1,0 +1,6 @@
+# Reference kata: order by estimated runtime, not the walltime the user asked for.
+# Teaches Level 4's "trust, but verify" — schedule on a *sensor* estimate so a user who
+# pads their walltime cannot push everyone else's queue behind a phantom-long job.
+
+order by estimate_first:
+    key = (est_runtime(job), job.submit_time)

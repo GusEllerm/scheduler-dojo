@@ -1,0 +1,6 @@
+# Reference kata: least-served users first.
+# Teaches Level 5's "everyone at the table" — a fairness-aware order key pulls the hog's
+# jobs back behind everyone else's, so Jain fairness stops collapsing toward one name.
+
+order by least_served_first:
+    key = (user_share(job.user), job.submit_time)

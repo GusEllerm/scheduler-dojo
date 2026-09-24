@@ -72,6 +72,8 @@ def test_10k_jobs_under_5s():
         "runtime_ratio": {"type": "lognormal", "median": 0.5, "sigma": 0.7},
     }
     level = {
+        "id": "perf",
+        "title": "10k perf",
         "cluster": {"nodes": [{"id": f"n{i}", "cpus": 64, "mem": 128} for i in range(256)]},
         "generator": spec,
     }

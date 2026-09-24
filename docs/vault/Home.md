@@ -26,6 +26,12 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
+**Stage 3 (Levels 1–5) — done.** A validated level schema (`validate_level`), five calibrated
+levels — each a fixed-seed deterministic puzzle with a `baseline_policy` scoring 300 and a
+`reference_kata` scoring 800 (gold *earned* via a Pareto metric filter, not baked in),
+`scripts/calibrate_levels.py`, per-level goldens, and a `fits_later` capacity ceiling for honest
+gap-filling. Fairness is honestly quiet at util < 1 (deferred real lesson). 177 tests passing.
+
 **Stage 2 (Kata language) — done.** A small, safe, deterministic policy language: `lexer.py` +
 `parser.py` → AST, a tree-walking `interp.py` with a per-decision step budget, tier-gated `builtins.py`
 bound to the scheduler, `KataPolicy` (plugs into `Scheduler` with a clean FIFO fallback on any error),
@@ -44,7 +50,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 0 | Bootstrap: repo, package, CI, vault, Determinism note | ✅ done |
 | 1 | Simulator core (headless): events/cluster/jobs, scoring, trace generators, FIFO + shortest-first, `dojo run` | ✅ done |
 | 2 | Kata language: spec → lexer/parser/AST, interpreter + step budget + builtins, formatter, `dojo kata check` | ✅ done |
-| 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | planned |
+| 3 | Levels 1–5 defined and calibrated (schema, reference katas, `scripts/calibrate_levels.py`) | ✅ done |
 | 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | planned |
 | 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | planned |
 | 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | planned |

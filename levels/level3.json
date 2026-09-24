@@ -1,0 +1,97 @@
+{
+  "id": "level3",
+  "title": "The big job that never starts",
+  "teaches": "backfill and gap-filling",
+  "story": "A big job waits for all four nodes while short 1-node jobs endlessly fill them. Instead of idling or grabbing the wrong big job, backfill the short ones and let the big job's capacity accumulate until it fits.",
+  "unlocks": [
+    "core",
+    "reserve"
+  ],
+  "default_policy": "fifo",
+  "reference_kata": "reference_katas/backfill.kata",
+  "cluster": {
+    "partition": "batch",
+    "nodes": [
+      {
+        "id": "n0",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n1",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n2",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n3",
+        "cpus": 8,
+        "mem": 32
+      }
+    ]
+  },
+  "generator": {
+    "n_jobs": 80,
+    "users": [
+      {
+        "name": "batch",
+        "weight": 2.0
+      },
+      {
+        "name": "research",
+        "weight": 1.0
+      }
+    ],
+    "arrival": {
+      "type": "poisson",
+      "rate_per_hour": 20
+    },
+    "nodes": {
+      "type": "discrete",
+      "choices": [
+        [
+          1,
+          0.7
+        ],
+        [
+          2,
+          0.15
+        ],
+        [
+          4,
+          0.15
+        ]
+      ]
+    },
+    "walltime": {
+      "type": "lognormal",
+      "median": 700,
+      "sigma": 0.7
+    },
+    "runtime_ratio": {
+      "type": "lognormal",
+      "median": 0.6,
+      "sigma": 0.5
+    }
+  },
+  "duration": 120000,
+  "score_weights": {
+    "bounded_slowdown": 1.0
+  },
+  "score_anchors": {
+    "bounded_slowdown": {
+      "baseline": 7.394688,
+      "reference": 3.321125
+    }
+  },
+  "bars": {
+    "pass_score": 360,
+    "gold_score": 720
+  },
+  "seed": 1,
+  "primary_metric": "bounded_slowdown"
+}

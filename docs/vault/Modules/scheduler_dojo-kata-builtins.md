@@ -8,8 +8,9 @@
 
 `Env(ctx, *, unlocked, step_budget, memory)` provides the spec §6 builtins (`bi_*` methods, dispatched
 by `invoke`), record wrappers (`JobRec`, `NodeRec`, `UserRec`, `SiteRec`, `TupleRec`), and the
-queue-order hook (`set_queue_order`, `queue_jobs`). `sortable(v)` coerces a kata value to a Python
-sort key; `truth(x)`, `_plain(v)` normalize for operators.
+queue-order hook (`set_queue_order`, `queue_jobs`). Core adds `fits_later(job)` (Stage 3), a
+time-agnostic capacity ceiling wrapping `Cluster.can_host` for gap-filling. `sortable(v)` coerces a
+kata value to a Python sort key; `truth(x)`, `_plain(v)` normalize for operators.
 
 ## How it works
 

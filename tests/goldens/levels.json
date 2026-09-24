@@ -1,0 +1,42 @@
+{
+  "level1.json": {
+    "baseline_hash": "f584a5e4856f0327475831499d1631671fb672910308092bd09622c65fcf3ead",
+    "baseline_policy": "idle",
+    "baseline_score": 300,
+    "reference_hash": "46d8a83bdfb696ab40c8756591413b89b12c38880c34b42e027278a26cef4217",
+    "reference_score": 800,
+    "seed": 4
+  },
+  "level2.json": {
+    "baseline_hash": "c6f6e390a5e114fcf032f162b8c97fc3ec895ccce342c3e59c562b82281bdc4a",
+    "baseline_policy": "fifo",
+    "baseline_score": 300,
+    "reference_hash": "5ed0508803ad5258153e7b764802348c2aef79d1f58504f9d774238a507b2412",
+    "reference_score": 800,
+    "seed": 5
+  },
+  "level3.json": {
+    "baseline_hash": "cb09fb3b188676365d3f2a42ad0f6121756748a21dc2cc07c454dc8225309572",
+    "baseline_policy": "fifo",
+    "baseline_score": 300,
+    "reference_hash": "2be2bebb0b3526cba0fa96f69a118d260070f1cc7faa78139e08ffdf429667b8",
+    "reference_score": 800,
+    "seed": 1
+  },
+  "level4.json": {
+    "baseline_hash": "31ed74c04160214e2bbf4e16a46e988eb5a315cf502532a41095c99856c2a7c0",
+    "baseline_policy": "fifo",
+    "baseline_score": 300,
+    "reference_hash": "c53370e8d3dad2dc7fba4a02625f4a4e32c6ceb360e7e53d4090ae3c5eeb86ad",
+    "reference_score": 800,
+    "seed": 3
+  },
+  "level5.json": {
+    "baseline_hash": "c4f1344d8865e69a55268b6e10d5c9462c3c2a955d5cfe235fe7d88355deb173",
+    "baseline_policy": "fifo",
+    "baseline_score": 300,
+    "reference_hash": "49dc28f7f5ae870a3520d6515596e2502bb63488765892dba1afbe3583503b65",
+    "reference_score": 800,
+    "seed": 6
+  }
+}

@@ -5,8 +5,10 @@
 
 ## What it does
 
-`EngineError` base (with a stable `code` and optional kata `line`); subclasses `PolicyError`
-(invalid action), `StepBudgetError` (kata ran out of breath — Stage 2), `DeterminismError`
+`EngineError` base (stores `message`, a stable `code`, and an optional kata `line`); subclasses
+`PolicyError` (invalid action), `StepBudgetError` (kata ran out of breath — Stage 2), `LevelError`
+(malformed level definition — Stage 3, codes `level_schema`/`level_metric`/`level_bars`),
+`DeterminismError`
 (internal invariant violated, should never fire). Module-level code constants: `UNKNOWN_JOB`,
 `ALREADY_RUNNING`, `DEPS_UNMET`, `NO_NODES`, `MISMATCH`, `PAST_TIME`.
 
