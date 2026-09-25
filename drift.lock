@@ -292,6 +292,16 @@ sig = "23677cc7591cff26"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Progression.md"
+target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
+sig = "ea6def626bef7acf"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Progression.md"
+target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
+sig = "582ef806afb7f540"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Progression.md"
 target = "src/scheduler_dojo/sim/scoring.py#fairness"
 sig = "e8534d29c115e0c7"
 
@@ -353,17 +363,17 @@ sig = "9a749a2d3866892a"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "levels/tutorials/city1.json"
-sig = "0a438c518ae24cdb"
+sig = "62c5b7bfaa4ecfae"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "levels/tutorials/city2.json"
-sig = "59cfd84020e1f8e4"
+sig = "2f08f2db38e7a838"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "levels/tutorials/city3.json"
-sig = "fa2470ab6d758153"
+sig = "fb613de5f2de909d"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
@@ -1413,12 +1423,12 @@ sig = "6c88a909d3c715c7"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"
 target = "src/scheduler_dojo/progression.py"
-sig = "1c1541f71da1dbe7"
+sig = "207c1f50686ff9e7"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"
 target = "src/scheduler_dojo/progression.py#_migrate"
-sig = "2905919d3b8f2637"
+sig = "d70c92b0adc1d935"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"
@@ -1448,7 +1458,7 @@ sig = "05606ebde089bdb7"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"
 target = "src/scheduler_dojo/progression.py#new_state"
-sig = "ada180d1b8daeb6d"
+sig = "c45876f198205983"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"
