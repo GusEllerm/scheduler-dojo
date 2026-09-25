@@ -128,7 +128,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Kata.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "2ccc7c1a68661664"
+sig = "cb732ba0d5926025"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -163,7 +163,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "2ccc7c1a68661664"
+sig = "cb732ba0d5926025"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -268,7 +268,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "2ccc7c1a68661664"
+sig = "cb732ba0d5926025"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -448,7 +448,7 @@ sig = "71234d3e76362c30"
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "2ccc7c1a68661664"
+sig = "cb732ba0d5926025"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -1228,7 +1228,7 @@ sig = "8910c73df162f71f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
 target = "src/scheduler_dojo/sim/scheduler.py"
-sig = "819785bd10db7d1e"
+sig = "47304f4face07def"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
@@ -1238,7 +1238,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "2ccc7c1a68661664"
+sig = "cb732ba0d5926025"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
@@ -1388,7 +1388,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-errors.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "2ccc7c1a68661664"
+sig = "cb732ba0d5926025"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-events.md"
