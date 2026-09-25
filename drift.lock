@@ -273,7 +273,7 @@ sig = "cb732ba0d5926025"
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
 target = ".github/workflows/ci.yml"
-sig = "27f4ed7f3f2e1104"
+sig = "b007f0b9b1751aba"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
