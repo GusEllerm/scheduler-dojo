@@ -1,0 +1,151 @@
+{
+  "id": "level6",
+  "title": "The special machines",
+  "teaches": "partitions and tags",
+  "story": "The GPU nodes sort to the front of every first-fit scan, so plain FIFO parks ordinary jobs on them while the GPU-flagged jobs queue behind. Keep the special capacity for the jobs that actually need it.",
+  "unlocks": [
+    "core"
+  ],
+  "default_policy": "fifo",
+  "reference_kata": "reference_katas/partition_aware.kata",
+  "cluster": {
+    "sites": [
+      {
+        "id": "s",
+        "partitions": [
+          {
+            "id": "gpu",
+            "nodes": [
+              {
+                "id": "a1",
+                "cpus": 8,
+                "mem": 32,
+                "gpus": 2
+              },
+              {
+                "id": "a2",
+                "cpus": 8,
+                "mem": 32,
+                "gpus": 2
+              }
+            ]
+          },
+          {
+            "id": "batch",
+            "nodes": [
+              {
+                "id": "n1",
+                "cpus": 8,
+                "mem": 32
+              },
+              {
+                "id": "n2",
+                "cpus": 8,
+                "mem": 32
+              },
+              {
+                "id": "n3",
+                "cpus": 8,
+                "mem": 32
+              },
+              {
+                "id": "n4",
+                "cpus": 8,
+                "mem": 32
+              },
+              {
+                "id": "n5",
+                "cpus": 8,
+                "mem": 32
+              },
+              {
+                "id": "n6",
+                "cpus": 8,
+                "mem": 32
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "generator": {
+    "n_jobs": 100,
+    "users": [
+      {
+        "name": "alice",
+        "weight": 1.0
+      },
+      {
+        "name": "bob",
+        "weight": 1.0
+      },
+      {
+        "name": "carol",
+        "weight": 1.0
+      }
+    ],
+    "arrival": {
+      "type": "poisson",
+      "rate_per_hour": 30
+    },
+    "nodes": {
+      "type": "discrete",
+      "choices": [
+        [
+          1,
+          0.8
+        ],
+        [
+          2,
+          0.2
+        ]
+      ]
+    },
+    "walltime": {
+      "type": "lognormal",
+      "median": 600,
+      "sigma": 0.6
+    },
+    "runtime_ratio": {
+      "type": "lognormal",
+      "median": 0.6,
+      "sigma": 0.5
+    },
+    "requires": [
+      {
+        "weight": 3.0,
+        "partition": "gpu"
+      },
+      {
+        "weight": 7.0
+      }
+    ]
+  },
+  "duration": 30000,
+  "bars": {
+    "pass_score": 360,
+    "gold_score": 720
+  },
+  "seed": 3,
+  "primary_metric": "bounded_slowdown",
+  "score_weights": {
+    "bounded_slowdown": 1.0,
+    "utilization": 1.0,
+    "wait_p95": 1.0
+  },
+  "score_anchors": {
+    "bounded_slowdown": {
+      "baseline": 2.930732,
+      "reference": 1.633964
+    },
+    "utilization": {
+      "baseline": 0.458171,
+      "reference": 0.528165
+    },
+    "wait_p95": {
+      "baseline": 4113.0,
+      "reference": 943.0
+    }
+  }
+}

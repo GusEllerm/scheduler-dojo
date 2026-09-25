@@ -1,0 +1,121 @@
+{
+  "id": "level9",
+  "title": "The whole board",
+  "teaches": "everything at once \u2014 ordering, gap-fill, and fairness",
+  "story": "A busy mixed cluster: a hog at the gates, short jobs everywhere, and a big job that needs the whole rack. Order by who has been served least, break ties shortest-first, and fill the gaps the big job cannot use. This is the belt, no kata left behind.",
+  "unlocks": [
+    "core",
+    "reserve",
+    "fairness"
+  ],
+  "default_policy": "fifo",
+  "reference_kata": "reference_katas/fair_backfill.kata",
+  "cluster": {
+    "partition": "batch",
+    "nodes": [
+      {
+        "id": "n0",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n1",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n2",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n3",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n4",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n5",
+        "cpus": 8,
+        "mem": 32
+      }
+    ]
+  },
+  "generator": {
+    "n_jobs": 140,
+    "users": [
+      {
+        "name": "hog",
+        "weight": 5.0
+      },
+      {
+        "name": "alice",
+        "weight": 1.0
+      },
+      {
+        "name": "bob",
+        "weight": 1.0
+      },
+      {
+        "name": "carol",
+        "weight": 1.0
+      }
+    ],
+    "arrival": {
+      "type": "poisson",
+      "rate_per_hour": 45
+    },
+    "nodes": {
+      "type": "discrete",
+      "choices": [
+        [
+          1,
+          0.6
+        ],
+        [
+          2,
+          0.25
+        ],
+        [
+          4,
+          0.15
+        ]
+      ]
+    },
+    "walltime": {
+      "type": "lognormal",
+      "median": 700,
+      "sigma": 0.7
+    },
+    "runtime_ratio": {
+      "type": "lognormal",
+      "median": 0.6,
+      "sigma": 0.5
+    }
+  },
+  "duration": 60000,
+  "bars": {
+    "pass_score": 360,
+    "gold_score": 720
+  },
+  "seed": 1,
+  "primary_metric": "bounded_slowdown",
+  "score_weights": {
+    "bounded_slowdown": 1.0,
+    "wait_p95": 1.0
+  },
+  "score_anchors": {
+    "bounded_slowdown": {
+      "baseline": 9.483759,
+      "reference": 7.604159
+    },
+    "wait_p95": {
+      "baseline": 12456.0,
+      "reference": 12334.0
+    }
+  }
+}

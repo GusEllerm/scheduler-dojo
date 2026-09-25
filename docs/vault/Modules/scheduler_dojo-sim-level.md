@@ -9,11 +9,14 @@
 `build_cluster(spec)` accepts either the full `sites` topology or a `nodes` shorthand (one implicit
 site + partition). `load_jobs(level, seed)` delegates arrival generation to
 `sim.trace.generate_jobs`, or (trace mode) materializes a level's explicit `jobs` list via
-`jobs_from_level`. `validate_level(level)` is the single schema gate — it accepts a `generator` *or*
+`jobs_from_level` — which also carries the multi-site fields `home_site`/`data_mb` (Level 8).
+`validate_level(level)` is the single schema gate — it accepts a `generator` *or*
 an explicit `jobs` list (raises `LevelError`
 with a `level_schema`/`level_metric`/`level_bars` code). `run_level(level, seed=, policy=, kata=)`
 validates, defaults `seed` to the level's fixed puzzle `seed` and `policy` to the level's
-`default_policy`, schedules with a named policy from `sim.scheduler.POLICIES` or a `KataPolicy` over
+`default_policy`, threads the optional level key `transfer_rate_mbs` (MB/s inter-site rate for
+route-tier levels; absent ⇒ instantaneous, the pre-Stage-8 behaviour) into the `Scheduler`, schedules
+with a named policy from `sim.scheduler.POLICIES` or a `KataPolicy` over
 the level's `unlocks` when `kata` is passed, and runs to `duration`. `load_level_file` reads JSON;
 `_kata_source` resolves a kata argument to source text (a readable path vs literal source, guarding a
 multi-line program from being stat'd as a filename). `KNOWN_METRICS`/`KNOWN_TIERS`/`KNOWN_SENSORS`

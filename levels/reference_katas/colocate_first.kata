@@ -1,0 +1,26 @@
+# Reference kata: run next to your data — and ship the data only when home is jammed.
+# Teaches Level 8's two-site lesson — an unrouted job lands on its data's home site for free,
+# so plain FIFO just queues behind the analytics jobs on beta while alpha idles. When a job's
+# home site cannot host it now, check the remote site's free nodes and route there, paying the
+# one-off transfer_cost (seconds) instead of the whole queue's worth of waiting.
+
+def free_at_site(s):
+    c = 0
+    for n in free_nodes():
+        if has_tag(n, s.id):
+            c = c + 1
+    return c
+
+place by colocate_else_ship:
+    for j in queue():
+        if fits_now(j):
+            place(j)
+        else:
+            remote = nil
+            for s in sites():
+                if transfer_cost(j, s) > 0:
+                    remote = s
+            if remote != nil and free_at_site(remote) >= j.nodes_req:
+                route(j, remote)
+                if fits_now(j):
+                    place(j)

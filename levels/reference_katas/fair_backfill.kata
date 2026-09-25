@@ -1,0 +1,14 @@
+# Reference kata: the whole board at once — fair order, short keys, gap-filling placement.
+# Teaches Level 9's synthesis: order by who has been served least (the hog waits its turn),
+# break ties shortest-first (slowdown crush), and in the place slot fill the gaps a big job
+# cannot use while holding its capacity for the moment it fits.
+
+order by fair_then_short:
+    key = (user_share(job.user), job.walltime_req, job.submit_time)
+
+place by gap_fill:
+    for j in queue():
+        if fits_now(j):
+            place(j)
+        elif fits_later(j):
+            break

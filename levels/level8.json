@@ -1,0 +1,339 @@
+{
+  "id": "level8",
+  "title": "Data does not travel",
+  "teaches": "two-site routing",
+  "story": "Every job lands on the site where its data lives \u2014 which is exactly why the analytics farm on beta is jammed and alpha is dark. Co-locate by default; when home is clogged, ship the bytes and pay the one-off transfer instead of the queue.",
+  "unlocks": [
+    "core",
+    "route"
+  ],
+  "default_policy": "fifo",
+  "reference_kata": "reference_katas/colocate_first.kata",
+  "transfer_rate_mbs": 10,
+  "cluster": {
+    "sites": [
+      {
+        "id": "alpha",
+        "partitions": [
+          {
+            "id": "compute",
+            "nodes": [
+              {
+                "id": "a1",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "alpha"
+                ]
+              },
+              {
+                "id": "a2",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "alpha"
+                ]
+              },
+              {
+                "id": "a3",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "alpha"
+                ]
+              },
+              {
+                "id": "a4",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "alpha"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "beta",
+        "partitions": [
+          {
+            "id": "compute",
+            "nodes": [
+              {
+                "id": "b1",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "beta"
+                ]
+              },
+              {
+                "id": "b2",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "beta"
+                ]
+              },
+              {
+                "id": "b3",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "beta"
+                ]
+              },
+              {
+                "id": "b4",
+                "cpus": 8,
+                "mem": 32,
+                "tags": [
+                  "beta"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "jobs": [
+    {
+      "id": "j00",
+      "user": "analytics",
+      "submit_time": 0,
+      "nodes_req": 4,
+      "walltime_req": 9000,
+      "actual_runtime": 9000,
+      "home_site": "beta",
+      "data_mb": 100
+    },
+    {
+      "id": "j01",
+      "user": "alice",
+      "submit_time": 200,
+      "nodes_req": 1,
+      "walltime_req": 600,
+      "actual_runtime": 600,
+      "home_site": "beta",
+      "data_mb": 4000
+    },
+    {
+      "id": "j02",
+      "user": "bob",
+      "submit_time": 400,
+      "nodes_req": 2,
+      "walltime_req": 1000,
+      "actual_runtime": 1000,
+      "home_site": "alpha",
+      "data_mb": 2000
+    },
+    {
+      "id": "j03",
+      "user": "carol",
+      "submit_time": 800,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "home_site": null,
+      "data_mb": 0
+    },
+    {
+      "id": "j04",
+      "user": "alice",
+      "submit_time": 1500,
+      "nodes_req": 2,
+      "walltime_req": 800,
+      "actual_runtime": 800,
+      "home_site": "beta",
+      "data_mb": 6000
+    },
+    {
+      "id": "j05",
+      "user": "dave",
+      "submit_time": 3000,
+      "nodes_req": 2,
+      "walltime_req": 3000,
+      "actual_runtime": 3000,
+      "home_site": null,
+      "data_mb": 0
+    },
+    {
+      "id": "j06",
+      "user": "alice",
+      "submit_time": 4500,
+      "nodes_req": 1,
+      "walltime_req": 700,
+      "actual_runtime": 700,
+      "home_site": "beta",
+      "data_mb": 2000
+    },
+    {
+      "id": "j07",
+      "user": "bob",
+      "submit_time": 6000,
+      "nodes_req": 3,
+      "walltime_req": 4000,
+      "actual_runtime": 4000,
+      "home_site": "alpha",
+      "data_mb": 3000
+    },
+    {
+      "id": "j08",
+      "user": "analytics",
+      "submit_time": 9500,
+      "nodes_req": 4,
+      "walltime_req": 6000,
+      "actual_runtime": 6000,
+      "home_site": "beta",
+      "data_mb": 100
+    },
+    {
+      "id": "j09",
+      "user": "alice",
+      "submit_time": 10000,
+      "nodes_req": 1,
+      "walltime_req": 600,
+      "actual_runtime": 600,
+      "home_site": "beta",
+      "data_mb": 3000
+    },
+    {
+      "id": "j10",
+      "user": "dave",
+      "submit_time": 10500,
+      "nodes_req": 2,
+      "walltime_req": 900,
+      "actual_runtime": 900,
+      "home_site": null,
+      "data_mb": 0
+    },
+    {
+      "id": "j11",
+      "user": "bob",
+      "submit_time": 13000,
+      "nodes_req": 1,
+      "walltime_req": 800,
+      "actual_runtime": 800,
+      "home_site": "alpha",
+      "data_mb": 5000
+    },
+    {
+      "id": "j12",
+      "user": "analytics",
+      "submit_time": 14000,
+      "nodes_req": 3,
+      "walltime_req": 5000,
+      "actual_runtime": 5000,
+      "home_site": "beta",
+      "data_mb": 100
+    },
+    {
+      "id": "j13",
+      "user": "alice",
+      "submit_time": 15000,
+      "nodes_req": 2,
+      "walltime_req": 700,
+      "actual_runtime": 700,
+      "home_site": "beta",
+      "data_mb": 8000
+    },
+    {
+      "id": "j14",
+      "user": "carol",
+      "submit_time": 17000,
+      "nodes_req": 1,
+      "walltime_req": 600,
+      "actual_runtime": 600,
+      "home_site": null,
+      "data_mb": 0
+    },
+    {
+      "id": "j15",
+      "user": "analytics",
+      "submit_time": 19000,
+      "nodes_req": 4,
+      "walltime_req": 7000,
+      "actual_runtime": 7000,
+      "home_site": "beta",
+      "data_mb": 100
+    },
+    {
+      "id": "j16",
+      "user": "alice",
+      "submit_time": 19500,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "home_site": "beta",
+      "data_mb": 2500
+    },
+    {
+      "id": "j17",
+      "user": "bob",
+      "submit_time": 21000,
+      "nodes_req": 2,
+      "walltime_req": 1200,
+      "actual_runtime": 1200,
+      "home_site": "alpha",
+      "data_mb": 2000
+    },
+    {
+      "id": "j18",
+      "user": "dave",
+      "submit_time": 24000,
+      "nodes_req": 2,
+      "walltime_req": 900,
+      "actual_runtime": 900,
+      "home_site": null,
+      "data_mb": 0
+    },
+    {
+      "id": "j19",
+      "user": "analytics",
+      "submit_time": 26000,
+      "nodes_req": 3,
+      "walltime_req": 3000,
+      "actual_runtime": 3000,
+      "home_site": "beta",
+      "data_mb": 100
+    },
+    {
+      "id": "j20",
+      "user": "alice",
+      "submit_time": 27000,
+      "nodes_req": 1,
+      "walltime_req": 600,
+      "actual_runtime": 600,
+      "home_site": "beta",
+      "data_mb": 3500
+    }
+  ],
+  "duration": 40000,
+  "bars": {
+    "pass_score": 360,
+    "gold_score": 720
+  },
+  "seed": 0,
+  "primary_metric": "bounded_slowdown",
+  "score_weights": {
+    "bounded_slowdown": 1.0,
+    "utilization": 1.0,
+    "wait_p95": 1.0
+  },
+  "score_anchors": {
+    "bounded_slowdown": {
+      "baseline": 3.5011,
+      "reference": 1.034014
+    },
+    "utilization": {
+      "baseline": 0.578968,
+      "reference": 0.639138
+    },
+    "wait_p95": {
+      "baseline": 7500.0,
+      "reference": 0.0
+    }
+  }
+}

@@ -1,0 +1,311 @@
+{
+  "id": "level7",
+  "title": "The urgent file",
+  "teaches": "preemption and priority",
+  "story": "The batch stream keeps both nodes warm, and FIFO does not read the priority column \u2014 every cutover job waits out the batch job already running. Bump the runner with the least progress and eat the restart; urgency is worth a little wasted work.",
+  "unlocks": [
+    "core",
+    "preempt"
+  ],
+  "default_policy": "fifo",
+  "reference_kata": "reference_katas/priority_rescue.kata",
+  "cluster": {
+    "partition": "batch",
+    "nodes": [
+      {
+        "id": "n0",
+        "cpus": 8,
+        "mem": 32
+      },
+      {
+        "id": "n1",
+        "cpus": 8,
+        "mem": 32
+      }
+    ]
+  },
+  "jobs": [
+    {
+      "id": "b00",
+      "user": "batch",
+      "submit_time": 0,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b01",
+      "user": "batch",
+      "submit_time": 1500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b02",
+      "user": "batch",
+      "submit_time": 3000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u00",
+      "user": "urgent",
+      "submit_time": 3000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b03",
+      "user": "batch",
+      "submit_time": 4500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b04",
+      "user": "batch",
+      "submit_time": 6000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u01",
+      "user": "urgent",
+      "submit_time": 6000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b05",
+      "user": "batch",
+      "submit_time": 7500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b06",
+      "user": "batch",
+      "submit_time": 9000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u02",
+      "user": "urgent",
+      "submit_time": 9000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b07",
+      "user": "batch",
+      "submit_time": 10500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b08",
+      "user": "batch",
+      "submit_time": 12000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u03",
+      "user": "urgent",
+      "submit_time": 12000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b09",
+      "user": "batch",
+      "submit_time": 13500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b10",
+      "user": "batch",
+      "submit_time": 15000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u04",
+      "user": "urgent",
+      "submit_time": 15000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b11",
+      "user": "batch",
+      "submit_time": 16500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b12",
+      "user": "batch",
+      "submit_time": 18000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u05",
+      "user": "urgent",
+      "submit_time": 18000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b13",
+      "user": "batch",
+      "submit_time": 19500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b14",
+      "user": "batch",
+      "submit_time": 21000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u06",
+      "user": "urgent",
+      "submit_time": 21000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b15",
+      "user": "batch",
+      "submit_time": 22500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b16",
+      "user": "batch",
+      "submit_time": 24000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u07",
+      "user": "urgent",
+      "submit_time": 24000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b17",
+      "user": "batch",
+      "submit_time": 25500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "b18",
+      "user": "batch",
+      "submit_time": 27000,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    },
+    {
+      "id": "u08",
+      "user": "urgent",
+      "submit_time": 27000,
+      "nodes_req": 1,
+      "walltime_req": 500,
+      "actual_runtime": 500,
+      "priority": 5
+    },
+    {
+      "id": "b19",
+      "user": "batch",
+      "submit_time": 28500,
+      "nodes_req": 1,
+      "walltime_req": 2400,
+      "actual_runtime": 2400,
+      "priority": 0
+    }
+  ],
+  "duration": 32000,
+  "bars": {
+    "pass_score": 360,
+    "gold_score": 720
+  },
+  "seed": 0,
+  "primary_metric": "bounded_slowdown",
+  "score_weights": {
+    "bounded_slowdown": 1.0,
+    "wait_p95": 1.0
+  },
+  "score_anchors": {
+    "bounded_slowdown": {
+      "baseline": 1.558621,
+      "reference": 1.064655
+    },
+    "wait_p95": {
+      "baseline": 900.0,
+      "reference": 500.0
+    }
+  }
+}

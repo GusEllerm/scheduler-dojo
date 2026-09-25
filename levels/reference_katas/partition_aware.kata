@@ -1,0 +1,26 @@
+# Reference kata: keep the special nodes for the jobs that need them.
+# Teaches Level 6's partitions/tags lesson — first-fit scans the GPU nodes first (their ids sort
+# first), so plain FIFO parks generic jobs on them while GPU jobs queue. Place generic jobs on
+# generic-partition nodes first and send GPU jobs straight to their partition; special nodes only
+# take generic work when nothing GPU-flagged is waiting.
+
+place by keep_gpu_free:
+    gpu_wait = false
+    for q in queue():
+        if q.partition == "gpu":
+            gpu_wait = true
+    for j in queue():
+        if not fits_now(j):
+            if fits_later(j):
+                break
+        elif j.partition == "gpu":
+            place(j)
+        else:
+            pick = []
+            for n in free_nodes():
+                if len(pick) < j.nodes_req and n.partition != "gpu":
+                    pick = pick | [n]
+            if len(pick) == j.nodes_req:
+                place(j, pick)
+            elif not gpu_wait:
+                place(j)

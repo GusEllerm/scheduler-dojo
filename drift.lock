@@ -33,7 +33,7 @@ sig = "b8021f035ad189aa"
 [[bindings]]
 doc = "docs/vault/Concepts/Kata.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Kata.md"
@@ -52,13 +52,23 @@ sig = "b8021f035ad189aa"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
+target = "src/scheduler_dojo/sim/jobs.py#Job"
+sig = "64aa2e55be19d06c"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Levels.md"
 target = "src/scheduler_dojo/sim/level.py#validate_level"
 sig = "ad957b8a7071bdb6"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Levels.md"
+target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
+sig = "377baff36924ff7a"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -68,7 +78,7 @@ sig = "e8534d29c115e0c7"
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
 target = "tests/goldens/levels.json"
-sig = "2183da87072a01af"
+sig = "eed83d90ab35c971"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Progression.md"
@@ -283,12 +293,12 @@ sig = "6c7833630793b19f"
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
 target = "src/scheduler_dojo/sim/level.py#run_level"
-sig = "17d2282dbb589687"
+sig = "c4545758a470a286"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -358,7 +368,7 @@ sig = "ad957b8a7071bdb6"
 [[bindings]]
 doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
@@ -493,7 +503,7 @@ sig = "6c7833630793b19f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/sim/scheduler.py"
-sig = "333bdd3284d90238"
+sig = "40106f5841233409"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -518,7 +528,7 @@ sig = "2728adb840ec72c5"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "tests/goldens/levels.json"
-sig = "2183da87072a01af"
+sig = "eed83d90ab35c971"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -563,7 +573,7 @@ sig = "6c7833630793b19f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
 target = "src/scheduler_dojo/sim/level.py#run_level"
-sig = "17d2282dbb589687"
+sig = "c4545758a470a286"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
@@ -808,7 +818,7 @@ sig = "6c7833630793b19f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-builtins.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-builtins.md"
@@ -978,12 +988,12 @@ sig = "8910c73df162f71f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
 target = "src/scheduler_dojo/sim/scheduler.py"
-sig = "333bdd3284d90238"
+sig = "40106f5841233409"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
@@ -1098,7 +1108,7 @@ sig = "f6cb4611836ac711"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-cluster.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-errors.md"
@@ -1133,7 +1143,7 @@ sig = "8910c73df162f71f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-errors.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-errors.md"
@@ -1208,7 +1218,7 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
 target = "src/scheduler_dojo/sim/level.py"
-sig = "f7f185b463f5d583"
+sig = "39f26777ec9731a4"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
@@ -1223,7 +1233,7 @@ sig = "61bcb321297731bb"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
 target = "src/scheduler_dojo/sim/level.py#jobs_from_level"
-sig = "7e7a6781a2817578"
+sig = "71d0b5b98bfc578e"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
@@ -1238,7 +1248,7 @@ sig = "c7eeb5345d22fe60"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
 target = "src/scheduler_dojo/sim/level.py#run_level"
-sig = "17d2282dbb589687"
+sig = "c4545758a470a286"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
@@ -1249,6 +1259,11 @@ sig = "ad957b8a7071bdb6"
 doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
 target = "src/scheduler_dojo/sim/scheduler.py#RunResult"
 sig = "71234d3e76362c30"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-sim-level.md"
+target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
+sig = "377baff36924ff7a"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
@@ -1308,12 +1323,12 @@ sig = "6c7833630793b19f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
 target = "src/scheduler_dojo/sim/scheduler.py"
-sig = "333bdd3284d90238"
+sig = "40106f5841233409"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
-sig = "ced3d9a7ac71511b"
+sig = "ea6def626bef7acf"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
@@ -1428,7 +1443,7 @@ sig = "71234d3e76362c30"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-trace.md"
 target = "src/scheduler_dojo/sim/trace.py"
-sig = "40fe91b7802362d9"
+sig = "4e386d9254ab7a88"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-trace.md"

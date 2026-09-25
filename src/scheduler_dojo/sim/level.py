@@ -148,6 +148,7 @@ def jobs_from_level(level: dict[str, Any]) -> list[Job]:
             priority=int(jd.get("priority", 0)), deps=tuple(jd.get("deps", ())),
             actual_runtime=int(jd.get("actual_runtime", jd.get("walltime_req", 3600))),
             sla=jd.get("sla"),
+            home_site=jd.get("home_site"), data_mb=int(jd.get("data_mb", 0)),
         ))
     return out
 
@@ -180,7 +181,9 @@ def run_level(level: dict[str, Any], *, seed: int | None = None, policy: str | N
         if policy not in POLICIES:
             raise ValueError(f"unknown policy {policy!r}; have {sorted(POLICIES)}")
         active = POLICIES[policy]
-    sched = Scheduler(cluster, jobs, active)
+    # Optional level key: inter-site MB/s for multi-site (route-tier) levels; absent ⇒ instantaneous.
+    rate = float(level.get("transfer_rate_mbs", 0.0) or 0.0)
+    sched = Scheduler(cluster, jobs, active, transfer_rate_mbs=rate)
     duration = level.get("duration")
     return sched.run(until=duration)
 

@@ -48,6 +48,18 @@ is a known, honest limitation, not a bug. See [[Concepts/Scoring|Scoring]].
 4. **Trust, but verify** — users pad walltime; schedule on the `est_runtime` **sensor**, not the request.
 5. **Everyone at the table** — a flooding hog; a `user_share`-aware order keeps the queue responsive.
 
+## Stage-8 ladder (levels 6–9)
+
+6. **The special machines** — GPU/partition nodes; keep partitioned capacity for the jobs that need it
+   (partition-aware `place`) instead of parking generic jobs on them.
+7. **The urgent file** — a late high-`priority` job is stuck behind a long runner; **preempt** the
+   lowest-priority/least-progress runner and re-slot it (tier `preempt`, no-checkpoint requeue).
+8. **Data does not travel** — two sites; **route** compute to the data's `home_site` (tier `route`),
+   paying the `transfer_cost` only when you must, so p95 wait collapses.
+9. **The whole board** — capstone: fairness order + shortest tie-break + gap-fill on a busy mixed load.
+
+All nine are fixed-seed puzzles calibrated to baseline=300 / reference=800 (gold earned, Pareto-filtered).
+
 ## Reading
 
 `scripts/calibrate_levels.py` (the calibration contract), [[scheduler_dojo-sim-level]],

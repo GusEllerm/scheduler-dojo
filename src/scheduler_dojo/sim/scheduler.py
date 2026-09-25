@@ -58,9 +58,13 @@ class PolicyContext:
 
     def fits_now(self, job: Job) -> bool:
         c = self._sched.cluster
+        # Site must match what `place` enforces (place restricts to run_site or home_site);
+        # without it a site-pinned job "fits" somewhere it can never run, and the default
+        # policies would attempt a placement that raises instead of skipping the job.
         return c.first_fit(
             job.nodes_req, self.now, runtime_used(job), partition=job.partition,
             cpus=job.cpus_req, mem=job.mem_req, gpus=job.gpus_req, tags=job.tags,
+            site=job.run_site or job.home_site,
         ) is not None
 
     def fits_later(self, job: Job) -> bool:

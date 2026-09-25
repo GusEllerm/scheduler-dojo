@@ -5,7 +5,8 @@ A level's "generator spec" is a plain dict; ``generate_jobs`` turns it into an o
 
 Determinism (see ``docs/vault/Concepts/Determinism.md``): one ``random.Random(seed)`` feeds
 every draw and nothing else — no global ``random``, no wall clock. Per job the draws happen in
-a fixed order (arrival delta, then user, then nodes, then walltime, then runtime ratio), and
+a fixed order (arrival delta, then user, then nodes, then walltime, then runtime ratio, then —
+only if the spec has ``requires`` — a placement-constraint choice), and
 ids are assigned after sorting by ``(submit_time, index)``, so the same spec + seed always
 produces byte-identical jobs. Draws come only from that one ``Random`` (never the ``random``
 module functions, never ``random.seed``); ``math`` is used for ``isfinite`` input validation only
@@ -23,6 +24,11 @@ Spec keys and defaults (every sub-key optional)::
                   {"type": "lognormal", "median": int, "sigma": float} default median 1800, sigma 0.5
     runtime_ratio {"type": "lognormal", "median": float, "sigma": float}  default median 0.5, sigma 0.5
                   {"type": "fixed", "value": float}                 # constant ratio, e.g. 1.0 = honest walltime
+    requires      [{"weight": float, "partition": str, "tags": [str, ...]}, ...]   default absent
+                  Optional placement-constraint menu: each job draws ONE entry (weighted, one extra
+                  draw AFTER the ratio draw) and carries its `partition`/`tags` (an entry with
+                  neither = an unconstrained job). Absent key ⇒ no draw at all, so pre-existing
+                  specs/seeds produce byte-identical jobs (the RNG stream is untouched).
 
 ``runtime_ratio`` is the "walltime lies" model: ``actual_runtime`` is drawn independently of
 the request as ``walltime_req * ratio``, so a slice of jobs overruns its walltime and is killed
@@ -92,7 +98,9 @@ def generate_jobs(spec: dict[str, Any] | None, seed: int, *,
     _validate_walltime(wall_dist)
     _validate_ratio(ratio_dist)
 
-    rows: list[tuple[int, str, int, int, int]] = []  # (submit, user, nodes, walltime, actual)
+    rows: list[tuple[int, str, int, int, int, str | None, tuple[str, ...]]] = []
+    # (submit, user, nodes, walltime, actual, partition, tags)
+    requires = _requires(spec.get("requires"))  # validated up front; None ⇒ never drawn
     total = 0.0
     prev = 0
     for i in range(n_jobs):
@@ -108,7 +116,11 @@ def generate_jobs(spec: dict[str, Any] | None, seed: int, *,
         # The "walltime lies" model: actual runtime is the request times an independent ratio,
         # so a slice of jobs overruns its request and is killed at the cap.
         actual = max(1, int(round(walltime * _ratio(rng, ratio_dist))))
-        rows.append((max(0, submit), user, nodes, walltime, actual))
+        if requires is None:
+            rows.append((max(0, submit), user, nodes, walltime, actual, None, ()))
+        else:
+            part, tags = _weighted_choice(rng, requires)
+            rows.append((max(0, submit), user, nodes, walltime, actual, part, tags))
 
     if horizon is not None:
         rows = [r for r in rows if r[0] <= horizon]
@@ -117,8 +129,9 @@ def generate_jobs(spec: dict[str, Any] | None, seed: int, *,
     rows.sort(key=lambda r: r[0])
     jobs = [
         Job(id=f"j{i:06d}", user=user, submit_time=submit,
-            nodes_req=nodes, walltime_req=walltime, actual_runtime=actual)
-        for i, (submit, user, nodes, walltime, actual) in enumerate(rows)
+            nodes_req=nodes, walltime_req=walltime, actual_runtime=actual,
+            partition=part, tags=tags)
+        for i, (submit, user, nodes, walltime, actual, part, tags) in enumerate(rows)
     ]
     return sorted(jobs, key=lambda j: (j.submit_time, j.id))
 
@@ -260,6 +273,42 @@ def _users(value: Any) -> tuple[list[str], list[float]]:
     if any(w < 0 for w in weights) or sum(weights) <= 0:
         raise ValueError("users weights must be non-negative and sum to > 0")
     return names, weights
+
+
+def _requires(value: Any) -> list[tuple[float, str | None, tuple[str, ...]]] | None:
+    """Validate the ``requires`` menu up front; None (key absent) means never draw. Each entry is
+    (weight, partition|None, tags); an entry with neither constraint marks an unconstrained job."""
+    if value is None:
+        return None
+    items = list(value)
+    if not items:
+        raise ValueError("requires must not be empty")
+    out: list[tuple[float, str | None, tuple[str, ...]]] = []
+    for d in items:
+        d = dict(d)
+        w = _finite(d.get("weight", 1.0), "requires.weight")
+        if w < 0:
+            raise ValueError("requires weights must be non-negative")
+        part = d.get("partition")
+        part = None if part is None else str(part)
+        tags_t = tuple(str(t) for t in d.get("tags", ()))
+        out.append((w, part, tags_t))
+    if sum(w for w, _, _ in out) <= 0:
+        raise ValueError("requires weights must sum to > 0")
+    return out
+
+
+def _weighted_choice(rng: random.Random, items: list[tuple]) -> Any:
+    """Cumulative weighted pick over one rng.random() draw; returns the entry payload (after weight)."""
+    total = sum(w for w, *_ in items)
+    r = rng.random() * total
+    acc = 0.0
+    for w, *payload in items:
+        acc += w
+        if r < acc:
+            return payload[0] if len(payload) == 1 else tuple(payload)
+    *payload, = items[-1]
+    return payload[0] if len(payload) == 1 else tuple(payload)
 
 
 def _weighted(rng: random.Random, names: list[str], weights: list[float]) -> str:

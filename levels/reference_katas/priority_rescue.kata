@@ -1,0 +1,34 @@
+# Reference kata: urgent work bumps the least-progressed batch runner.
+# Teaches Level 7's preemption lesson — order by priority, and when a high-priority job cannot
+# fit behind the queue, preempt the lowest-priority runner that started most recently (least
+# progress to lose, and a freshly restarted job is rarely bumped twice while new work keeps
+# arriving). Reslot the bumped jobs into whatever capacity remains — they restart from zero.
+
+order by priority_first:
+    key = (0 - job.priority, job.submit_time)
+
+place by rescue:
+    for j in queue():
+        if fits_now(j):
+            place(j)
+    bumped = []
+    for j in queue():
+        if j.priority > 0 and not fits_now(j):
+            guard = 0
+            while not fits_now(j) and guard < 3:
+                victim = nil
+                for r in running():
+                    if r.state == "running" and r.priority < j.priority:
+                        if victim == nil or r.submit_time > victim.submit_time:
+                            victim = r
+                if victim == nil:
+                    guard = 3
+                else:
+                    preempt(victim)
+                    bumped = bumped | [victim]
+                    guard = guard + 1
+            if fits_now(j):
+                place(j)
+    for v in bumped:
+        if fits_now(v):
+            place(v)
