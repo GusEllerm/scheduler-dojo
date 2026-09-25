@@ -152,12 +152,25 @@ def start(level: Any, seed: int | None = None, policy: str = "fifo",
     _NEXT_HANDLE[0] += 1
     _SESSIONS[handle] = sched
     _SESSION_LEVELS[handle] = lvl
-    return {"handle": handle, "state": _snapshot(sched), "nodes": _nodes_json(sched.cluster)}
+    return {"handle": handle, "state": _snapshot(sched, lvl), "nodes": _nodes_json(sched.cluster)}
 
 
-def _snapshot(sched: Scheduler) -> dict:
+def _snapshot(sched: Scheduler, lvl: dict | None = None) -> dict:
+    # `placed_total`/`week` feed the tutorial's deterministic predicates (`placed_any`, `first_place`,
+    # `week_end`, `after_days`); `week` is the engine calendar's (§5.6), 1-indexed like `day_week`.
+    week = 1
+    if lvl is not None:
+        from scheduler_dojo.sim import calendar
+
+        start = lvl.get("t0")
+        if start is None:
+            jobs = lvl.get("jobs") or []
+            start = min((int(j.get("submit_time", 0)) for j in jobs), default=0)
+        _, week = calendar.day_week(sched.now, start, int(lvl.get("duration") or 0))
     return {
         "now": sched.now,
+        "placed_total": getattr(sched, "placed_total", 0),
+        "week": week,
         # every job the viewer has never seen, minimal fields (submit/user/size) — the campus
         # draws the whole campus from first principles; the cost is O(never-seen jobs).
         "unseen": [{"id": j.id, "user": j.user, "nodes": j.nodes_req, "est": j.walltime_req,
@@ -181,13 +194,13 @@ def _snapshot(sched: Scheduler) -> dict:
 def step_n(handle: int, n: int = 1) -> dict:
     sched = _SESSIONS[handle]
     finished = True if getattr(sched, "_finished", False) else sched.step_events(n)
-    return {"state": _snapshot(sched), "done": finished}
+    return {"state": _snapshot(sched, _SESSION_LEVELS.get(handle)), "done": finished}
 
 
 def step_until(handle: int, t: int) -> dict:
     sched = _SESSIONS[handle]
     finished = True if getattr(sched, "_finished", False) else sched.run_until(t)
-    return {"state": _snapshot(sched), "done": finished}
+    return {"state": _snapshot(sched, _SESSION_LEVELS.get(handle)), "done": finished}
 
 
 def step_result(handle: int) -> dict:
@@ -245,7 +258,7 @@ def hand_start(level: Any, seed: int | None = None) -> dict:
     _NEXT_HANDLE[0] += 1
     _SESSIONS[handle] = sched
     sched.step_events(1)  # process the t=min-submit arrivals so there is a queue to act on
-    return {"handle": handle, "state": _snapshot(sched),
+    return {"handle": handle, "state": _snapshot(sched, lvl),
             "suggestions": _suggestions(sched), "nodes": _nodes_json(sched.cluster)}
 
 
@@ -293,11 +306,11 @@ def hand_place(handle: int, job_id: str, nodes: list[str] | None = None) -> dict
     try:
         ctx = PolicyContext(sched)
         ctx.place(job_id, nodes)
-        return {"ok": True, "state": _snapshot(sched)}
+        return {"ok": True, "state": _snapshot(sched, _SESSION_LEVELS.get(handle))}
     except Exception as exc:  # surface the teaching error to the UI, keep the run alive
         code = getattr(exc, "code", type(exc).__name__)
         return {"ok": False, "error": {"code": code, "message": str(exc)},
-                "state": _snapshot(sched)}
+                "state": _snapshot(sched, _SESSION_LEVELS.get(handle))}
 
 
 def hand_tick(handle: int, until: int | None = None) -> dict:
@@ -309,7 +322,7 @@ def hand_tick(handle: int, until: int | None = None) -> dict:
         sched.step_events(1)  # one timestamp batch (arrivals/frees), manual policy places nothing
     else:
         sched.run_until(until)
-    return {"state": _snapshot(sched), "suggestions": _suggestions(sched),
+    return {"state": _snapshot(sched, _SESSION_LEVELS.get(handle)), "suggestions": _suggestions(sched),
             "done": bool(getattr(sched, "_finished", False))}
 
 

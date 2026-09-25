@@ -137,6 +137,9 @@ class Scheduler:
         # Incremental accounting so _result stays O(1) once finished allocations are pruned.
         self._node_seconds_busy = 0
         self._max_end = 0  # 0 until something actually runs; utilization window uses _t0
+        # Cumulative successful placements (auto + hand): the tutorial's `placed_any`/`first_place`
+        # predicate source — a count, not a set size, so it never decreases.
+        self.placed_total = 0
         # Ticks only make sense with a horizon (else they self-reschedule forever).
         # The run's horizon: TICK self-reschedules respect it even when a caller drains with
         # `run(until=None)` (the stepping API's step_result), so ticks can never loop forever.
@@ -268,6 +271,7 @@ class Scheduler:
         # Commit.
         for nid in chosen:
             self.cluster.node(nid).allocate(t, t + run, j.id)
+        self.placed_total += 1  # every placement — auto or hand — funnels through here
         self.busy_node_slots += len(chosen)
         self._node_seconds_busy += run * len(chosen)
         self._max_end = max(self._max_end, t + run)

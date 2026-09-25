@@ -69,3 +69,25 @@ def test_watch_plan_advises_the_renderer():
     assert plan["stride"] == 100  # 700 // 7 seconds per (cosmetic) day
     lvl = dict(_LVL, pressure={"cap": 2})
     assert bridge.watch_plan(lvl)["tick"] == bridge._tick_for(lvl)
+
+
+def test_snapshot_carries_tutorial_counters() -> None:
+    """`placed_total`/`week` are the tutorial runner's deterministic predicate sources."""
+    h = bridge.start(_LVL, policy="fifo")["handle"]
+    st = bridge.step_until(h, 10_000)["state"]
+    assert st["placed_total"] > 0 and st["week"] >= 1
+    later = bridge.step_until(h, 20_000)["state"]
+    assert later["placed_total"] >= st["placed_total"]  # a count, never a set size
+    assert later["week"] >= st["week"]
+
+
+def test_hand_place_bumps_placed_total() -> None:
+    lvl = {"id": "t", "title": "t", "duration": 5000,
+           "cluster": {"nodes": [{"id": "n0", "cpus": 8}]},
+           "jobs": [{"id": "A", "user": "u", "submit_time": 0, "nodes_req": 1,
+                     "walltime_req": 100, "actual_runtime": 100}]}
+    h = bridge.hand_start(lvl)["handle"]
+    before = bridge.hand_tick(h)["state"]["placed_total"]
+    res = bridge.hand_place(h, "A")
+    assert res["ok"], res
+    assert res["state"]["placed_total"] == before + 1
