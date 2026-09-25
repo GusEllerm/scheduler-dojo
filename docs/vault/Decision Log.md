@@ -222,3 +222,24 @@ choice that should not punish progress. Balance (spendable) and lifetime (belt) 
 Kata play enables tiers as `level.unlocks ∩ owned` (owned tiers come from the progression shop), so a
 level listing a tier is a *ceiling*, and the upgrade shop actually gates the language. Keeps the level
 JSON declarative while making the economy meaningful. See [[scheduler_dojo-progression]].
+
+## 2026-10-01 — Phase two keeps the engine as the only decider; the campus is presentation `[agent decision]`
+The campus (neighbourhoods/vehicles/lots/booth) is a rendering *of* the engine snapshot; nothing that
+decides moves to TypeScript (§2.6/§3 of `PROMPT-ART.md`). New deciding facts the UI needs — per-user
+pressure rings, week boundaries, offer choices, decision traces — are added *to the engine and bridge*
+(§5), not computed in the renderer. Trade-off: every campus feature pays a bridge round-trip and a
+livedocs gate.
+
+## 2026-10-01 — Weekly two-offer choices replace the credit shop; credits/belts survive as lifetime record `[agent decision]`
+End of week = freeze + pick 1 of 2 eligible upgrades (drawn deterministically from (save, city, week)
+so a share card can replay an upgrade path). Credits stop being purchase currency but remain the
+lifetime score record behind belts and share cards, exactly as `progression.credits_for` already
+computes them; the old shop dialog retires behind a save migration. Trade-off: players lose
+"save up and buy what I want" agency; in exchange every purchase moment is a taught moment. See
+[[Concepts/Progression]].
+
+## 2026-10-01 — Rule cards are canonical kata snippets, not a DSL of their own `[agent decision]`
+The tutorial's rule cards (order-only katas) compile to text via `kata.formatter`, so card library and
+kata library are one store and the editor hand-off (card text → full editor) is lossless by
+construction. Trade-off: a card's editable "one line" must stay parseable in isolation — the line
+always renders as its full module. See [[Kata]], [[scheduler_dojo-kata-formatter]].

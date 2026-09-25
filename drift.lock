@@ -397,6 +397,11 @@ sig = "8e781e03d7ff75e3"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
+target = "src/scheduler_dojo/bridge.py#_jobs_json"
+sig = "c8c1db264e128e6a"
+
+[[bindings]]
+doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/bridge.py#check_kata"
 sig = "32d95ae87548eccb"
 
