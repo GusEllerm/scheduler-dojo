@@ -91,3 +91,20 @@ def test_hand_place_bumps_placed_total() -> None:
     res = bridge.hand_place(h, "A")
     assert res["ok"], res
     assert res["state"]["placed_total"] == before + 1
+
+
+def test_hand_snapshots_track_the_week_calendar():
+    """Art 6a root-cause fix: hand mode must see week transitions, not a pinned week 1."""
+    lvl = {"id": "hw", "title": "hw", "duration": 7000,
+           "cluster": {"nodes": [{"id": "n0", "cpus": 8}]},
+           "jobs": [{"id": "A", "user": "u", "submit_time": 0, "nodes_req": 1,
+                     "walltime_req": 100, "actual_runtime": 100},
+                    {"id": "B", "user": "u", "submit_time": 6500, "nodes_req": 1,
+                     "walltime_req": 100, "actual_runtime": 100},
+                    {"id": "C", "user": "u", "submit_time": 7200, "nodes_req": 1,
+                     "walltime_req": 100, "actual_runtime": 100}]}
+    h = bridge.hand_start(lvl)["handle"]
+    st = bridge.hand_tick(h)["state"]
+    assert st["week"] == 1 and st["now"] < 7000  # still week one (stride 1000, 7 days)
+    st = bridge.hand_tick(h)["state"]            # the t=7200 arrival crosses the boundary
+    assert st["week"] == 2, st
