@@ -6,9 +6,13 @@
 
 ## What it does
 
-`KataPolicy(program, *, unlocked, step_budget=20000)` is callable as `__call__(ctx)`. Per decision it
+`KataPolicy(program, *, unlocked, step_budget=20000, tracer=None)` is callable as `__call__(ctx)`.
+Per decision it
 runs the `order` module (compute the queue key), then the `place` module (which may `place`/`reserve`),
-skipping absent slots. It tracks `.fallbacks` and `.last_fallback` for the UI.
+skipping absent slots. It tracks `.fallbacks` and `.last_fallback` for the UI. Phase two: with a
+`tracer` callable it emits decision-trace records — an `order` record (the computed key for up to 12
+ranked jobs + who was chosen first) and a `fallback` record per abandoned decision — and after each
+decision copies the env's `reserve()` intents onto `Scheduler.reservations` for the booth's cones.
 
 ## How it works
 

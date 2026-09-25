@@ -54,7 +54,8 @@ tags: [concept, phase-two]
   beside it — the player sees the card *is* the kata ([[Decision Log]] cards-are-katas).
 - **city3 — "The convoy that never parks"** (`city3.json`): starvation. Reservations arrive as the
   week-end choice (offered first); guided hand-placement of one cone, then the `place` card with a
-  second module, then the full editor opens prefilled with the two cards rendered as text.
+  second module (every booth `place` is a traced `Scheduler.place` — the why-panel shows which module
+  parked what), then the full editor opens prefilled with the two cards rendered as text.
 
 ## Invariants the checker enforces
 

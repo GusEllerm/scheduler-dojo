@@ -90,6 +90,10 @@ class JobResult:
     runtime_used: int | None
     timed_out: bool
     completed: bool
+    # Phase-two campus truth: the real node ids this job ran on (empty if never placed), and
+    # the site it ran at. Properties (not fields) so the canonical trajectory is unchanged.
+    placed_nodes: tuple[str, ...] = ()
+    run_site: str | None = None
 
     @property
     def wait(self) -> int | None:
@@ -117,4 +121,6 @@ class JobResult:
             runtime_used=job.runtime_used,
             timed_out=job.timed_out,
             completed=job.state in (JobState.COMPLETED, JobState.TIMEOUT),
+            placed_nodes=tuple(job.placed_nodes),
+            run_site=job.run_site or job.home_site,
         )

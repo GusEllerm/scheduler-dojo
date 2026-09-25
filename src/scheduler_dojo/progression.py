@@ -22,6 +22,7 @@ returning without ever going negative. See [[Concepts/Progression|Progression]].
 
 from __future__ import annotations
 
+import random
 from typing import Any
 
 SAVE_VERSION = 1
@@ -119,6 +120,26 @@ def unlocked_tiers(state: dict) -> set[str]:
     for up in state.get("upgrades", []):
         tiers.update(UPGRADES.get(up, {}).get("unlocks", []))
     return tiers
+
+
+def offers(state: dict, city: int, week: int) -> list[str]:
+    """The deterministic two-offer draw at a city/week boundary (see [[Concepts/Campus]]).
+
+    Eligible = unowned upgrades whose `requires` are all owned, sorted by id; one seeded
+    ``random.Random`` keyed on the exact owned set + city + week picks two (all of them when
+    fewer than two are eligible, ``[]`` when none). The same save at the same boundary always
+    offers the same pair, so a share card replays the upgrade path. Never mutates `state`.
+    """
+    owned = sorted(set(state.get("upgrades", [])))
+    eligible = [uid for uid in sorted(UPGRADES)
+                if uid not in owned and all(r in owned for r in UPGRADES[uid]["requires"])]
+    if not eligible:
+        return []
+    if len(eligible) <= 2:
+        return list(eligible)
+    rng = random.Random(f"offers:{','.join(owned)}:{city}:{week}")
+    return rng.sample(eligible, 2)
+
 
 
 def apply_drift(state: dict, *, now: int) -> dict:

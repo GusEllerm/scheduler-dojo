@@ -54,6 +54,17 @@ def validate_level(level: dict[str, Any]) -> None:
     if dur is not None and (not isinstance(dur, int) or dur <= 0):
         raise LevelError("duration must be a positive integer", code=LEVEL_SCHEMA)
 
+    pressure = level.get("pressure")
+    if pressure is not None:
+        if not isinstance(pressure, dict):
+            raise LevelError("pressure must be an object", code=LEVEL_SCHEMA)
+        cap = pressure.get("cap", 2)
+        if not isinstance(cap, int) or cap < 2:
+            raise LevelError("pressure.cap must be an integer >= 2 (overflow grace in runtimes)",
+                             code=LEVEL_SCHEMA)
+        if not isinstance(pressure.get("end_on_overflow", False), bool):
+            raise LevelError("pressure.end_on_overflow must be a bool", code=LEVEL_SCHEMA)
+
     if "unlocks" in level:
         u = level["unlocks"]
         if not isinstance(u, list) or not set(u) <= KNOWN_TIERS:
@@ -88,6 +99,12 @@ def validate_level(level: dict[str, Any]) -> None:
         p, g = bars["pass_score"], bars["gold_score"]
         if not (0 <= p <= g <= 1000):
             raise LevelError(f"bars must satisfy 0 <= pass({p}) <= gold({g}) <= 1000", code=LEVEL_BARS)
+
+    # Phase two (endless campus): a permissive check — the growth curve itself belongs to
+    # sim/endless.py; the level only has to carry an object under `endless` if it declares one.
+    endless = level.get("endless")
+    if endless is not None and not isinstance(endless, dict):
+        raise LevelError("endless must be an object", code=LEVEL_SCHEMA)
 
 
 def build_cluster(spec: dict[str, Any]) -> Cluster:
@@ -154,12 +171,17 @@ def jobs_from_level(level: dict[str, Any]) -> list[Job]:
 
 
 def run_level(level: dict[str, Any], *, seed: int | None = None, policy: str | None = None,
-              kata: str | Path | None = None, validate: bool = True) -> RunResult:
+              kata: str | Path | None = None, validate: bool = True,
+              trace: int = 0, sched_out: dict | None = None) -> RunResult:
     """Run a level with a built-in `policy`, or with a `kata` (source string or path).
 
-    `seed` defaults to the level's fixed ``seed`` (levels are deterministic puzzles). When `kata` is
-    given, the level's `unlocks` list gates which Kata slots/builtins are enabled, and the policy is
-    a ``scheduler_dojo.kata.KataPolicy`` over the parsed program (with FIFO first-fit fallback).
+    `seed` defaults to the level's fixed ``seed`` (levels are deterministic puzzles). When `kata`
+    is given, the level's `unlocks` list gates which Kata slots/builtins are enabled, and the
+    policy is a ``scheduler_dojo.kata.KataPolicy`` over the parsed program (with FIFO first-fit
+    fallback).
+
+    Phase two: `trace` > 0 records decision traces (off = free); `sched_out`, if given a dict,
+    receives the `Scheduler` under key `"sched"` so callers (the bridge) read rings/trace from it.
     """
     if validate:
         validate_level(level)
@@ -176,14 +198,28 @@ def run_level(level: dict[str, Any], *, seed: int | None = None, policy: str | N
         src = _kata_source(kata)
         program = parse(src)
         unlocked = frozenset(level.get("unlocks", ["core"]))
-        active: Any = KataPolicy(program, unlocked=unlocked)
+        active: Any = KataPolicy(program, unlocked=unlocked,
+                                 tracer=(lambda a, j, f=None: _LATE[0]._trace_event(a, j, f))
+                                 if trace else None)
     else:
         if policy not in POLICIES:
             raise ValueError(f"unknown policy {policy!r}; have {sorted(POLICIES)}")
         active = POLICIES[policy]
     # Optional level key: inter-site MB/s for multi-site (route-tier) levels; absent ⇒ instantaneous.
     rate = float(level.get("transfer_rate_mbs", 0.0) or 0.0)
-    sched = Scheduler(cluster, jobs, active, transfer_rate_mbs=rate)
+    _LATE: list = [None]
+    # A level with patience rings ticks: rings must fill between events (that is the whole point),
+    # and the overflow check gets bounded lateness. Undeclared levels keep tick=None (hash-stable).
+    pressure = level.get("pressure")
+    tick = None
+    if pressure is not None:
+        dur = int(level.get("duration") or 0)
+        tick = max(1, dur // 70) if dur else 60
+    sched = Scheduler(cluster, jobs, active, transfer_rate_mbs=rate,
+                      pressure=pressure, tick=tick, trace=trace)
+    _LATE[0] = sched
+    if sched_out is not None:
+        sched_out["sched"] = sched
     duration = level.get("duration")
     return sched.run(until=duration)
 

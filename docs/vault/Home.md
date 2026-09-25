@@ -32,7 +32,8 @@ cool direction chosen from two mockups (`docs/screenshots/art1/`), token system
 notes, tutorial data for cities 1–3 validated by `scripts/check_tutorials.py`.
 Art 0 audit: full
 visual audit at `docs/screenshots/audit/` + `Sessions/2026-10-01 Phase 2 audit.md` (ranked top-10
-changes; confirmed the timeline repacks lanes by first-fit and `_jobs_json` ships node *counts*),
+changes; the audit found the timeline repacked lanes by first-fit and `_jobs_json` shipped node
+*counts* — since Art 2 it ships real node ids),
 curated phase-one shots at `docs/screenshots/phase-one/`, `screenshots/` gitignored. Phase two
 replaces presentation/onboarding/rhythm with the campus while the engine, Kata, scoring and share
 cards stay fixed; trajectory hashes may change where ring-overflow ends runs (regenerate by script).
@@ -120,8 +121,8 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 |---|---|---|
 | Art 0 | Audit, screenshots curated, ranked change list | ✅ done |
 | Art 1 | Direction: 2 mockups + decision, Art Direction + Campus notes, tutorial-script schema | ✅ done |
-| Art 2 | Engine additions §5.1–8 + visual harness (hashes reviewed, not silently changed) | ⬜ next |
-| Art 3 | Campus renderer (Watch for 9 cities, 60 fps, reduced-motion) | ⬜ |
+| Art 2 | Engine additions §5.1–8 + visual harness (hashes reviewed, not silently changed) | ✅ done |
+| Art 3 | Campus renderer (Watch for 9 cities, 60 fps, reduced-motion) | ⬜ next |
 | Art 4 | Hand play + city-1 tutorial + first booth reveal | ⬜ |
 | Art 5 | Booth: cards→editor, why-panel, step mode, cones | ⬜ |
 | Art 6 | Weeks/offers/buildings, cities 4–9, save migration | ⬜ |

@@ -134,6 +134,8 @@ positive* — a claim that a bare-`Attribute` expression statement formatted to 
 round-trip (all `ExprStmt` node types verified to re-parse to an equal AST), so no change. Also fixed
 two of my own cross-cutting bugs found while integrating: `EngineError` now stores `self.message` (the
 frozen `caret()` needs it) and `run_level`'s source-vs-path detection no longer stats a multi-line
+(program text does not go through the filesystem either). `validate_level` has since grown phase-two
+keys (`pressure`, `hide_actual`, `endless`); the either/or rule stands.
 program as a filename (OSError). 158 tests green.
 
 ## 2026-09-24 — Levels are fixed-seed puzzles, not seed-averaged `[agent decision]`
@@ -181,7 +183,9 @@ The interactive API (`bridge.start/step_n/step_until`) and the CLI/golden `run` 
 separate incremental path for the browser, which would have been a *second* thing to keep deterministic.
 Because it is literally one loop, draining a stepped run yields the identical `trajectory_hash`
 (asserted in `tests/test_bridge.py`). A batch (all events at one timestamp + its one decision) is the
-atomic step unit, so pausing never lands mid-decision. See [[Pyodide Bridge]].
+atomic step unit, so pausing never lands mid-decision. Phase two keeps the invariant: ticks (ring
+levels only) reschedule to the *next* boundary bounded by the run's `horizon`, never by a step's
+`until`, precisely so stepped ≡ full stays true while rings tick. See [[Pyodide Bridge]].
 
 ## 2026-09-24 — Browser runs the real Python via a pure wheel; smoke-tested in Node `[agent decision]`
 
@@ -205,7 +209,8 @@ Rather than a full data-placement model, `route(job, site)` records a `run_site`
 `first_fit` to that site and lengthens the run by `ceil(data_mb / transfer_rate_mbs)` when it leaves the
 data's `home_site`. It captures the co-location lesson (p95 wait collapses) in ~40 lines and stays
 trajectory-neutral when single-site (no `home_site`). Trade-off: transfer is a flat per-job delay, not a
-bandwidth-saturated network model. See [[scheduler_dojo-sim-scheduler]].
+bandwidth-saturated network model. Phase two: `route` (and `preempt`) also emit decision-trace records
+for the booth. See [[scheduler_dojo-sim-scheduler]].
 
 ## 2026-09-24 — Explicit `jobs` lists make trace/handcrafted levels runnable & calibratable `[agent decision]`
 A level may carry an explicit `jobs` list *or* a `generator` (`validate_level` accepts either;

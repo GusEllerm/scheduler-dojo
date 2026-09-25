@@ -23,7 +23,9 @@ FIFO *baseline* (~300) and *reference kata* (~800) so bars are comparable across
 - **fairness** = Jain's index of delivered/entitled node-seconds across users (higher better),
   skipping zero-entitled users; 1.0 when there is no discrimination to measure.
 - **sla** = fraction of SLA-bearing jobs that started within their `sla`; only present when the
-  caller passes `jobs` (`JobResult` carries no `sla`).
+  caller passes `jobs` (`JobResult` carries no `sla`). `JobResult` additionally carries phase-two
+  `placed_nodes`/`run_site` (the campus draws real placements); they are trailing defaulted fields —
+  `trajectory_str` ignores them, so every existing hash stands.
 
 ## Normalization → 0..1000 (`sim.scoring.score`)
 

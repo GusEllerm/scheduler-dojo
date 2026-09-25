@@ -21,7 +21,8 @@ kata value to a Python sort key; `truth(x)`, `_plain(v)` normalize for operators
   `ctx.preempt` → `Scheduler.preempt` (real requeue, stale-`FINISH` guarded); the engine rejects a
   non-running target with `not_running`. **`route`/`transfer_cost`/`sites` are live** too: `route(job,
   site)` sets the job's `run_site` (placement then restricts to that site + adds a `data_mb/rate`
-  transfer delay), `transfer_cost(job, site)` reports that delay; all gated by the `route` tier.
+  transfer delay, and both `preempt` and `route` emit decision-trace records for the booth, see
+  [[Campus]]); `transfer_cost(job, site)` reports that delay; all gated by the `route` tier.
 - **Determinism of the views**: `queue()` is a **stable** `sorted` of the id-ordered `ctx.queued`
   under the decision's `order_key` (installed from the `order` module), so ties keep job-id order;
   `nodes()`/`running()`/`free_nodes()` are in defined order. This is what makes a kata's decisions

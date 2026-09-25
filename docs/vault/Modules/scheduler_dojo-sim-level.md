@@ -15,7 +15,11 @@ an explicit `jobs` list (raises `LevelError`
 with a `level_schema`/`level_metric`/`level_bars` code). `run_level(level, seed=, policy=, kata=)`
 validates, defaults `seed` to the level's fixed puzzle `seed` and `policy` to the level's
 `default_policy`, threads the optional level key `transfer_rate_mbs` (MB/s inter-site rate for
-route-tier levels; absent ⇒ instantaneous, the pre-Stage-8 behaviour) into the `Scheduler`, schedules
+route-tier levels; absent ⇒ instantaneous, the pre-Stage-8 behaviour) into the `Scheduler`, threads
+the phase-two keys `pressure` (patience rings; a pressure level also gets `tick≈duration/70` so
+rings fill between events — undeclared levels keep `tick=None`, hash-stable) and `horizon`, and
+accepts `trace=N` (decision trace) plus `sched_out` (a dict receiving the `Scheduler` so the bridge
+can read rings/trace after the run), schedules
 with a named policy from `sim.scheduler.POLICIES` or a `KataPolicy` over
 the level's `unlocks` when `kata` is passed, and runs to `duration`. `load_level_file` reads JSON;
 `_kata_source` resolves a kata argument to source text (a readable path vs literal source, guarding a

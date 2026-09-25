@@ -7,7 +7,9 @@
 ## What it does
 
 Defines `Job` (the mutable simulation entity), `JobState` (`QUEUED`/`RUNNING`/`COMPLETED`/
-`TIMEOUT`), and `JobResult` (the immutable scoring record built by `JobResult.from_job`). A job
+`TIMEOUT`), and `JobResult` (the immutable scoring record built by `JobResult.from_job`, which also
+carries the phase-two `placed_nodes` (real node ids) and `run_site` — trailing defaulted fields, so
+`trajectory_str` and every existing hash are untouched). A job
 is whole-node: it occupies `nodes_req` whole nodes for `runtime_used` seconds.
 
 ## How it works

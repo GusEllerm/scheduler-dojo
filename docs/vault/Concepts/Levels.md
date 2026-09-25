@@ -15,6 +15,9 @@
 | `cluster` | `sites` topology or a `nodes` shorthand |
 | `generator` | arrivals/sizes (`sim.trace.generate_jobs`) |
 | `unlocks`, `sensors` | which Kata tiers / sensor fields are live |
+| `pressure` | phase-two rings: `cap` (overflow grace in claimed runtimes) + `end_on_overflow`; a level with it ticks and can end early ([[Campus]]) |
+| `hide_actual` | phase-two sensor visibility: run records show claimed `est` only, never `runtime` |
+| `endless` | growth-generator spec for the endless city (`sim.endless.generate_endless_jobs`) |
 | `baseline_policy` | the naive reference run that scores **300** |
 | `reference_kata` | the exemplar run that scores **800** |
 | `primary_metric` | the lesson's headline metric |

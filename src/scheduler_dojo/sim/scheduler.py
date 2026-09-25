@@ -109,7 +109,9 @@ class RunResult:
 
 class Scheduler:
     def __init__(self, cluster: Cluster, jobs: list[Job], policy: Policy,
-                 tick: int | None = None, *, transfer_rate_mbs: float = 0.0) -> None:
+                 tick: int | None = None, *, transfer_rate_mbs: float = 0.0,
+                 pressure: dict | None = None, trace: int = 0,
+                 horizon: int | None = None) -> None:
         self.cluster = cluster
         # MB/s inter-site data movement; 0 means transfer is instantaneous (single-site).
         self.transfer_rate_mbs = transfer_rate_mbs
@@ -136,8 +138,68 @@ class Scheduler:
         self._node_seconds_busy = 0
         self._max_end = 0  # 0 until something actually runs; utilization window uses _t0
         # Ticks only make sense with a horizon (else they self-reschedule forever).
+        # The run's horizon: TICK self-reschedules respect it even when a caller drains with
+        # `run(until=None)` (the stepping API's step_result), so ticks can never loop forever.
+        self.horizon = horizon
         if tick is not None:
             self._events.add(self._t0 + tick, EventKind.TICK, "tick")
+        # --- phase two: patience rings + decision trace (both OFF unless declared) ---
+        # pressure = {"cap": int, "end_on_overflow": bool} from the level. cap is the slowdown
+        # at which a user's patience runs out: a job whose wait reaches cap x its requested
+        # runtime overflows the ring (cap=2 ⇒ waited twice as long as you said you'd run).
+        self.pressure_cap = int((pressure or {}).get("cap", 2))
+        self.pressure_end = bool((pressure or {}).get("end_on_overflow", False))
+        self.pressure_on = pressure is not None  # undeclared levels never compute rings (hash-stable)
+        self.pressure: dict[str, float] = {}
+        self.overflow_user: str | None = None
+        self.overflow_time: int | None = None
+        # trace > 0 keeps the last `trace` decision records (a ring buffer); 0 pays nothing.
+        self._trace_limit = trace
+        self.trace: list[dict] = []
+        self._trace_seq = 0
+        # reserve() intents mirrored here so the bridge snapshot can draw cones; the scheduler
+        # itself never reads them (they are advisory, as in Stage 2).
+        self.reservations: dict[str, int] = {}
+
+    # --- phase two: pressure + trace helpers ---
+    def _compute_pressure(self) -> None:
+        """Per-user patience ring at a batch boundary: the max unfinished job's bounded slowdown
+        under the *requested* runtime estimate, normalized so ring = 1.0 is exactly the overflow
+        point (wait == (cap-1) x estimate). Fixed user/job order; integer math to the division.
+        Only ever computed when a level declares `pressure`, so hash-stability elsewhere is free."""
+        cap = self.pressure_cap
+        if cap <= 1:
+            return  # degenerate: overflow at the first tick — treated as "no rings"
+        best: dict[str, int] = {}
+        unfinished = sorted(
+            (set(self.queued) | set(self.running)),
+            key=lambda i: i,
+        )
+        for jid in unfinished:
+            j = self.by_id[jid]
+            wait = self.now - j.submit_time
+            est = max(1, j.walltime_req)
+            # ring fraction: 0 at submit, 1.0 exactly at the overflow point (wait == grace x est)
+            grace = max(1, est * (cap - 1))
+            frac = 1 if wait >= grace else min(1, wait / grace)
+            if frac >= 1.0 and self.overflow_user is None:
+                self.overflow_user = j.user
+                self.overflow_time = self.now
+            if frac > best.get(j.user, -1.0):
+                best[j.user] = frac
+        self.pressure = {u: best.get(u, 0.0) for u in sorted({j.user for j in self.jobs})}
+
+    def _trace_event(self, action: str, job_id: str, fields: dict | None = None) -> None:
+        if self._trace_limit <= 0:
+            return
+        self._trace_seq += 1
+        rec = {"t": self.now, "action": action, "job": job_id, "seq": self._trace_seq}
+        if fields:
+            rec.update(fields)
+        self.trace.append(rec)
+        if len(self.trace) > self._trace_limit:
+            self.trace.pop(0)
+
 
     # --- actions (validated) ---
     def _deps_done(self, job: Job) -> bool:
@@ -215,7 +277,13 @@ class Scheduler:
         j.run_epoch += 1  # invalidates any FINISH from a prior (preempted) placement
         self.queued.discard(j.id)
         self.running[j.id] = j
+        self.reservations.pop(j.id, None)
         self._events.add(t + run, EventKind.FINISH, f"{j.id}#{j.run_epoch}")
+        self._trace_event("place", j.id, {
+            "nodes": sorted(chosen), "end": t + run,
+            "transfer": run - runtime_used(j),
+            "site": j.run_site or j.home_site or "",
+        })
         return j
 
     def preempt(self, job: Job | str, t: int) -> Job:
@@ -225,6 +293,7 @@ class Scheduler:
         j = self.by_id[job] if isinstance(job, str) else job
         if j.state != JobState.RUNNING:
             raise errors.PolicyError(f"job {j.id} is not running", code=errors.NOT_RUNNING)
+        freed = sorted(j.placed_nodes)  # captured for the trace before the epoch wipe
         for nid in j.placed_nodes:
             self.cluster.node(nid).release(j.id)
         self.busy_node_slots -= len(j.placed_nodes)
@@ -235,6 +304,7 @@ class Scheduler:
         j.placed_nodes = ()
         j.preempt_count += 1
         self.queued.add(j.id)
+        self._trace_event("preempt", j.id, {"nodes": freed})
         return j
 
     def transfer_secs(self, job: Job, site: str | None = None) -> int:
@@ -255,6 +325,7 @@ class Scheduler:
         if site not in self.cluster.sites_by_id():
             raise errors.PolicyError(f"unknown site {site}", code=errors.MISMATCH)
         j.run_site = site
+        self._trace_event("route", j.id, {"site": site, "transfer": self.transfer_secs(j, site)})
         return j
 
     # --- loop ---
@@ -280,8 +351,11 @@ class Scheduler:
             self.finished.append(job)
         elif ev.kind == EventKind.TICK:
             if self._ticks is not None:
-                nxt = self.now + self._ticks
-                if until is None or nxt <= until:
+                # Reschedule the *next* boundary strictly after now (a step that ends mid-interval
+                # must not kill the heartbeat), bounded by the step's `until` and the run horizon.
+                nxt = self.now + self._ticks - ((self.now - self._t0) % self._ticks)
+                within = self.horizon is None or self.horizon <= 0 or nxt <= self._t0 + self.horizon
+                if within:
                     self._events.add(nxt, EventKind.TICK, "tick")
 
     def run(self, until: int | None = None, max_events: int = 5_000_000) -> RunResult:
@@ -293,6 +367,9 @@ class Scheduler:
                 "Scheduler.run called twice on the same Job/Cluster objects", code="rerun")
         self._ran = True
         self._advance(until=until, max_events=max_events)
+        if not self.is_stopped():
+            # Patience ran out mid-run: the run ends here — do NOT drain the remaining events.
+            self._finished = True
         return self._result()
 
     def _advance(self, *, until: int | None, max_events: int = 5_000_000,
@@ -302,6 +379,9 @@ class Scheduler:
         are done. Returns True iff the heap is empty (run finished). Shared by `run`, `step_events`,
         and `run_until` so a stepped run is bit-for-bit identical to a full one."""
         batches = 0
+        if self.overflow_user is not None and self.pressure_end:
+            # Patience already ran out and the level ends on overflow: the run is over.
+            return len(self._events) == 0
         while True:
             t = self._events.peek_time()
             if t is None:
@@ -315,6 +395,11 @@ class Scheduler:
                 self._events_processed += 1
                 if self._events_processed > max_events:
                     raise errors.DeterminismError("event budget exhausted", code="event_budget")
+            if self.pressure_on:
+                self._compute_pressure()
+                if self.overflow_user is not None and self.pressure_end:
+                    # Patience ran out: the run stops here (jobs unfinished are scored as such).
+                    return len(self._events) == 0
             self._safe_policy()
             batches += 1
             if max_batches is not None and batches >= max_batches:
@@ -332,8 +417,12 @@ class Scheduler:
         self._require_unfinished()
         return self._advance(until=t)
 
+    def is_stopped(self) -> bool:
+        """True when the run is over: heap drained, or patience ran out (phase-two overflow)."""
+        return bool(getattr(self, "_finished", False)) or self.overflow_user is not None
+
     def _require_unfinished(self) -> None:
-        if getattr(self, "_finished", False):
+        if self.is_stopped():
             raise errors.DeterminismError("simulation already finished", code="finished")
 
     def _safe_policy(self) -> None:

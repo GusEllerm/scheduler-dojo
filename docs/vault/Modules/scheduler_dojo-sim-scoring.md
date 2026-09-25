@@ -7,7 +7,8 @@
 
 `metrics_from_run(run, jobs=None, cluster=None)` returns a dict of `utilization`,
 `bounded_slowdown`, `wait_p95`, `fairness` (and `sla` only when `jobs` is passed, since
-`JobResult` does not carry `sla`). `normalize(name, value, anchor)` and
+`JobResult` does not carry `sla`; its phase-two `placed_nodes`/`run_site` fields feed the campus,
+not the metrics). `normalize(name, value, anchor)` and
 `score(metrics, weights, anchors)` implement the level's 0..1000 blend.
 
 ## How it works

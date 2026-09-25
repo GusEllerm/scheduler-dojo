@@ -44,12 +44,15 @@ when a week ends (§5.6). See [[Decision Log]].
 
 ## Patience rings
 
-Per user, per tick: `ring = max_over_queued_jobs( min(slowdown, cap) / cap )` where `slowdown` is
-the same bounded slowdown as [[Concepts/Scoring]] (`max(wait+run,10)/max(run,10)`) evaluated at the
-current time with the *requested* runtime as the estimate, and `cap` is the level's declared
-overflow threshold. Ring ≥ 1 ⇒ run ends (every city and endless declare this). A completed job
-leaves the max — so a ring relaxes when a user's queue drains. Deterministic: integer tick, fixed
-job-id order, no wall clock ([[Determinism]]).
+Per user, at every event/tick batch (`Scheduler._compute_pressure`): `ring = max over unfinished
+jobs of clamp(wait / grace, 0, 1)` where `grace = (cap - 1) x est`, `est = walltime_req` (what the
+job *claimed* — the same estimate the picture shows), and `cap` is the level's declared overflow
+threshold (`pressure.cap`, default 2, so cap=2 means "a job that has waited as long as it said
+it would run has popped its neighbour's patience"). Ring ≥ 1 ⇒ `overflow_user` is set; every city
+and endless declare `end_on_overflow: true`, so the run stops there and unfinished jobs score as
+unfinished. A user's ring relaxes only when their queue drains. Deterministic: integer tick, fixed
+job-id order, one float division ([[Determinism]]). Levels without a `pressure` block never compute
+rings and their hashes are byte-identical to phase one.
 
 ## Days, weeks, offers
 

@@ -7,7 +7,9 @@
 ## What it does
 
 `main(argv)` builds an argparse parser with a `--version` flag, a `run` subcommand
-(`--level <json> | --level-json`, `--seed`, `--policy fifo|shortest_first`, `--kata <file>`), and a
+(`--level <json> | --level-json`, `--seed`, `--policy fifo|shortest_first`, `--kata <file>`) —
+pressure/ring levels tick and can end early in the CLI exactly as in the browser (one engine, one
+calendar, no trace unless asked) — and a
 `kata` subcommand (`check | format | run` over a kata file or `-` for stdin). `run` prints a JSON
 summary: `n_jobs`, `end_time`, `node_seconds_busy`, `metrics`, `trajectory_hash`, and — when the
 level declares them — a normalized `score`. `_cmd_run` and `_cmd_kata` are the handlers; `kata check`

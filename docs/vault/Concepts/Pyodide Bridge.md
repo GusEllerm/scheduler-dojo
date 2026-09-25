@@ -27,7 +27,10 @@ page (bridge.ts)  --postMessage {id,call,args}-->  worker.ts
 
 `bridge.start/step_n/step_until` drive a `Scheduler` that lives across messages, using the **same**
 `_advance` loop as a full `run`, so pausing, animating, or hand-placing at any speed produces a run
-bit-for-bit identical to the CLI/golden run. `step_result` drains and finalizes. See
+bit-for-bit identical to the CLI/golden run — phase-two ticks and rings ride that same loop, so a
+stepped run on a ring level equals a full one. `step_result` drains and finalizes (the drain respects
+the level horizon, so ticks cannot spin it). Snapshots carry the campus picture: real `placed` node
+ids, `reserved` cones, per-user `pressure` and `overflow`. See
 [[scheduler_dojo-sim-scheduler]].
 
 ## Failure modes

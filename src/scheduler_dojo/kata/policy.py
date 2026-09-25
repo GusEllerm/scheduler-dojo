@@ -28,11 +28,20 @@ from scheduler_dojo.kata.interp import Interp, run_module
 _FIFO_KEY = lambda j: (j.submit_time, j.id)  # noqa: E731 — the default order slot
 
 
+def _traceable(k):
+    """JSON-safe form of an order key for the decision trace (deterministic string form)."""
+    if isinstance(k, tuple):
+        return [_traceable(x) for x in k]
+    if isinstance(k, (int, float, str, bool)) or k is None:
+        return k
+    return str(k)
+
+
 class KataPolicy:
     """Run a kata program as a scheduler policy; fall back to FIFO first-fit on any error."""
 
     def __init__(self, program: ast.Program, *, unlocked=frozenset(),
-                 step_budget: int = 20000) -> None:
+                 step_budget: int = 20000, tracer=None) -> None:
         self.program = program
         self.unlocked = frozenset(unlocked)
         self.step_budget = step_budget
@@ -42,6 +51,8 @@ class KataPolicy:
         self.last_fallback: str | None = None
         self.memory: dict = {}
         self._last_now: int | None = None
+        # Optional trace sink (phase two booth "why" panel): callable(action, job_id, fields).
+        self._tracer = tracer
 
     # --- the Policy surface ------------------------------------------------------
     def __call__(self, ctx) -> None:
@@ -66,11 +77,20 @@ class KataPolicy:
         if not ok:
             self._default_safe(ctx)
         self._run_optional_slots(ctx, env)
+        # Mirror reserve() intents onto the scheduler so snapshots can draw cones; the scheduler
+        # drops a job's intent when it places. Advisory only — the engine never reads these.
+        sched = ctx._sched
+        if hasattr(sched, "reservations"):
+            sched_res = sched.reservations
+            for jid, t in getattr(env, "reservations", {}).items():
+                sched_res[jid] = t
 
     # --- internals ----------------------------------------------------------------
     def _note_fallback(self, code: str) -> None:
         self.fallbacks += 1
         self.last_fallback = code
+        if self._tracer is not None:
+            self._tracer("fallback", "", {"code": code})
 
     def _apply_order(self, ctx, env: Env) -> None:
         """Order-slot contract: run the order body per job; queue() honours the resulting keys."""
@@ -92,6 +112,13 @@ class KataPolicy:
             return keymap.get(j.id, (j.submit_time, j.id))
 
         env.set_queue_order(order_key)
+        if self._tracer is not None and keymap:
+            # The booth's why-panel: the computed key per queued job (bounded) + who is first.
+            ranked = sorted(ctx.queued, key=lambda j: (keymap.get(j.id, (j.submit_time, j.id)), j.id))
+            head = ranked[:12]
+            self._tracer("order", head[0].id if head else "", {
+                "keys": [[j.id, _traceable(keymap.get(j.id, (j.submit_time, j.id)))] for j in head],
+            })
 
     def _default_place(self, env: Env) -> None:
         """Default place slot: first-fit over the queue in its current (or FIFO) order."""

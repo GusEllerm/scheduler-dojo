@@ -14,7 +14,7 @@
 
 ## How it works
 
-The UI and tests key off `code`, not the message text. `sim.scheduler.place` raises `PolicyError`
+The UI and tests key off `code`, not the message text. `Scheduler.place` raises `PolicyError`
 with these codes; the kata interpreter (Stage 2) will attach `line` so errors render against the
 right kata line.
 

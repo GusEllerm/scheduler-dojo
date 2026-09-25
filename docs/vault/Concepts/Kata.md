@@ -16,6 +16,10 @@ four questions:
 - **preempt** — whom do I bump? (locked until its level).
 - **route** — which site runs a job? (multi-site levels).
 
+Every decision is **visible** (phase two): the engine's `place`/`preempt`/`route` commits emit decision-
+trace records, and a kata adds per-decision `order` records (the computed key per queued job) and
+`fallback` codes — this is what the booth's why-panel and step mode read. See [[Campus]].
+
 Missing a slot ⇒ the default (FIFO order, first-fit place). This is why a one-module kata still runs.
 
 ## Why it is safe to run untrusted

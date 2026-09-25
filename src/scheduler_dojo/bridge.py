@@ -42,6 +42,15 @@ def _coerce_level(level: Any) -> dict:
     return json.loads(level) if isinstance(level, str) else level
 
 
+def _tick_for(lvl: dict) -> int | None:
+    """A level with patience rings ticks (rings fill between events); others never tick — which is
+    exactly what keeps undeclared levels' trajectories byte-identical to phase one."""
+    if lvl.get("pressure") is None:
+        return None
+    dur = int(lvl.get("duration") or 0)
+    return max(1, dur // 70) if dur else 60
+
+
 def _nodes_json(cluster: Cluster) -> list[dict]:
     parts = cluster.partitions
     return [{"id": n.id, "name": n.name, "cpus": n.cpus, "gpus": n.gpus,
@@ -49,13 +58,20 @@ def _nodes_json(cluster: Cluster) -> list[dict]:
             for n in cluster.nodes]
 
 
-def _jobs_json(result) -> list[dict]:
+def _jobs_json(result, sensors: bool = True) -> list[dict]:
+    """Per-job run record. Phase two: `placed` carries the REAL node ids (+ `site`), and with
+    sensors off the job's *claimed* walltime is all a viewer may see (same visibility rule the
+    sensor builtin enforces mid-run): `runtime` is hidden and `est` carries the request."""
     out = []
     for j in result.jobs:
         state = "timeout" if j.timed_out else ("done" if j.completed else "unfinished")
-        out.append({"id": j.id, "user": j.user, "nodes": j.nodes_req,
-                    "submit": j.submit_time, "start": j.start_time, "end": j.end_time,
-                    "runtime": j.runtime_used, "state": state})
+        rec = {"id": j.id, "user": j.user, "nodes": j.nodes_req,
+               "submit": j.submit_time, "start": j.start_time, "end": j.end_time,
+               "state": state, "placed": list(j.placed_nodes), "site": j.run_site or ""}
+        if sensors:
+            rec["runtime"] = j.runtime_used
+        rec["est"] = j.walltime_req
+        out.append(rec)
     return out
 
 
@@ -73,25 +89,31 @@ def ping() -> dict:
 
 
 def run(level: Any, seed: int | None = None, policy: str = "fifo",
-        kata: Any | None = None) -> dict:
+        kata: Any | None = None, trace: int = 0) -> dict:
     lvl = _coerce_level(level)
     validate_level(lvl)
     cluster = build_cluster(lvl["cluster"])
-    result = run_level(lvl, seed=seed, policy=policy, kata=kata)
+    sout: dict = {}
+    result = run_level(lvl, seed=seed, policy=policy, kata=kata, trace=trace, sched_out=sout)
+    sched = sout["sched"]
     metrics = scoring.metrics_from_run(result)
     out = {
         "level_id": lvl.get("id"),
         "seed": seed if seed is not None else int(lvl.get("seed", 0)),
         "policy": policy if kata is None else "kata",
         "nodes": _nodes_json(cluster),
-        "jobs": _jobs_json(result),
+        "jobs": _jobs_json(result, sensors=not lvl.get("hide_actual", False)),
         "end_time": result.end_time,
         "n_jobs": result.n_jobs,
         "node_seconds_busy": result.node_seconds_busy,
         "node_seconds_total": result.node_seconds_total,
         "metrics": metrics,
         "trajectory_hash": trajectory_hash(result),
+        "pressure": dict(sched.pressure),
+        "overflow": sched.overflow_user or "",
     }
+    if trace:
+        out["trace"] = list(sched.trace)
     score = _score_for(lvl, result)
     if score is not None:
         out["score"] = score
@@ -104,19 +126,25 @@ def run(level: Any, seed: int | None = None, policy: str = "fifo",
 
 
 def start(level: Any, seed: int | None = None, policy: str = "fifo",
-          kata: Any | None = None) -> dict:
+          kata: Any | None = None, trace: int = 0) -> dict:
     """Start an interactive run and return a handle to step it."""
     lvl = _coerce_level(level)
     validate_level(lvl)
     sseed = seed if seed is not None else int(lvl.get("seed", 0))
     jobs = load_jobs(lvl, sseed)
+    late: list = [None]
+    tracer = (lambda a, j, f=None: late[0]._trace_event(a, j, f)) if trace else None
     if kata is not None:
         from scheduler_dojo.kata import parse
         from scheduler_dojo.kata.policy import KataPolicy
-        pol = KataPolicy(parse(_kata_source(kata)), unlocked=frozenset(lvl.get("unlocks", ["core"])))
+        pol = KataPolicy(parse(_kata_source(kata)),
+                         unlocked=frozenset(lvl.get("unlocks", ["core"])), tracer=tracer)
     else:
-        pol = POLICIES.get(policy, POLICIES["fifo"])
-    sched = Scheduler(build_cluster(lvl["cluster"]), jobs, pol)
+        pol = POLICIES.get(policy, POLICIES["fifo"])  # built-ins trace via place() automatically
+    sched = Scheduler(build_cluster(lvl["cluster"]), jobs, pol,
+                      pressure=lvl.get("pressure"), tick=_tick_for(lvl), trace=trace,
+                      horizon=lvl.get("duration"))
+    late[0] = sched
     handle = _NEXT_HANDLE[0]
     _NEXT_HANDLE[0] += 1
     _SESSIONS[handle] = sched
@@ -128,10 +156,16 @@ def _snapshot(sched: Scheduler) -> dict:
         "now": sched.now,
         "events_processed": sched._events_processed,
         "queued": sorted(sched.queued),
-        "running": [{"id": j.id, "nodes": list(j.placed_nodes), "start": j.start_time}
+        "running": [{"id": j.id, "nodes": list(j.placed_nodes), "start": j.start_time,
+                     "end": (j.start_time or sched.now) + max(
+                         1, min(j.actual_runtime, j.walltime_req)) + sched.transfer_secs(j)}
                     for j in sorted(sched.running.values(), key=lambda j: j.id)],
+        "reserved": {jid: t for jid, t in sorted(sched.reservations.items())
+                     if jid in sched.queued},
+        "pressure": dict(sched.pressure),
+        "overflow": sched.overflow_user or "",
         "finished": len(sched.finished),
-        "done": bool(getattr(sched, "_finished", False)),
+        "done": sched.is_stopped(),
     }
 
 
@@ -155,7 +189,9 @@ def step_result(handle: int) -> dict:
     result = sched.run(until=None) if not getattr(sched, "_finished", False) else sched._result()
     return {"metrics": scoring.metrics_from_run(result),
             "trajectory_hash": trajectory_hash(result),
-            "jobs": _jobs_json(result), "end_time": result.end_time}
+            "jobs": _jobs_json(result), "end_time": result.end_time,
+            "pressure": dict(sched.pressure), "overflow": sched.overflow_user or "",
+            "trace": list(sched.trace)}
 
 
 def check_kata(kata: Any) -> dict:
@@ -180,7 +216,9 @@ def hand_start(level: Any, seed: int | None = None) -> dict:
     validate_level(lvl)
     sseed = seed if seed is not None else int(lvl.get("seed", 0))
     jobs = load_jobs(lvl, sseed)
-    sched = Scheduler(build_cluster(lvl["cluster"]), jobs, _manual)
+    sched = Scheduler(build_cluster(lvl["cluster"]), jobs, _manual,
+                      pressure=lvl.get("pressure"), tick=_tick_for(lvl),
+                      horizon=lvl.get("duration"))
     handle = _NEXT_HANDLE[0]
     _NEXT_HANDLE[0] += 1
     _SESSIONS[handle] = sched
@@ -302,6 +340,67 @@ def progression_drift(state: dict, *, now: int) -> dict:
     return prog.apply_drift(_ensure_state(state), now=now)
 
 
+# --- phase two: calendar, weekly offers, city editions, endless -------------------
+
+
+def calendar_at(t: int, level: Any, t0: int | None = None) -> dict:
+    """Day/week/sun position of sim time `t` for a level — computed in the engine so the CLI
+    and the browser agree exactly on when a week ends (§5.6)."""
+    from scheduler_dojo.sim import calendar
+
+    lvl = _coerce_level(level)
+    start = t0 if t0 is not None else lvl.get("t0")
+    if start is None:
+        jobs = lvl.get("jobs") or []
+        start = min((int(j.get("submit_time", 0)) for j in jobs), default=0)
+    duration = int(lvl.get("duration") or 0)
+    day, week = calendar.day_week(int(t), int(start), duration)
+    _, frac = calendar.day_clock(int(t), int(start), duration)
+    return {"day": day, "week": week, "sun": frac,
+            "week_end": calendar.week_end_time(int(start), duration, week)}
+
+
+def offers_list(state: dict, city: int, week: int) -> dict:
+    """The deterministic two upgrades offered at a city/week boundary (share-replayable)."""
+    from scheduler_dojo import progression as prog
+
+    return {"offers": prog.offers(_ensure_state(state), int(city), int(week))}
+
+
+def tutorial_load(city: str = "city1") -> dict:
+    """A city tutorial script (data), for the tutorial runner."""
+    from scheduler_dojo.sim.tutorial import load_tutorial
+
+    return {"tutorial": load_tutorial(city)}
+
+
+def tutorial_run(ref: str = "city1", policy: str = "fifo", kata: Any | None = None,
+                trace: int = 0) -> dict:
+    """Run a city's *edition* of its canonical level (level + whitelisted patch). Calibration,
+    goldens and share cards still refer to the canonical level; the patch changes only pacing knobs."""
+    from scheduler_dojo.sim.tutorial import load_city_level
+
+    return run(load_city_level(ref), policy=policy, kata=kata, trace=trace)
+
+
+def endless_run(growth: dict, seed: int = 0, policy: str = "fifo",
+                kata: Any | None = None, trace: int = 0) -> dict:
+    """Run seeded endless growth (§5.7) as an inline level; the same seed replays identically."""
+    from scheduler_dojo.sim.endless import DEFAULT_HORIZON, generate_endless_jobs
+
+    jobs = generate_endless_jobs(int(seed), growth)
+    horizon = int(growth.get("horizon", DEFAULT_HORIZON))
+    nodes = growth.get("cluster", {"nodes": [{"id": f"e{i}", "cpus": 8} for i in range(4)]})
+    lvl = {"id": "endless", "title": "Endless", "cluster": nodes,
+           "jobs": [{"id": j.id, "user": j.user, "submit_time": j.submit_time,
+                     "nodes_req": j.nodes_req, "walltime_req": j.walltime_req,
+                     "actual_runtime": j.actual_runtime}
+                    for j in jobs],
+           "duration": horizon,
+           "pressure": growth.get("pressure", {"cap": 2, "end_on_overflow": True})}
+    return run(lvl, seed=seed, policy=policy, kata=kata, trace=trace)
+
+
 # --- share cards (Stage 9: mint + verify a replayable, tamper-evident card) ------
 
 
@@ -341,6 +440,8 @@ _DISPATCH = {
     "hand_result": hand_result,
     "progression_view": progression_view, "progression_completion": progression_completion,
     "progression_buy": progression_buy, "progression_drift": progression_drift,
+    "calendar_at": calendar_at, "offers_list": offers_list,
+    "tutorial_load": tutorial_load, "tutorial_run": tutorial_run, "endless_run": endless_run,
     "share_encode": share_encode, "share_replay": share_replay,
 }
 

@@ -49,6 +49,17 @@ for animated playback in the browser). `fifo`, `shortest_first`, and `idle`
   window; duplicate job ids raise `DeterminismError`.
 - **Determinism:** `queued`/`running` are exposed sorted by id; ties broken by `(submit_time, id)`
   and `(walltime_req, submit_time, id)`.
+- **Patience rings (phase two):** constructed with `pressure={"cap", "end_on_overflow"}` (levels
+  without the block never compute rings — hash-identical to phase one), `_compute_pressure` runs at
+  every batch: per user, the max over unfinished jobs of `wait / ((cap-1) x est)` clamped to [0,1]
+  (`est` = `walltime_req`, what the job claimed), stored in `pressure`; the first job at 1.0 sets
+  `overflow_user`/`overflow_time`, and with `end_on_overflow` the run stops there (`is_stopped()`
+  covers both endings). Ring levels tick (`tick≈duration/70` via `sim.level`/`bridge._tick_for`) so
+  rings fill between events; TICK reschedules to the next boundary bounded by `horizon`, never by a
+  step's `until`, so stepped and full runs agree.
+- **Decision trace (phase two):** `trace=N` keeps a ring buffer of the last N records on `Scheduler.trace`
+  (`place`/`preempt`/`route` emit from the engine; the kata adds `order` keys + `fallback` codes via
+  its `tracer`); `trace=0` pays nothing. `reservations` mirrors `reserve()` intents for snapshots.
 - `_safe_policy` is the seam where the Stage-2 kata driver will catch `StepBudgetError` and fall
   back to the default for that one decision.
 
