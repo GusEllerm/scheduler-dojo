@@ -47,10 +47,28 @@ a mouse, because a scheduling lesson you cannot read is not a lesson.
    nine level buttons.
 7. **Reduced motion is honoured.** A `prefers-reduced-motion: reduce` block kills transitions and
    animations, and `web/src/main.ts` reads the same query to pass `autoplay: false`, so the timeline
-   waits for an explicit Play instead of running a canvas animation.
+   waits for an explicit Play instead of running a canvas animation. The Art 5b misfit shake is an
+   `animation` (so the block neutralises it) and `CampusPlay.showMisfit` additionally skips the shake
+   outright when the player asked for reduced motion — the red edge and the reason line carry the
+   message alone.
 8. **Contrast is checked, not assumed.** Text sits on `--text: #dbe2ec` / `--muted: #9aa7b8`
    (≈7:1 on the panels), the amber/green/red states are ≥4.5:1, and dimmed cards use `opacity: 0.85`
    rather than a lower value that would push their text under AA.
+9. **The campus canvas is a keyboard target (Art 5b).** In hand play `web/src/campus-play.ts` gives
+   the canvas `tabindex="0"` and an aria-label that states the keys (live play leaves it unfocusable
+   decoration — there is nothing there to choose). With focus on it: arrow keys cycle the selected
+   vehicle in engine road order, then slide its staged bay window along the lot (a k-bay vehicle
+   needs k bays side by side, which is the lesson); Enter attempts the park — the engine decides via
+   `hand_place`; Escape clears the bays then the vehicle. The canvas takes the same
+   `:focus-visible` ring as every other control (`web/src/style.css`).
+10. **Hand-play state changes have exactly one polite channel each (Art 5b).** Selection, staged
+    bays and the cone hint are announced through the campus toast (`role="status"`,
+    `aria-live="polite"`); a `hand_place` refusal goes to the reason line under the hand bar
+    (`role="status"`, `aria-live="polite"`, the engine's `PolicyError` code kept verbatim —
+    `misfitReason` in `web/src/campus-why.ts` says the plain words, never a paraphrase away); the
+    booth's why-panel list is `role="log" aria-live="polite"` and appends only NEW decision records
+    keyed by the engine's `seq`, so a stepping player hears what changed rather than the whole
+    panel per frame. Per-frame canvas motion stays out of live regions entirely.
 
 ## Verifying an a11y change
 
@@ -74,8 +92,11 @@ screen reader would make.
 
 - Hand/kata modes mount their own timelines (`web/src/hand.ts`, `web/src/kata-play.ts`) and do not read
   the reduced-motion query, so their autoplay still animates. The watch path is covered.
-- The Canvas timeline has no text-equivalent per bar; a `datalist`-style job table would be the next
-  step if screen-reader play-by-play is ever wanted.
+- The campus canvas explains itself through announcements, not structure: a screen reader hears the
+  selection/staging state and the booth's decisions, but there is no per-vehicle list to browse (the
+  strip's job table would be that).
+- The hand campus is keyboard-playable; the *live* campus intentionally has no focus target (nothing
+  to choose while the booth decides), so its only controls are the Pause/Step/speed buttons.
 - Share-card PNGs are images with an `aria-label` summary; the card's own text is not selectable.
 
 ## Related

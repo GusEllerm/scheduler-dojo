@@ -1345,3 +1345,33 @@ ul.kata-errors {
   from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sd-gold) 80%, transparent); }
   to   { box-shadow: 0 0 0 14px color-mix(in srgb, var(--sd-gold) 0%, transparent); }
 }
+
+/* ---- phase two, Art 5b: the booth's why-panel, step mode, hand cones, misfit, keyboard ---- */
+/* The why-panel reads the engine's decision trace: calm rows, time first, owner color second. It
+   sits below the clock so the canvas geometry (and every Art 3 baseline) is untouched. */
+.campus-why { margin-top: 6px; border: 1px solid var(--sd-line); border-radius: 10px;
+  padding: 2px 10px 6px; background: var(--sd-panel); }
+.campus-why > summary { cursor: pointer; font-size: 12px; color: var(--sd-ink-soft);
+  text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 0; }
+.campus-why-list { display: grid; gap: 2px; max-height: 140px; overflow: auto; margin-top: 2px; }
+.campus-why-row { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
+.campus-why-row .why-t { color: var(--sd-ink-soft); font-family: ui-monospace, monospace;
+  font-size: 11px; min-width: 52px; }
+.campus-why-row .why-dot { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 2px;
+  background: var(--sd-ink-soft); }
+.campus-why-empty { margin: 2px 0; font-size: 12px; color: var(--sd-ink-soft); }
+/* Misfit feedback: the reason line lives under the hand bar (always visible, polite), and the bar
+   itself takes a red edge plus one short shake — under reduced motion only the edge appears. */
+.campus-reason { font-size: 12px; color: var(--sd-ink-soft); }
+.campus-reason.bad { color: var(--sd-overflow); font-weight: 600; }
+.campus-hand-bar.misfit { outline: 2px solid var(--sd-overflow); outline-offset: 2px;
+  border-radius: 8px; animation: sd-shake 320ms ease-in-out 1; }
+@keyframes sd-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  45% { transform: translateX(4px); }
+  70% { transform: translateX(-2px); }
+}
+/* Keyboard play: the hand campus canvas is focusable, so it needs the same visible ring as every
+   other control (Concepts/Accessibility rule 6). */
+.campus-canvas:focus-visible { outline: 3px solid var(--sd-gold); outline-offset: -3px; }

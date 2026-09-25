@@ -127,6 +127,7 @@ export class TutorialRunner {
   private uiResolve: (() => void) | null = null;
   private readonly skipButton: HTMLButtonElement;
   private openUi: { close(): void } | null = null;
+  private stepIndex = 0;
   private prevStepOnEvent: ((name: string) => void) | undefined;
 
   private constructor(
@@ -151,6 +152,9 @@ export class TutorialRunner {
     const tutorial = await loadScript(city);
     const runner = new TutorialRunner(city, campus, tutorial ?? { level: "level1", steps: [] }, options);
     runner.attach();
+    // debug hook (dev-visible, harmless — same stance as `window.__campus`): lets a playtest drive
+    // assert WHICH beat the script is on instead of guessing from pixels.
+    (window as unknown as { __tutorial?: TutorialRunner }).__tutorial = runner;
     return runner;
   }
 
@@ -184,6 +188,12 @@ export class TutorialRunner {
       this.event("first_place");
       const justPlaced = state.running.filter((r) => r.start === now).map((r) => r.id).sort();
       if (justPlaced.length) this.lastPlacedId = justPlaced[justPlaced.length - 1] ?? this.lastPlacedId;
+      // A vehicle that parked into coned bays is the thing the cone was FOR — backfill, by hand.
+      const coned = new Set(this.campus.viewerCones().flatMap((c) => c.bays));
+      if (coned.size && justPlaced.some((id) =>
+          (state.running.find((r) => r.id === id)?.nodes ?? []).some((n) => coned.has(n)))) {
+        this.event("backfill_placed");
+      }
     }
     this.placed = placedTotal;
     const pressureValues = Object.values(state.pressure ?? {});
@@ -196,6 +206,13 @@ export class TutorialRunner {
         || (this.duration > 0 && now >= BEHIND_HORIZON_FRACTION * this.duration)) {
       this.behind = true;
     }
+    // Fallback in the same spirit as the `placed_total`/`week` ones above: the engine only computes
+    // rings on levels that declare `pressure`, and phase two's level data does not yet (Art 6 puts
+    // the rings in the cities). With NO rings in the snapshot, the engine fact that patience is
+    // moving is the one `behind` already reads off the same snapshot — the jam, the 900-s wait, the
+    // horizon term. Without this the beat can only be reached by the stall watchdog, which on a hand
+    // run can outlive the clock itself (an unparked hand campus ends at its last arrival).
+    if (!pressureValues.length && this.behind) this.event("pressure_moved");
     if (this.week > 1 || (this.duration > 0 && now >= this.duration) || state.done) {
       this.event("week_end");
     }
@@ -236,6 +253,12 @@ export class TutorialRunner {
       case "cards_placed": return ruleCards(this.campus.boothKata()).length >= Number(value);
       case "day": return this.day >= Number(value);
       case "chosen": return this.campus.currentScene()?.chosen != null;
+      // Art 5b: the reservation beat. `owned` reads the save the engine's own progression module
+      // owns; `cone_placed` is the guided hand cone; `backfill_placed` fires when a vehicle actually
+      // parks in coned bays (below, from engine `running.nodes`).
+      case "owned": return (getProgression()?.upgrades ?? []).includes(String(value));
+      case "cone_placed": return this.campus.viewerCones().length > 0;
+      case "backfill_placed": return this.events.has("backfill_placed");
       default:
         console.warn(`tutorial: unknown predicate "${kind}" — treated as satisfied`);
         return true;
@@ -282,6 +305,7 @@ export class TutorialRunner {
     for (let i = 0; i < steps.length; i++) {
       if (this.abort) return;
       const step = steps[i]!;
+      this.stepIndex = i;
       this.waitStart = this.now;
       const gate = await this.wait((now) => {
         void now;
@@ -333,16 +357,23 @@ export class TutorialRunner {
     if (action.reveal) {
       const reveal = action.reveal as Record<string, unknown>;
       if (reveal.booth) this.campus.revealBooth(true);
+      // Art 5b: `reveal {building: "reserve"}` puts the tool in the player's hands (the cone
+      // control, announced and nudged on the lots). Sprites for the other four land with Art 6.
+      else if (reveal.building) this.campus.revealBuilding(String(reveal.building));
       else console.warn(`tutorial: reveal ${Object.keys(reveal).join(",")} is engine-visible already`);
       return;
     }
     if (action.set_mode) {
       const mode = String(action.set_mode);
-      this.campus.setModeChip(mode === "hand" ? "traffic: by hand" : `booth: ${mode.split(":")[1] ?? mode}`);
+      this.campus.setModeChip(mode === "hand" ? "traffic: by hand"
+        : mode === "step" ? "traffic: one batch per press"
+          : `booth: ${mode.split(":")[1] ?? mode}`);
       // Art 5: the booth modes open the panel they name — `booth:line` straight into the
-      // one-line editor (city 2's "the card IS the kata" beat).
+      // one-line editor (city 2's "the card IS the kata" beat). Art 5b: `step` hands the clock to
+      // the campus's Step button (one event batch per press, why-panel in step with it).
       if (mode === "booth:cards") this.campus.openBoothPanel({});
       else if (mode === "booth:line") this.campus.openBoothPanel({ mode: "line" });
+      else if (mode === "step") this.campus.setStepMode(true);
       return;
     }
     if ("swap_card" in action) {
@@ -507,6 +538,9 @@ export class TutorialRunner {
   private async takeUpgrade(id: string): Promise<string> {
     try {
       await buyUpgrade(id);
+      // Art 5b: taking the upgrade PLACES the building on the campus — the script's next beat
+      // (`when: {on_event: "upgrade_placed:reserve"}`) waits on exactly that, not on the save file.
+      this.event(`upgrade_placed:${id}`);
       return `${OFFER_NAMES[id] ?? id} taken.`;
     } catch {
       return `${OFFER_NAMES[id] ?? id} is not buyable yet — earn credits; this week passes.`;
@@ -517,6 +551,19 @@ export class TutorialRunner {
 
   skip(): void {
     this.finish("tutorial skipped");
+  }
+
+  /** Which beat the script is on (verification only — it decides nothing and mutates nothing). */
+  debugState(): { city: number; step: number; stepId: string; day: number; now: number;
+                  events: string[] } {
+    return {
+      city: Number(this.script.city ?? 0),
+      step: this.stepIndex,
+      stepId: this.script.steps[this.stepIndex]?.id ?? "",
+      day: this.day,
+      now: this.now,
+      events: [...this.events].sort(),
+    };
   }
 
   destroy(): void {

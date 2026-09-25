@@ -29,7 +29,8 @@ tags: [concept, phase-two]
 ```
 
 - `when`: `after_days` | `after_sim_secs` | `on_event` (`week_end`, `first_place`, `first_preempt`,
-  …) | `first_time` (`pressure_moved`, `timeout`, `fallback`) — evaluated at the engine tick.
+  `upgrade_placed:NAME` …) | `first_time` (`pressure_moved`, `timeout`, `fallback`,
+  `backfill_placed`) — evaluated at the engine tick.
 - `do`: `callout` (anchored text), `highlight` (scene id; `pulseAnchor`), `lock` (`none|hand|place|booth`),
   `swap_card` (open the booth pulsing a slot; fires the `card_swapped` atom) and `edit_line`
   (one-line mode on a named card; fires `line_edited`) — both booth modes via `web/src/booth.ts`,
@@ -86,8 +87,24 @@ enforces — the merge feeds data to Python, which still validates and decides e
 - **`do`**: `lock` (disable the named control), `callout` (focus-trapped popover anchored via
   `CampusPlay.anchorPoint`: `road` / `bays` / `booth` / `offers` / `ring:USER` / `bay:ID` /
   `vehicle:ID` / `vehicle:last_placed`), `reveal {booth}` (`revealBooth`, which also unlocks the
-  booth card dialog), `set_mode` (a chip — in hand mode the booth cannot act yet), `offer_upgrade`
+  booth card dialog) and `reveal {building}` (`revealBuilding` — Art 5b: `reserve` announces the cone
+  control and nudges the lots; sprites for the other four buildings land with Art 6), `set_mode` (a
+  chip; `booth:cards`/`booth:line` open the panel, and Art 5b's `step` hands the clock to the campus
+  Step button via `setStepMode`), `offer_upgrade`
   (the deterministic pair from `offers_list`, take-one).
+- **Art 5b predicates, all read off facts, never off the script**: `owned` (the save's `upgrades`,
+  which only `progression.buy` writes), `cone_placed` (a viewer cone exists — `viewerCones`), and
+  `backfill_placed` (a vehicle actually parked into coned bays, from the snapshot's `running.nodes`).
+  Taking an offer fires `upgrade_placed:<id>`, which is what city 3's cone beat waits on — so the
+  beat cannot be satisfied by the save file alone, and the cone beat itself cannot complete without
+  a real "Cone it" press.
+- **`pressure_moved` has a documented fallback**: the engine computes rings only on levels that
+  declare `pressure`, and no city's level data does yet, so when the snapshot carries **no** rings the
+  runner fires `pressure_moved` from the same engine facts `behind` already reads (a jam, a 900-s
+  wait, 60 % of the horizon). Same style as the `placed_total`/`week` derivations above. The reason it
+  matters: an unparked hand campus has no FINISH events, so its clock stops at its **last arrival**
+  (~13.4 ks on level 3) — a watchdog-only beat whose budget is larger than that is unreachable, not
+  merely slow. Revisit when Art 6 puts `pressure` in the city levels.
 - **Cards are katas**: `web/src/booth.ts` renders the booth dialog's rule cards by splitting a kata
   source into its non-empty `SLOTS` modules (`order, place, preempt, route` — line-splitting only,
   no parsing). Staffing during a hand run **records** the choice (there is no mid-run policy

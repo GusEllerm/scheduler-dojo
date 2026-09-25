@@ -74,6 +74,13 @@ export interface Cone {
   bays: string[];
   /** sim time the countdown reads against (the reservation's intended start / the decay deadline) */
   until: number | null;
+  /**
+   * Art 5b: the sim time the booking STARTED holding, so the countdown bar can span its own
+   * window instead of a guessed constant. The snapshot never says when a `reserve` intent was
+   * made, so engine cones leave this null (the painter falls back to `RESERVE_SPAN`); viewer hand
+   * cones know exactly when the player put them down.
+   */
+  from: number | null;
 }
 
 export interface CampusScene {
@@ -230,7 +237,7 @@ function layoutScene(inp: LayoutInput): CampusScene {
   // ---- cones: engine reservation intents (sorted — object key order is not the source) ------
   const cones: Cone[] = Object.entries(snap.reserved ?? {})
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
-    .map(([job, until]) => ({ job, bays: [], until }));
+    .map(([job, until]) => ({ job, bays: [], until, from: null }));
   for (const c of inp.handCones ?? []) {
     if (c.until !== null && c.until <= snap.now) continue;   // decayed on sim time — gone
     if (!cones.some((e) => e.job === c.job)) cones.push(c);

@@ -572,7 +572,11 @@ export class CampusRenderer {
       ctx.stroke(path);
       if (cone.until !== null) {
         const rem = Math.max(0, cone.until - scene.now);
-        const frac = clamp(rem / RESERVE_SPAN, 0, 1);
+        // Span the bar over the cone's OWN window when the viewer knows it (a hand cone the player
+        // just placed); engine `reserve` intents carry no start time, so those keep the default tick.
+        const span = cone.from !== null && cone.from !== undefined && cone.until > cone.from
+          ? cone.until - cone.from : RESERVE_SPAN;
+        const frac = clamp(rem / Math.max(1, span), 0, 1);
         ctx.strokeStyle = this.c("veh-reserved");
         ctx.lineWidth = 2;
         ctx.beginPath();

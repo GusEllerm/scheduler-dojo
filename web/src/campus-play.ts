@@ -9,11 +9,18 @@
  * Nothing here decides: placement truth, order, rings, and the calendar all come from the engine.
  */
 
-import { bridge, BridgeError, type HandSuggestions, type Level, type RunResult, type StepState } from "./bridge";
-import { buildScene, type CampusScene, type SnapshotLike } from "./campus";
+import { bridge, BridgeError, type HandSuggestions, type Level, type RunResult, type StepState, type TraceRecord } from "./bridge";
+import { buildScene, type CampusScene, type Cone, type SnapshotLike } from "./campus";
 import { bayBox, hitTest, vehicleBox } from "./campus-hit";
+import { misfitReason, whyRows, WHY_EMPTY, type JobFacts } from "./campus-why";
 import { boothCards, openBoothDialog, saveBoothChoice, type BoothDialogHandle } from "./booth";
 import { readTokens } from "./tokens";
+
+/**
+ * Art 5b: how many decision records the engine keeps for the why-panel (`start(trace=N)` — a ring
+ * buffer, so a long run costs a bounded snapshot extra and a headless run pays nothing).
+ */
+const TRACE_DEPTH = 24;
 
 export interface CampusPlayOptions {
   level: Level;
@@ -89,6 +96,26 @@ export class CampusPlay {
   private boothDialog: BoothDialogHandle | null = null;
   private undoBtn: HTMLButtonElement | null = null;
   private staffedKata: string | null = null;
+  /* --- Art 5b: why-panel, step mode, hand cones, misfit feedback, keyboard (live-only fields
+   *     stay inert in hand mode and vice versa, so neither view's pixels move) ------------------ */
+  private whyPanel: HTMLElement | null = null;
+  private whyList: HTMLElement | null = null;
+  private whyAny = false;
+  /** painted trace rows by engine `seq` — so a step announces only what is NEW */
+  private readonly whyEls = new Map<number, HTMLElement>();
+  private tokens: Record<string, string> = {};
+  private pauseBtn: HTMLButtonElement | null = null;
+  private stepBtn: HTMLButtonElement | null = null;
+  private stepMode = false;
+  private stepBusy = false;
+  /** viewer-side hand cones ("Cone it"); decay on sim time, never wall clock, never engine truth */
+  private handCones: Cone[] = [];
+  private coneBtn: HTMLButtonElement | null = null;
+  private reasonEl: HTMLElement | null = null;
+  private reasonTimer = 0;
+  /** keyboard cursor (Art 5b §7): the vehicle index, then the bay-window offset */
+  private kbVehicle = -1;
+  private kbBayOffset = 0;
 
   private constructor(opts: CampusPlayOptions) {
     this.opts = opts;
@@ -117,10 +144,31 @@ export class CampusPlay {
     this.chipEl.className = "campus-mode-chip";
     this.chipEl.setAttribute("role", "status");
     this.chipEl.hidden = true;
-    this.opts.container.append(this.canvas, this.detailEl, this.toastEl, this.chipEl, this.controls, this.clockEl);
+    // Art 5b: the why-panel lives in the stage, under the clock. It reads the engine's decision
+    // trace only, is collapsible, and announces new rows politely. A hand booth has decided
+    // nothing (the manual policy places nothing), so the panel stays hidden there.
+    const why = document.createElement("details");
+    why.className = "campus-why";
+    const whyHead = document.createElement("summary");
+    whyHead.textContent = "Why the booth chose";
+    const whyBody = document.createElement("div");
+    whyBody.className = "campus-why-body";
+    const whyList = document.createElement("div");
+    whyList.className = "campus-why-list";
+    whyList.setAttribute("role", "log");
+    whyList.setAttribute("aria-live", "polite");
+    whyList.setAttribute("aria-label", "Booth decisions");
+    whyBody.append(whyList);
+    why.append(whyHead, whyBody);
+    this.whyPanel = why;
+    this.whyList = whyList;
+    this.opts.container.append(this.canvas, this.detailEl, this.toastEl, this.chipEl,
+      this.controls, this.clockEl, why);
+    if (this.handMode) why.hidden = true;
     this.canvas.addEventListener("pointermove", (ev) => this.onPointer(ev));
     this.canvas.addEventListener("pointerleave", () => { this.detailEl.hidden = true; });
     this.canvas.addEventListener("click", (ev) => this.onCanvasClick(ev)); // no-op outside hand mode
+    this.canvas.addEventListener("keydown", (ev) => this.onCanvasKey(ev)); // no-op outside hand mode
   }
 
   static async create(opts: CampusPlayOptions): Promise<CampusPlay> {
@@ -151,6 +199,12 @@ export class CampusPlay {
       } catch { /* the queued-shell fallback in collect() still draws what is queued */ }
       this.setupControls();
       this.setupHandBar();
+      // Art 5b §7: hand play is reachable with no pointer — the canvas takes focus and the arrow
+      // keys walk it (vehicle → its bays), Enter parks, Esc clears.
+      this.canvas.tabIndex = 0;
+      this.canvas.setAttribute("aria-label",
+        "Campus, played by hand. Arrow keys choose a vehicle, then its bays; Enter parks it; "
+        + "Escape clears the choice.");
       this.setupResize();
       await this.setupRenderer();
       this.step_once(started.state);
@@ -158,7 +212,9 @@ export class CampusPlay {
     }
     const started = await bridge.startRun(this.opts.level,
       { policy: this.opts.policy ?? String(this.opts.level.default_policy ?? "fifo"),
-        kata: this.opts.kata ?? null });
+        kata: this.opts.kata ?? null,
+        // Art 5b: the why-panel's feed. Off elsewhere (`run`/`hand_start` stay trace-free).
+        trace: TRACE_DEPTH });
     this.handle = started.handle;
     this.nodes = (started.nodes ?? []).map((n) => ({ id: n.id, partition: n.partition,
                                                      site: n.site }));
@@ -166,6 +222,7 @@ export class CampusPlay {
     this.setupResize();
     await this.setupRenderer();
     this.step_once(started.state);
+    this.paintWhy([]);
     this.rebase();
     if (!this.finished && !this.manual) this.request();
   }
@@ -177,7 +234,8 @@ export class CampusPlay {
       const renderer = new mod.CampusRenderer(this.canvas, {
         reducedMotion: this.opts.reducedMotion ?? false,
       });
-      readTokens(); // ensures token CSS is applied before first paint
+      readTokens();            // ensures the token CSS is applied before the first paint…
+      this.tokens = readTokens();  // …and keeps the table the why-panel rows are colored from
       this.render = (scene, prev, t) => renderer.render(scene, prev, t);
       this.rendererResize = (w, h) => renderer.resize(w, h);
       this.resizeNow();
@@ -218,14 +276,25 @@ export class CampusPlay {
     pauseBtn.setAttribute("aria-pressed", "false");
     pauseBtn.addEventListener("click", () => {
       this.paused = !this.paused;
-      pauseBtn.textContent = this.paused ? "Resume" : "Pause";
-      pauseBtn.setAttribute("aria-pressed", String(this.paused));
+      if (!this.paused) this.stepMode = false;   // wall-clock pacing is back; stepping is not
+      this.syncStepButton();
+      this.syncPauseButton();
       this.opts.onStatus?.(this.paused ? "campus paused" : "campus running");
       if (!this.paused && !this.finished) {
         this.rebase();
         this.request();
       }
     });
+    this.pauseBtn = pauseBtn;
+    // Art 5b: Step mode — the booth decides one EVENT BATCH per press (`step_n(handle, 1)`: one
+    // timestamp's arrivals/frees/decisions, which is where every trace record comes from), with the
+    // why-panel refreshed from the same result. The rAF clock stands still while you step.
+    const stepBtn = document.createElement("button");
+    stepBtn.type = "button";
+    stepBtn.textContent = "Step ▸";
+    stepBtn.title = "advance one event batch (step_n) and read why — the clock stays paused";
+    stepBtn.addEventListener("click", () => void this.stepOne());
+    this.stepBtn = stepBtn;
     const speed = document.createElement("select");
     speed.setAttribute("aria-label", "Campus playback speed");
     for (const x of [0.5, 1, 2, 4, 8]) {
@@ -239,7 +308,7 @@ export class CampusPlay {
       this.speed = Number(speed.value);
       this.rebase();  // continue from `now` — a slowdown must not rewind the wall target
     });
-    this.controls.append(pauseBtn, speed);
+    this.controls.append(pauseBtn, stepBtn, speed);
   }
 
   /* ------------------------------------------------------------------ loop -- */
@@ -272,6 +341,7 @@ export class CampusPlay {
       return; // run ended between frames
     }
     this.step_once(res.state);
+    this.paintWhy(res.trace);
     if (!this.finished) this.request();
   }
 
@@ -339,6 +409,11 @@ export class CampusPlay {
   private step_once(state: StepState): void {
     const snap = this.collect(state);
     this.snap = snap;
+    // Viewer hand cones decay on SIM time, in step order — never a wall-clock timer, so a paused
+    // campus holds its cones and a catch-up step drops the ones that have run out.
+    if (this.handCones.length) {
+      this.handCones = this.handCones.filter((c) => c.until === null || c.until > state.now);
+    }
     const scene = this.sceneFrom(snap);
     this.pair = { prev: this.pair?.cur ?? null, cur: scene, at: performance.now(), simAt: state.now };
     this.paintFrame(this.opts.reducedMotion || this.manual ? 1 : 0);
@@ -371,6 +446,7 @@ export class CampusPlay {
         ? { bays: [...this.staged], fits: this.stagedFits(sel, this.staged), user: sel.user }
         : null,
       boothRevealed: this.boothRevealed,
+      handCones: this.handCones,
     });
   }
 
@@ -447,6 +523,7 @@ export class CampusPlay {
   async seekRender(t: number): Promise<void> {
     const res = await bridge.stepUntil(this.handle, t);
     this.step_once(res.state);
+    this.paintWhy(res.trace);
     this.paintFrame(1);
     if (res.state.done) await this.finish();
   }
@@ -473,11 +550,28 @@ export class CampusPlay {
     time.title = "advance to the next arrival/finish (hand_tick)";
     time.addEventListener("click", () => void this.tick());
     bar.append(park, undo, time);
-    this.controls.append(bar);
+    // Art 5b: "Cone it" — a VIEWER-side booking hint on the bays the FIFO hint would hand this
+    // vehicle when they free. The engine is not told (there is no hand-mode reserve in the bridge),
+    // so the button says what it is and the cone decays on sim time. Never implies blocking.
+    const cone = document.createElement("button");
+    cone.type = "button";
+    cone.textContent = "Cone it";
+    cone.title = "hold the bays FIFO would give this vehicle when they free — a hint on the map, "
+      + "not a booking the engine makes";
+    cone.addEventListener("click", () => this.coneSelected());
+    bar.append(cone);
+    const reason = document.createElement("div");
+    reason.className = "campus-reason";
+    reason.setAttribute("role", "status");
+    reason.setAttribute("aria-live", "polite");
+    reason.hidden = true;
+    this.controls.append(bar, reason);
     this.handBar = bar;
     this.parkBtn = park;
     this.undoBtn = undo;
     this.timeBtn = time;
+    this.coneBtn = cone;
+    this.reasonEl = reason;
   }
 
   /** Advance the manual clock one arrival/finish batch — the hand campus has no rAF clock. */
@@ -512,8 +606,9 @@ export class CampusPlay {
         this.staged = [];
         this.repaint();
       } else if (res.error) {
-        // Keep the selection staged so a fix (one bay more/moves) is one click away.
-        this.showToast(`${res.error.code}: ${res.error.message}`, true);
+        // Keep the selection staged so a fix (one bay more/moves) is one click away — but say WHY
+        // in campus words first (Art 5b): the engine's code decides the sentence, never a guess.
+        this.showMisfit(res.error.code, res.error.message);
       }
     } catch (error) {
       this.showToast(this.errorText(error), true);
@@ -538,6 +633,8 @@ export class CampusPlay {
     if (hit?.kind === "vehicle") {
       if (this.lockKind === "hand") return;
       this.selected = this.selected === hit.id ? null : hit.id;
+      this.kbVehicle = this.selected ? this.pair.cur.queuedOrder.indexOf(hit.id) : -1;
+      this.kbBayOffset = 0;
       this.staged = [];
       this.repaint();
     } else if (hit?.kind === "bay") {
@@ -623,6 +720,8 @@ export class CampusPlay {
     // Time is the suggested action whenever nothing is selectable — an empty road says "advance".
     const roadEmpty = (this.snap?.queued.length ?? 0) === 0;
     this.timeBtn?.classList.toggle("suggest", !this.finished && roadEmpty);
+    this.coneBtn?.toggleAttribute("disabled",
+      this.finished || !this.selected || locked === "hand" || locked === "place");
   }
 
   private showToast(message: string, error: boolean): void {
@@ -636,6 +735,257 @@ export class CampusPlay {
   private errorText(error: unknown): string {
     return error instanceof BridgeError ? `${error.code}: ${error.message}`
       : error instanceof Error ? error.message : String(error);
+  }
+
+  /* ------------------------------------------- Art 5b: why-panel (live mode) -- */
+
+  /**
+   * Paint the engine's last-N decision records into the why-panel. Rows are keyed by the engine's
+   * monotonic `seq` and only ever ADDED (a record never changes, and rows older than the ring
+   * buffer are dropped), so the `role="log"` region announces what is new and not the whole panel
+   * every frame. Hand runs have no trace (the manual policy decides nothing) — the panel is hidden.
+   */
+  private paintWhy(records: TraceRecord[] | undefined): void {
+    const list = this.whyList;
+    if (!list || this.handMode || this.whyPanel?.hidden) return;
+    const rows = whyRows(records ?? [], (id) => this.factsOf(id));
+    const keep = new Set<number>();
+    for (const row of rows) {
+      keep.add(row.seq);
+      if (this.whyEls.has(row.seq)) continue;      // already painted — do not re-announce it
+      const el = document.createElement("div");
+      el.className = "campus-why-row";
+      const t = document.createElement("span");
+      t.className = "why-t";
+      t.textContent = `t=${fmt(row.t)}`;
+      const line = document.createElement("span");
+      line.textContent = row.text;
+      // The OWNER's color rides on a small bar, not on the sentence: the row still reads whose
+      // vehicle it was, and every word stays at the `--sd-ink` contrast the theme is validated at
+      // (Concepts/Accessibility rule 8 — palette colors are tuned for the canvas, not for 12 px text).
+      const swatch = document.createElement("span");
+      swatch.className = "why-dot";
+      const color = row.user ? this.ownerColor(row.user) : "";
+      if (color) swatch.style.background = color;
+      el.append(t, swatch, line);
+      this.whyEls.set(row.seq, el);
+      list.append(el);
+      this.whyAny = true;
+    }
+    for (const [seq, el] of this.whyEls) {
+      if (!keep.has(seq)) { el.remove(); this.whyEls.delete(seq); }
+    }
+    const empty = list.querySelector(".campus-why-empty");
+    if (!this.whyAny && !empty) {
+      const p = document.createElement("p");
+      p.className = "campus-why-empty";
+      p.textContent = WHY_EMPTY;
+      list.append(p);
+    } else if (this.whyAny && empty) empty.remove();
+  }
+
+  /** What the viewer knows about a vehicle (engine facts only — the union view it already keeps). */
+  private factsOf(id: string): JobFacts | null {
+    const j = this.jobs.get(id);
+    if (!j) return null;
+    return { user: j.user, est: j.est ?? 0, submit: j.submit ?? 0, nodes: j.nodes ?? 1 };
+  }
+
+  /** The neighbourhood token color for an owner (same index the canvas paints with). */
+  private ownerColor(user: string): string {
+    const nb = this.pair?.cur.neighbourhoods.find((n) => n.user === user);
+    let index = nb?.index;
+    if (index === undefined) {
+      let h = 0;
+      for (let i = 0; i < user.length; i++) h = (h * 31 + user.charCodeAt(i)) | 0;
+      index = Math.abs(h) % 8;
+    }
+    return this.tokens[`nb-${(index % 8) + 1}`] ?? "";
+  }
+
+  /* -------------------------------------------------- Art 5b: step mode (live) -- */
+
+  /** One press = `step_n(handle, 1)` = one EVENT BATCH (every arrival/free/decision at the next
+   *  timestamp), not one job: that is the batch the engine's trace records come from, so the
+   *  why-panel gains exactly the rows this press decided. The rAF clock stays paused. */
+  private async stepOne(): Promise<void> {
+    if (this.stepBusy || this.finished) return;
+    this.stepBusy = true;
+    this.stepMode = true;
+    if (!this.paused) { this.paused = true; this.syncPauseButton(); }
+    try {
+      const res = await bridge.stepN(this.handle, 1);
+      this.step_once(res.state);
+      this.paintWhy(res.trace);
+      this.paintFrame(1);          // settled frame — no rAF is coming to finish the interpolation
+      this.opts.onStatus?.(`campus stepped to t=${fmt(res.state.now)}`);
+    } catch (error) {
+      this.showToast(this.errorText(error), true);
+    } finally {
+      this.stepBusy = false;
+      this.syncStepButton();
+    }
+  }
+
+  private syncPauseButton(): void {
+    const b = this.pauseBtn;
+    if (!b) return;
+    b.textContent = this.paused ? "Resume" : "Pause";
+    b.setAttribute("aria-pressed", String(this.paused));
+    this.stepBtn?.classList.toggle("suggest", this.stepMode);   // while stepping, Step is the action
+  }
+
+  private syncStepButton(): void {
+    this.stepBtn?.toggleAttribute("disabled", this.finished);
+  }
+
+  /* ---------------------------------------------------- Art 5b: hand cones ------ */
+
+  /**
+   * "Cone it": a viewer-side booking hint for the selected vehicle. The bays are the ones the
+   * ENGINE's own FIFO hint (`suggestions`) would hand it — the player's staged bays win when they
+   * are the right size — and the countdown runs out when those bays free (or after the vehicle's
+   * claimed length, whichever is later). The engine is NOT told: a cone here books nothing, and the
+   * toast says so, because inventing a hand-mode `reserve` would be inventing engine behavior.
+   */
+  private coneSelected(): void {
+    if (this.finished || this.handBusy || !this.selected) return;
+    const id = this.selected;
+    const job = this.snap?.jobs?.find((j) => j.id === id) ?? null;
+    const hinted = this.suggestions[id] ?? [];
+    const nodes = Math.max(1, job?.nodes ?? hinted.length ?? 1);
+    const staged = this.staged.length === nodes ? [...this.staged].sort() : [];
+    const bays = staged.length ? staged
+      : hinted.length ? [...hinted].sort()
+        : this.bayWindow(this.candidateBays(), nodes, 0);
+    if (!bays.length) {
+      this.showToast("Nothing to cone yet — no bays on this campus.", false);
+      return;
+    }
+    const now = this.snap?.now ?? 0;
+    const freeAt = bays.reduce((max, bay) => Math.max(max, this.bayFreeAt(bay)), now);
+    const until = Math.max(freeAt, now + Math.max(1, job?.est ?? 0));
+    this.handCones = [...this.handCones.filter((c) => c.job !== id),
+                       { job: id, bays, until, from: now }];
+    this.repaint();
+    this.onEvent?.("cone_placed");
+    this.showToast(`Cone on ${bays.join(" ")} — a HINT on the map, not a booking: those bays stay `
+      + `open to anything that fits, and the cone lifts by itself at t=${fmt(until)}.`, false);
+  }
+
+  /** The bays a hand hint could point at: the free ones (id order), else every bay. */
+  private candidateBays(): string[] {
+    const occupied = new Set((this.snap?.running ?? []).flatMap((r) => r.nodes));
+    const all = this.nodes.map((n) => n.id).sort();
+    const free = all.filter((id) => !occupied.has(id));
+    return free.length ? free : all;
+  }
+
+  /** A contiguous sliding window over `cands` (adjacency is what a k-bay vehicle needs). */
+  private bayWindow(cands: readonly string[], nodes: number, offset: number): string[] {
+    const k = cands.length;
+    if (!k || nodes <= 0) return [];
+    const start = ((offset % k) + k) % k;
+    const out: string[] = [];
+    for (let i = 0; i < k && out.length < Math.min(nodes, k); i++) out.push(cands[(start + i) % k]!);
+    return out.sort();
+  }
+
+  /** The sim time a bay frees (`end` of whoever holds it, engine-supplied), else now. */
+  private bayFreeAt(id: string): number {
+    const now = this.snap?.now ?? 0;
+    for (const r of this.snap?.running ?? []) if (r.nodes.includes(id)) return r.end ?? now;
+    return now;
+  }
+
+  /* ------------------------------------------- Art 5b: misfit feedback (hand) -- */
+
+  /** The engine refused a staged set: name the reason, shake the bar, ring it red. */
+  private showMisfit(code: string, message: string): void {
+    const el = this.reasonEl;
+    const text = misfitReason(code, message);
+    if (el) {
+      el.textContent = text;
+      el.classList.add("bad");
+      el.hidden = false;
+      window.clearTimeout(this.reasonTimer);
+      this.reasonTimer = window.setTimeout(() => { el.hidden = true; }, 9000);
+    } else {
+      this.showToast(text, true);
+    }
+    const bar = this.handBar;
+    if (bar && !this.opts.reducedMotion) {
+      bar.classList.remove("misfit");
+      void bar.offsetWidth;                  // reflow to restart the shake (layout, not a clock)
+      bar.classList.add("misfit");
+      window.setTimeout(() => bar.classList.remove("misfit"), 500);
+    } else if (bar) {
+      bar.classList.add("misfit");            // reduced motion: the red edge is the whole message
+      window.setTimeout(() => bar.classList.remove("misfit"), 1200);
+    }
+  }
+
+  /* ------------------------------------------------- Art 5b: keyboard play ------ */
+
+  /**
+   * §7: arrows walk the campus without a pointer — first the vehicle (in engine road order), then
+   * its bays as a sliding window (which is what a k-bay vehicle needs: k bays side by side);
+   * Enter attempts the park (the engine decides), Esc clears. Every state change is announced
+   * through the stage's existing polite live region.
+   */
+  private onCanvasKey(ev: KeyboardEvent): void {
+    if (!this.handMode || this.finished || !this.pair) return;
+    const road = this.pair.cur.queuedOrder;
+    if (ev.key === "Escape") {
+      ev.preventDefault();
+      if (this.staged.length) this.staged = [];
+      else {
+        this.selected = null;
+        this.kbVehicle = -1;
+        this.kbBayOffset = 0;
+      }
+      this.repaint();
+      this.showToast(this.selected ? `${this.selected} — bays cleared, press Time or choose a bay`
+        : "nothing selected", false);
+      return;
+    }
+    if (ev.key === "Enter") {
+      ev.preventDefault();
+      if (this.selected && this.staged.length) void this.placeSelected();
+      else if (this.selected) this.stageWindow(0);
+      else this.showToast("the road is empty — arrow keys choose a vehicle", false);
+      return;
+    }
+    if (!ev.key.startsWith("Arrow")) return;
+    ev.preventDefault();
+    const dir = ev.key === "ArrowRight" || ev.key === "ArrowDown" ? 1 : -1;
+    if (!this.selected) {
+      if (!road.length) { this.showToast("the road is empty — press Time to advance", false); return; }
+      const at = this.kbVehicle + dir;
+      this.kbVehicle = ((at % road.length) + road.length) % road.length;
+      this.selected = road[this.kbVehicle] ?? null;
+      this.kbBayOffset = 0;
+      this.stageWindow(0);
+      return;
+    }
+    this.kbBayOffset += dir;
+    this.stageWindow(this.kbBayOffset);
+  }
+
+  /** Stage the FIFO hint when it has the right size, else the sliding bay window at `offset`. */
+  private stageWindow(offset: number): void {
+    const id = this.selected;
+    if (!id) return;
+    const job = this.snap?.jobs?.find((j) => j.id === id) ?? null;
+    if (!job) { this.staged = []; this.repaint(); return; }
+    const hinted = this.suggestions[id] ?? [];
+    const nodes = Math.max(1, job.nodes ?? 1);
+    this.staged = hinted.length === nodes ? [...hinted].sort()
+      : this.bayWindow(this.candidateBays(), nodes, offset);
+    this.repaint();
+    const fit = this.stagedFits(job, this.staged) ? "would fit" : "would not fit";
+    this.showToast(`${id} → ${this.staged.join(", ") || "no bays"} (${fit}). Enter parks it; `
+      + `arrows move along the lot.`, false);
   }
 
   /* ------------------------------------------------ public surface (runner) -- */
@@ -663,6 +1013,50 @@ export class CampusPlay {
   setLock(kind: "none" | "hand" | "place" | "booth"): void {
     this.lockKind = kind;
     this.paintHandControls();
+  }
+
+  /**
+   * Tutorial `set_mode "step"` (Art 5b): drive the live campus one event batch at a time. Hand mode
+   * has no booth to step (its clock is the `Time ▶` button), so this is a no-op there.
+   */
+  setStepMode(on: boolean): void {
+    if (this.handMode || this.finished) return;
+    if (on) {
+      this.stepMode = true;
+      this.paused = true;
+      if (this.raf) cancelAnimationFrame(this.raf);
+      this.raf = 0;
+      this.syncPauseButton();
+      this.opts.onStatus?.("campus stepping — Step advances one event batch");
+    } else if (this.stepMode) {
+      this.stepMode = false;
+      this.paused = false;
+      this.syncPauseButton();
+      this.rebase();
+      this.request();
+      this.opts.onStatus?.("campus running");
+    }
+  }
+
+  /**
+   * Tutorial `reveal {building: NAME}` (Art 5b): the tool's guided first appearance. Art 5b has one
+   * such tool to give out (cones); real building sprites land with Art 6, so this announces and
+   * nudges rather than drawing a building the scene model does not have.
+   */
+  revealBuilding(name: string): void {
+    if (name !== "reserve") {
+      this.setModeChip(`${name}: not on this campus yet`);
+      return;
+    }
+    this.setModeChip("cones: place one");
+    this.pulseAnchor("bays");
+    this.showToast("Reservations: a cone books bays for a future vehicle without occupying them. "
+      + "Choose a vehicle, then press Cone it.", false);
+  }
+
+  /** The viewer-side cones on the map now (Art 5b hand hints; the engine has never seen them). */
+  viewerCones(): { job: string; bays: string[] }[] {
+    return this.handCones.map((c) => ({ job: c.job, bays: [...c.bays] }));
   }
 
   /** A scripted `set_mode` beats as a chip on the canvas (`""` clears it). */

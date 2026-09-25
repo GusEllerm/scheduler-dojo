@@ -28,7 +28,9 @@ tags: [concept, phase-two]
 | vehicle parked across k bays | whole-node allocation, k adjacent nodes | `placed_nodes` (§5.1 — must be real ids) |
 | jam = road grows | queue length under the active policy | snapshot `queue` |
 | one color flooding the road | one user dominating the queue | `user` on ranked queue |
-| reservation cone + countdown | a `reserve` | snapshot reservations (§5.4) |
+| reservation cone + countdown | a `reserve` **intent**, or a viewer hand hint (Art 5b, below) | snapshot `reserved` (`job -> intended start`) — never guessed bays |
+| why-panel line | one decision-trace record | `Scheduler._trace_event` / the `KataPolicy` tracer, via `start(trace=N)` (§5.2) |
+| staged bay set | the player's own pick, client-side | `hand_place` is the truth; the ghost is a preview |
 | tow-truck pull-out + spilled work | preemption, progress lost (no checkpoint) | `preempt_count`/`run_epoch` |
 | rings overflowing ends the run | level-declared rule | engine overflow check (§5.3) |
 
@@ -88,3 +90,51 @@ frame; the hand view has no frames). `hand_start` has already processed the firs
 those jobs are in no `unseen` list: the viewer seeds its job union from a decide-nothing idle
 `start` of the same level (arrival data is engine data, not a decision). See
 `Sessions/2026-10-02 Phase 2 Art 4.md`.
+
+## The booth's *why*, step mode, and cones (Art 5b)
+
+**The why-panel** (`web/src/campus-play.ts` + `web/src/campus-why.ts`) is a collapsible `<details>`
+in the campus stage over the engine's decision trace. A live campus run asks for it —
+`bridge.start(..., trace=24)` (`start_run` → `_trace_event`), and every `step_n`/`step_until` result
+carries the ring buffer (`_step_out`); `run`, `hand_start` and the CLI pay nothing. Rows are keyed by
+the record's `seq`, appended only when new and dropped when they fall out of the ring, so the
+`role="log"` region announces what happened rather than re-reading the panel. Phrasing is per
+action: `place` ("j00004 parked on n0 n1 — shortest first", transfer noted when non-zero), `preempt`,
+`route`, and `fallback` ("no fit — kept FIFO order (`no_nodes`)" — an unmapped code prints the
+engine's own word). The **one inference** is naming an order key: the `order` record carries the
+computed key per queued job, so the first key component is compared against that vehicle's own engine
+facts (`est`, `submit`, `nodes` — an exact match, in a fixed candidate order) and "shortest / longest
+/ biggest / smallest / oldest / newest first" is what the key *demonstrates*, else "an order key of
+its own". No policy label is consulted; nothing is decided client-side. Owner color rides on a small
+bar rather than the sentence, because palette tokens are tuned for the canvas, not 12 px text
+([[Art Direction]], [[Accessibility]] rule 8).
+
+**Step mode** is the campus control row's `Step ▸` (live runs only — a hand campus has no booth to
+step, and its clock is `Time ▶`). Pressing it pauses the rAF loop; each press is
+`bridge.step_n(handle, 1)`, i.e. **one EVENT batch** (`Scheduler.step_events` — every event at one
+timestamp plus its one decision, which is exactly the unit trace records come from), then
+`step_once` + a why-panel refresh + one settled frame. `Resume` re-bases the wall clock and the loop
+restarts; the tutorial's `set_mode "step"` routes to `setStepMode(true)`.
+
+**Cones** come in two kinds and the painter tells them apart by data, never by guessing:
+
+- *Engine cones* — `reserved` in the snapshot is a **`reserve` intent** (`job -> intended start`) and
+  carries no bays, so the cone hangs on the vehicle, never on a bay the engine did not name, and the
+  countdown reads `t - now` in sim time.
+- *Viewer hand cones* (`Cone.from` added so the countdown bar spans its own window instead of a
+  guessed constant) — the "Cone it" button on the hand bar. It draws a `Cone` over the bays the
+  ENGINE's own FIFO hint (`suggestions` from `hand_start`/`hand_tick`) would hand that vehicle — the
+  player's staged bays win when they are the right size — and decays at the later of "those bays are
+  free" and the vehicle's claimed length, pruned by sim time inside `step_once` (never a timer, so a
+  paused campus holds its cones and a catch-up step drops expired ones). **It books nothing**: the
+  bridge has no hand-mode `reserve`, so the button, the toast and the note all say it is a hint on
+  the map. It fires the `cone_placed` tutorial event and is what city 3's guided cone beat completes
+  on.
+
+**Misfit feedback** (hand): a `hand_place` refusal maps its `PolicyError` code (`no_nodes`,
+`mismatch`, `already_running`, `deps_unmet`, `unknown_job` from `scheduler_dojo.sim.errors`) to a
+campus sentence with the code still visible, a red edge plus one short shake on the bar (reduced
+motion: the edge only), and a reason line under the bar — see [[Accessibility]].
+
+Keyboard play, the canvas's `tabindex`, and which live regions announce what: [[Accessibility]]. See
+`Sessions/2026-10-02 Phase 2 Art 5.md`.

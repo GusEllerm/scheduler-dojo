@@ -2,6 +2,16 @@ version = 1
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
+target = "src/scheduler_dojo/bridge.py#hand_place"
+sig = "fadbe1c42d07df62"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
+target = "src/scheduler_dojo/sim/errors.py#PolicyError"
+sig = "3e8f316ded50a097"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/index.html"
 sig = "e9ea1263dc50d9a6"
 
@@ -9,6 +19,16 @@ sig = "e9ea1263dc50d9a6"
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/booth.ts"
 sig = "d1f4f91cd3e5cb6f"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/campus-play.ts"
+sig = "f89f681a18f709a3"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/campus-why.ts"
+sig = "ffa1de33c4fa0aca"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -33,12 +53,12 @@ sig = "b581ee11e56b2792"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/style.css"
-sig = "505f5a4720ffa125"
+sig = "7273ea5deb475779"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/tutorial.ts"
-sig = "92393128d098b9b0"
+sig = "558a26969a8a3437"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Art Direction.md"
@@ -77,6 +97,11 @@ sig = "95a649247c5afcc5"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#_step_out"
+sig = "03784a0332e79441"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/bridge.py#hand_place"
 sig = "fadbe1c42d07df62"
 
@@ -97,13 +122,43 @@ sig = "183182d2dbac85db"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#run"
+sig = "8340c65483615c2a"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/bridge.py#start"
 sig = "96b4a4af600c4026"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#step_n"
+sig = "bc012c493e754535"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#step_until"
+sig = "cb03585053f97f18"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/kata/check.py#Report"
+sig = "db45b4171523b623"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/kata/policy.py#KataPolicy"
+sig = "9165f28d1c42be53"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/sim/cluster.py#Cluster"
 sig = "5deaf7fb798b9874"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/cluster.py#Partition"
+sig = "b8021f035ad189aa"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -129,6 +184,16 @@ sig = "ea6def626bef7acf"
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
 sig = "582ef806afb7f540"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "web/src/campus-play.ts"
+sig = "f89f681a18f709a3"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "web/src/campus-why.ts"
+sig = "ffa1de33c4fa0aca"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Determinism.md"
@@ -322,6 +387,16 @@ sig = "4037875146024e46"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/kata/builtins.py#Env"
+sig = "e7cd7588c7bed72c"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/progression.py#buy"
+sig = "09a11b272073d2a5"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/progression.py#offers"
 sig = "d05d0c7c678135ff"
 
@@ -329,6 +404,16 @@ sig = "d05d0c7c678135ff"
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/sim/cluster.py#Allocation"
 sig = "4a4266ab3442e8b8"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/sim/cluster.py#Cluster"
+sig = "5deaf7fb798b9874"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/sim/cluster.py#Partition"
+sig = "b8021f035ad189aa"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
@@ -348,7 +433,7 @@ sig = "d1f4f91cd3e5cb6f"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "web/src/tutorial.ts"
-sig = "92393128d098b9b0"
+sig = "558a26969a8a3437"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
