@@ -1,0 +1,329 @@
+<!doctype html>
+<!-- Scheduler Dojo — phase-two campus mockup, COOL palette. Static, self-contained.
+     Scene contract: "City 3 — The convoy that never parks", mid-week daytime, day 3 / week 1.
+     Mapping rules encoded in geometry (color never alone):
+       vehicle WIDTH  ∝ nodes requested (1–4; 4-node pill must park across 4 adjacent bays)
+       vehicle LENGTH ∝ walltime requested
+       ring arc around a neighbourhood = bounded slowdown (full ring ≈ job about to be throttled)
+       state is fill TREATMENT (solid/hatched/dashed/outlined), colour identifies the neighbourhood
+     Dark theme = same role tokens, cool-dark values. Toggle button top-right. -->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Scheduler Dojo — City 3 mockup (cool)</title>
+<style>
+/* ============ tokens: ALL colors, grouped by role ============ */
+:root{
+  /* neighbourhood identity (colourblind-safe, cool-leaning; shapes differ too) */
+  --nb-1:#1f6fb2; --nb-2:#0f7d84; --nb-3:#6a4fa0; --nb-4:#35785a;
+  --nb-5:#4691ab; --nb-6:#8071b8; --nb-7:#2d5f7d; --nb-8:#4a8a6f;
+  /* vehicle state = fill treatment (stroke/pattern tint), over the neighbourhood hue */
+  --veh-queued:#46607a; --veh-chosen:#0b6fb8; --veh-reserved:#6d6ac2; --veh-running:#2e6f5e;
+  --veh-done:#8ba0b2; --veh-timeout:#b3564a; --veh-preempted:#8b6a9e; --veh-transfer:#3d8b9e;
+  /* bay / lot materials */
+  --bay-idle:#eef4f9; --bay-default:#cfd9e2; --bay-gpu:#bfd6da; --bay-himem:#ccd3e4; --bay-remote:#dbe4cf;
+  /* semantics */
+  --ok:#23745a; --gold:#8f6a17; --warn:#b35c1f; --overflow:#7c4150;
+  /* time chrome */
+  --clock:#1d4e79; --week:#7d93a8; --playhead:#0d6fb8;
+  /* decorative (allowed extras) */
+  --ground:#e8eff6; --ground2:#dfe9f2; --ink:#132a3d; --ink-soft:#486078; --line:#b6c8d8;
+  --road:#cfdbe7; --road-line:#aebfd0; --panel-edge:#a9bccd; --hatch:#7fa2ab; --dots:#8f9dbb;
+  --sun:#cfe0ef; --sun-core:#9dbfe0; --booth:#31485e; --booth-light:#ffe9a8; --card:#f4f8fc;
+  --bay-wasted:#4b5a66; --ring-track:#c3d2df;
+}
+:root[data-theme=dark]{
+  --nb-1:#6cb2ea; --nb-2:#54c3cb; --nb-3:#a794e0; --nb-4:#6fbf92;
+  --nb-5:#7cc0da; --nb-6:#b3a6e6; --nb-7:#7fb3cf; --nb-8:#8fcfae;
+  --veh-queued:#8aa4bc; --veh-chosen:#5cc0ff; --veh-reserved:#a49ff0; --veh-running:#6fd0aa;
+  --veh-done:#5a7086; --veh-timeout:#e88d7f; --veh-preempted:#c9a6dd; --veh-transfer:#7fd3e6;
+  --bay-idle:#1a2938; --bay-default:#2e4050; --bay-gpu:#2b4550; --bay-himem:#313c5a; --bay-remote:#3a463a;
+  --ok:#5cc396; --gold:#ddb95f; --warn:#e6a066; --overflow:#d08a9a;
+  --clock:#7cc4f2; --week:#46627d; --playhead:#5cc0ff;
+  --ground:#0e1a26; --ground2:#152230; --ink:#e4eef7; --ink-soft:#a2b8ca; --line:#31485e;
+  --road:#1d2f40; --road-line:#3a5878; --panel-edge:#3a5878; --hatch:#54838e; --dots:#6c7ea6;
+  --sun:#1c3348; --sun-core:#5b86b4; --booth:#c8d8e8; --booth-light:#ffdf7e; --card:#16232f;
+  --bay-wasted:#b8c6d2; --ring-track:#2b4054;
+}
+/* ============ page chrome ============ */
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--ground);color:var(--ink);
+  font:14px/1.35 ui-sans-serif,system-ui,"Segoe UI",Helvetica,Arial,sans-serif}
+.strip{height:46px;display:flex;align-items:center;gap:18px;padding:0 18px;
+  border-bottom:1px solid var(--line);background:var(--card);position:relative}
+.strip .city{font-weight:600;letter-spacing:.2px}
+.strip .city em{font-style:normal;color:var(--ink-soft);font-weight:400}
+.week{display:flex;align-items:center;gap:8px;color:var(--ink-soft);margin-left:auto}
+.week .days{display:flex;gap:5px}
+.week .d{width:8px;height:8px;border-radius:50%;background:var(--week);opacity:.45}
+.week .d.past{opacity:1}
+.week .d.today{opacity:1;background:var(--playhead);box-shadow:0 0 0 3px color-mix(in srgb,var(--playhead) 22%,transparent)}
+.clock{display:flex;align-items:center;gap:7px;color:var(--clock);font-weight:600;
+  font-variant-numeric:tabular-nums}
+.pips{display:flex;gap:6px}
+.pip{width:12px;height:12px;border-radius:50%;background:none;
+  border:3px solid var(--ok)}
+.pip.warn{border-color:var(--warn)}
+.toggle{position:absolute;right:14px;top:9px;z-index:5;cursor:pointer;font:inherit;
+  color:var(--ink);background:var(--ground2);border:1px solid var(--panel-edge);
+  border-radius:8px;padding:4px 10px}
+.legend{display:flex;align-items:center;gap:15px;padding:0 14px;height:56px;
+  border-top:1px solid var(--line);background:var(--card);color:var(--ink-soft);
+  font-size:12px;white-space:nowrap;overflow:hidden}
+.legend b{color:var(--ink);font-weight:600}
+.legend .item{display:flex;align-items:center;gap:8px}
+svg{display:block}
+.map{width:100%;height:auto}
+text{font:inherit}
+.h{font-size:15px;font-weight:600;fill:var(--ink);paint-order:stroke;stroke:var(--ground);stroke-width:4px}
+.h2{font-size:13px;font-weight:600;fill:var(--ink-soft);letter-spacing:.6px}
+.small{font-size:11px;fill:var(--ink-soft);paint-order:stroke;stroke:var(--ground);stroke-width:3px}
+</style>
+</head>
+<body>
+
+<!-- ============ slim top strip: city / week / clock / ring-warning pips ============ -->
+<header class="strip">
+  <div class="city">City 3 <em>— The convoy that never parks</em></div>
+  <div class="week"><span>Week 1 · Day 3</span>
+    <span class="days" aria-label="day 3 of 7">
+      <span class="d past"></span><span class="d past"></span><span class="d today"></span>
+      <span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span>
+    </span>
+  </div>
+  <div class="clock" title="sim clock">
+    <svg width="16" height="16" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5" fill="none"
+      stroke="var(--clock)" stroke-width="1.6"/><path d="M8 8 V4.4 M8 8 L10.6 9.6"
+      stroke="var(--clock)" stroke-width="1.6" stroke-linecap="round"/></svg>
+    14:20
+  </div>
+  <div class="pips" title="patience-ring warnings: Beta nearly at the slowdown cap">
+    <span class="pip" title="Alpha / Gamma / Delta — rings ~1/3"></span>
+    <span class="pip warn" title="Beta — ring nearly full (warning)"></span>
+  </div>
+  <button class="toggle" onclick="const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark'">light / dark</button>
+</header>
+
+<!-- ============ the campus map, 1600 x ~790 ============ -->
+<svg class="map" viewBox="0 0 1600 790" role="img"
+     aria-label="City 3 campus: four neighbourhoods feed a queue road into three parking lots at midday">
+<defs>
+  <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <rect width="7" height="7" fill="var(--bay-gpu)"/>
+    <line x1="0" y1="0" x2="0" y2="7" stroke="var(--hatch)" stroke-width="1.4"/>
+  </pattern>
+  <pattern id="dots" width="9" height="9" patternUnits="userSpaceOnUse">
+    <rect width="9" height="9" fill="var(--bay-himem)"/>
+    <circle cx="4.5" cy="4.5" r="1.5" fill="var(--dots)"/>
+  </pattern>
+  <pattern id="xwaste" width="10" height="10" patternUnits="userSpaceOnUse">
+    <rect width="10" height="10" fill="var(--bay-wasted)"/>
+    <path d="M0 10 L10 0 M-2 2 L2 -2 M8 12 L12 8" stroke="var(--ground)" stroke-width="1.4" opacity=".5"/>
+  </pattern>
+  <pattern id="ghost" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <rect width="6" height="6" fill="none"/>
+    <line x1="0" y1="0" x2="0" y2="6" stroke="var(--veh-reserved)" stroke-width="1.3"/>
+  </pattern>
+  <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="var(--veh-chosen)"/>
+  </marker>
+</defs>
+
+<!-- ambient: ground + sun cue (sun high-left of lots = midday, cool light) -->
+<rect x="0" y="0" width="1600" height="790" fill="var(--ground)"/>
+<g opacity=".9">
+  <circle cx="762" cy="62" r="26" fill="var(--sun)"/>
+  <circle cx="762" cy="62" r="13" fill="var(--sun-core)"/>
+  <path d="M712 62 A50 50 0 0 1 812 62" fill="none" stroke="var(--line)" stroke-width="1.5"
+        stroke-dasharray="2 5"/>
+  <text class="small" x="762" y="102" text-anchor="middle">midday</text>
+</g>
+
+<!-- ============ the road (the queue) ============
+     Wide calm band from the neighbourhoods to the dispatch booth; feeder arms drain
+     each neighbourhood into it. Vehicles line up front-first toward the booth. -->
+<g stroke-linecap="round" fill="none">
+  <path d="M170 200 V414" stroke="var(--road)" stroke-width="34"/>            <!-- Alpha feeder -->
+  <path d="M560 182 V414" stroke="var(--road)" stroke-width="34"/>            <!-- Beta feeder -->
+  <path d="M950 194 V414" stroke="var(--road)" stroke-width="34"/>            <!-- Gamma feeder -->
+  <path d="M140 376 V470" stroke="var(--road)" stroke-width="34"/>            <!-- Delta feeder -->
+  <path d="M150 470 H1090" stroke="var(--road)" stroke-width="116"/>          <!-- trunk -->
+  <path d="M150 470 H1090" stroke="var(--road-line)" stroke-width="1.6" stroke-dasharray="10 12"/>
+</g>
+
+<!-- ============ neighbourhoods (one per user) ============
+     Distinct parcel SHAPE per neighbourhood = colourblind redundancy.
+     Patience ring = bounded slowdown; Beta's is nearly full (warning colour). -->
+<g id="neighbourhoods">
+  <!-- ring tracks (full circle, muted) -->
+  <g fill="none" stroke="var(--ring-track)" stroke-width="5">
+    <circle cx="170" cy="140" r="56"/><circle cx="560" cy="120" r="56"/>
+    <circle cx="950" cy="130" r="56"/><circle cx="140" cy="316" r="58"/>
+  </g>
+  <!-- ring arcs: dasharray = fraction of 351.9 circumference (~1/3 for calm, .92 warn) -->
+  <g fill="none" stroke-width="5" stroke-linecap="round">
+    <circle cx="170" cy="140" r="56" stroke="var(--ok)" stroke-dasharray="117 352" transform="rotate(-90 170 140)"/>
+    <circle cx="560" cy="120" r="56" stroke="var(--warn)" stroke-dasharray="324 352" transform="rotate(-90 560 120)"/>
+    <circle cx="950" cy="130" r="56" stroke="var(--ok)" stroke-dasharray="112 352" transform="rotate(-90 950 130)"/>
+    <circle cx="140" cy="316" r="58" stroke="var(--ok)" stroke-dasharray="120 364" transform="rotate(-90 140 316)"/>
+  </g>
+  <!-- parcels: one geometric shape each -->
+  <polygon points="210,140 190,175 150,175 130,140 150,105 190,105"
+           fill="var(--nb-1)" fill-opacity=".18" stroke="var(--nb-1)" stroke-width="3"/>   <!-- Alpha: hexagon -->
+  <polygon points="560,78 602,120 560,162 518,120"
+           fill="var(--nb-2)" fill-opacity=".18" stroke="var(--nb-2)" stroke-width="3"/>   <!-- Beta: diamond -->
+  <polygon points="950,90 988,118 974,163 926,163 912,118"
+           fill="var(--nb-3)" fill-opacity=".18" stroke="var(--nb-3)" stroke-width="3"/>   <!-- Gamma: pentagon -->
+  <polygon points="140,272 182,344 98,344"
+           fill="var(--nb-4)" fill-opacity=".18" stroke="var(--nb-4)" stroke-width="3"/>   <!-- Delta: triangle -->
+  <text class="h" x="170" y="218" text-anchor="middle" fill="var(--nb-1)">Alpha</text>
+  <text class="h" x="560" y="200" text-anchor="middle" fill="var(--nb-2)">Beta</text>
+  <text class="h" x="950" y="212" text-anchor="middle" fill="var(--nb-3)">Gamma</text>
+  <text class="h" x="140" y="396" text-anchor="middle" fill="var(--nb-4)">Delta</text>
+  <!-- Beta's near-full ring deserves a word, not just a colour -->
+  <text class="small" x="560" y="216" text-anchor="middle" fill="var(--warn)">ring nearly full — slowing down</text>
+</g>
+
+<!-- ============ vehicles queued on the road, policy-rank order ============
+     FRONT (right, near booth) = rank 1. WIDTH(y-extent) = nodes (22/36/50/64 = 1..4).
+     LENGTH(x-extent) = walltime. Queued = solid muted fill + crisp neighbourhood stroke. -->
+<g id="queue">
+  <!-- 9 (tail) Delta, 1n, short -->
+  <rect x="600" y="459" width="24" height="22" rx="7" fill="var(--nb-4)" fill-opacity=".78" stroke="var(--veh-queued)" stroke-width="1.6"/>
+  <!-- 8 Alpha, 3n, medium -->
+  <rect x="630" y="445" width="44" height="50" rx="9" fill="var(--nb-1)" fill-opacity=".78" stroke="var(--veh-queued)" stroke-width="1.6"/>
+  <!-- 7 Gamma, 1n, medium -->
+  <rect x="682" y="459" width="38" height="22" rx="7" fill="var(--nb-3)" fill-opacity=".78" stroke="var(--veh-queued)" stroke-width="1.6"/>
+  <!-- 6 Beta, 2n, medium -->
+  <rect x="726" y="452" width="42" height="36" rx="8" fill="var(--nb-2)" fill-opacity=".78" stroke="var(--veh-queued)" stroke-width="1.6"/>
+  <!-- 5 Delta, 2n, long -->
+  <rect x="776" y="452" width="60" height="36" rx="8" fill="var(--nb-4)" fill-opacity=".78" stroke="var(--veh-queued)" stroke-width="1.6"/>
+  <!-- 4 Alpha, 1n, short -->
+  <rect x="844" y="459" width="26" height="22" rx="7" fill="var(--nb-1)" fill-opacity=".78" stroke="var(--veh-queued)" stroke-width="1.6"/>
+  <!-- 3 Gamma, 4 NODES: must park across 4 adjacent bays -->
+  <rect x="878" y="438" width="66" height="64" rx="10" fill="var(--nb-3)" fill-opacity=".78" stroke="var(--veh-queued)" stroke-width="1.6"/>
+  <!-- 2 Beta, 1n, very short — the backfiller that slips under the reservation -->
+  <rect x="952" y="459" width="26" height="22" rx="7" fill="var(--nb-2)" fill-opacity=".9" stroke="var(--veh-chosen)" stroke-width="1.6"/>
+  <!-- 1 Alpha, 2n, medium — CHOSEN next: thin wave-mark + label -->
+  <rect x="986" y="452" width="46" height="36" rx="8" fill="var(--nb-1)" stroke="var(--veh-chosen)" stroke-width="2.4"/>
+  <path d="M992 432 q6 -8 12 0 q6 8 12 0 q6 -8 12 0" fill="none" stroke="var(--playhead)" stroke-width="2.4" stroke-linecap="round"/>
+  <text class="small" x="1009" y="418" text-anchor="middle" fill="var(--playhead)">next</text>
+  <!-- backfill arrow: rank-2 short Beta skips past the line into the reserved bay -->
+  <path d="M968 448 C1080 330 1290 140 1452 102" fill="none" stroke="var(--veh-chosen)"
+        stroke-width="2" stroke-dasharray="7 6" marker-end="url(#arr)"/>
+  <text class="small" x="1042" y="312" text-anchor="middle" fill="var(--veh-chosen)">backfill under the reservation</text>
+</g>
+
+<!-- ============ dispatch booth (staffed: semaphore raised, lamp lit) ============ -->
+<g id="booth">
+  <rect x="1060" y="346" width="54" height="46" rx="6" fill="var(--booth)"/>
+  <path d="M1056 346 h62" stroke="var(--booth)" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="1087" cy="369" r="8" fill="var(--booth-light)"/>          <!-- lit window -->
+  <line x1="1128" y1="392" x2="1128" y2="344" stroke="var(--ink-soft)" stroke-width="3"/>
+  <line x1="1128" y1="390" x2="1136" y2="348" stroke="var(--warn)" stroke-width="4" stroke-linecap="round"/> <!-- raised semaphore = staffed -->
+  <path d="M1128 344 l16 5 -16 5 z" fill="var(--warn)"/>
+  <text class="small" x="1087" y="332" text-anchor="middle">dispatch booth · staffed</text>
+</g>
+
+<!-- ============ the lots (partitions), mid-right ============
+     Bay = rounded-rect slot. MATERIAL says which partition; a bay with no vehicle and no
+     purpose should be rare — DARK bays below are wasted capacity the wide Gamma can't use. -->
+<g id="lots">
+  <!-- MAIN: 6 bays in ONE row of 6 — a 4-node vehicle needs 4 adjacent bays, so bay order
+       tells the whole story: idle | DARK | running(2n) | DARK | reserved+backfill.
+       The two dark bays break every 4-run: the wide queued Gamma can never park. -->
+  <rect x="1170" y="100" width="372" height="96" rx="12" fill="var(--bay-default)" stroke="var(--panel-edge)" stroke-width="1.5"/>
+  <text class="h2" x="1176" y="92">MAIN · 6 bays</text>
+  <rect x="1184" y="116" width="52" height="64" rx="8" fill="var(--bay-idle)" stroke="var(--panel-edge)"/>
+  <rect x="1241" y="116" width="52" height="64" rx="8" fill="url(#xwaste)" stroke="var(--overflow)" stroke-width="1.6"/>
+  <rect x="1298" y="116" width="52" height="64" rx="8" fill="var(--bay-idle)" stroke="var(--panel-edge)"/>
+  <rect x="1355" y="116" width="52" height="64" rx="8" fill="var(--bay-idle)" stroke="var(--panel-edge)"/>
+  <rect x="1412" y="116" width="52" height="64" rx="8" fill="url(#xwaste)" stroke="var(--overflow)" stroke-width="1.6"/>
+  <rect x="1469" y="116" width="52" height="64" rx="8" fill="var(--bay-idle)" stroke="var(--panel-edge)"/>
+  <!-- running: Alpha 2-node spans bays 3-4 (width = nodes); tick = runtime remaining -->
+  <rect x="1301" y="121" width="103" height="54" rx="10" fill="var(--nb-1)" stroke="var(--veh-running)" stroke-width="2.4"/>
+  <line x1="1312" y1="168" x2="1388" y2="168" stroke="var(--veh-running)" stroke-width="4" stroke-linecap="round"/>
+  <text class="small" x="1352" y="145" text-anchor="middle" fill="var(--ground)">running · 2n</text>
+  <!-- bay 6 carries the reservation: translucent cone + hatched ghost (long walltime = tall) +
+       countdown ring; a very SHORT Beta backfills underneath it -->
+  <polygon points="1469,116 1521,116 1512,58 1478,58" fill="var(--veh-reserved)" fill-opacity=".14"
+           stroke="var(--veh-reserved)" stroke-width="1.4" stroke-dasharray="5 5"/>
+  <rect x="1473" y="120" width="44" height="26" rx="7" fill="url(#ghost)" stroke="var(--veh-reserved)"
+        stroke-width="1.4" stroke-dasharray="4 4" opacity=".9"/>
+  <rect x="1473" y="152" width="44" height="24" rx="7" fill="var(--nb-2)" stroke="var(--veh-chosen)" stroke-width="1.8"/>
+  <g transform="translate(1508,108)">
+    <circle r="8" fill="var(--ground)" stroke="var(--veh-reserved)" stroke-width="1.4"/>
+    <path d="M0 -8 A8 8 0 1 1 -7 4" fill="none" stroke="var(--veh-reserved)" stroke-width="3"/>
+  </g>
+  <text class="small" x="1356" y="222" text-anchor="middle" fill="var(--overflow)">dark bays break every 4-bay run — the wide Gamma cannot park</text>
+
+  <!-- GPU: 2 bays, fine hatch material -->
+  <rect x="1170" y="300" width="266" height="88" rx="12" fill="url(#hatch)" stroke="var(--panel-edge)" stroke-width="1.5"/>
+  <text class="h2" x="1176" y="292">GPU · 2 bays</text>
+  <rect x="1184" y="320" width="100" height="48" rx="9" fill="var(--bay-idle)" stroke="var(--panel-edge)"/>
+  <rect x="1298" y="320" width="100" height="48" rx="9" fill="var(--bay-idle)" stroke="var(--panel-edge)"/>
+  <rect x="1190" y="326" width="88" height="36" rx="9" fill="var(--nb-2)" stroke="var(--veh-running)" stroke-width="2.4"/>
+  <line x1="1194" y1="352" x2="1268" y2="352" stroke="var(--veh-running)" stroke-width="4" stroke-linecap="round"/>
+  <text class="small" x="1348" y="350">bay idle</text>
+
+  <!-- HIGH-MEM: 2 bays, dotted material; one bay dark = wasted -->
+  <rect x="1170" y="440" width="266" height="88" rx="12" fill="url(#dots)" stroke="var(--panel-edge)" stroke-width="1.5"/>
+  <text class="h2" x="1176" y="432">HIGH-MEM · 2 bays</text>
+  <rect x="1184" y="460" width="100" height="48" rx="9" fill="url(#xwaste)" stroke="var(--overflow)" stroke-width="1.6"/>
+  <rect x="1298" y="460" width="100" height="48" rx="9" fill="var(--bay-idle)" stroke="var(--panel-edge)"/>
+  <rect x="1304" y="466" width="88" height="36" rx="9" fill="var(--nb-4)" stroke="var(--veh-running)" stroke-width="2.4"/>
+  <line x1="1314" y1="492" x2="1382" y2="492" stroke="var(--veh-running)" stroke-width="4" stroke-linecap="round"/>
+</g>
+</svg>
+
+<!-- ============ legend: size meaning, materials, ring meaning (never colour alone) ============ -->
+<footer class="legend">
+  <span class="item">
+    <svg width="52" height="22" viewBox="0 0 52 22">
+      <rect x="1" y="6" width="16" height="10" rx="4" fill="var(--ink-soft)" opacity=".7"/>
+      <rect x="23" y="3" width="14" height="16" rx="4" fill="none" stroke="var(--ink)"/>
+      <path d="M23 1 h14 M23 21 h14" stroke="var(--ink)" stroke-width="1.4"/>
+    </svg>
+    <span><b>width</b> = nodes (1–4)</span>
+  </span>
+  <span class="item">
+    <svg width="52" height="22" viewBox="0 0 52 22">
+      <rect x="1" y="6" width="14" height="10" rx="4" fill="var(--ink-soft)" opacity=".7"/>
+      <rect x="21" y="6" width="30" height="10" rx="4" fill="var(--ink-soft)" opacity=".7"/>
+    </svg>
+    <span><b>length</b> = walltime</span>
+  </span>
+  <span class="item">
+    <svg width="26" height="26" viewBox="0 0 26 26">
+      <circle cx="13" cy="13" r="10" fill="none" stroke="var(--ring-track)" stroke-width="3"/>
+      <circle cx="13" cy="13" r="10" fill="none" stroke="var(--warn)" stroke-width="3"
+              stroke-dasharray="18 63" transform="rotate(-90 13 13)"/>
+    </svg>
+    <span><b>ring</b> = bounded slowdown</span>
+  </span>
+  <span class="item">
+    <svg width="70" height="24" viewBox="0 0 70 24">
+      <rect x="1" y="4" width="20" height="16" rx="4" fill="var(--bay-default)" stroke="var(--panel-edge)"/>
+      <rect x="25" y="4" width="20" height="16" rx="4" fill="url(#hatch)" stroke="var(--panel-edge)"/>
+      <rect x="49" y="4" width="20" height="16" rx="4" fill="url(#dots)" stroke="var(--panel-edge)"/>
+    </svg>
+    <span><b>main / GPU / high-mem</b> bays</span>
+  </span>
+  <span class="item">
+    <svg width="24" height="24" viewBox="0 0 24 24">
+      <rect x="2" y="5" width="20" height="14" rx="4" fill="url(#xwaste)" stroke="var(--overflow)" stroke-width="1.5"/>
+    </svg>
+    <span><b>dark bay</b> = wasted capacity</span>
+  </span>
+  <span class="item">
+    <svg width="30" height="26" viewBox="0 0 30 26">
+      <polygon points="2,22 28,22 24,3 6,3" fill="var(--veh-reserved)" fill-opacity=".16"
+               stroke="var(--veh-reserved)" stroke-dasharray="4 4"/>
+      <rect x="6" y="9" width="18" height="9" rx="4" fill="url(#ghost)" stroke="var(--veh-reserved)" stroke-dasharray="3 3"/>
+    </svg>
+    <span><b>cone</b> = reserved bay · backfill</span>
+  </span>
+</footer>
+</body>
+</html>

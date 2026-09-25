@@ -31,6 +31,66 @@ target = "web/src/style.css"
 sig = "7d09fbfbb4959f8f"
 
 [[bindings]]
+doc = "docs/vault/Concepts/Art Direction.md"
+target = "web/mockups/cool.html"
+sig = "fb94c4a715e5a8ba"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Art Direction.md"
+target = "web/mockups/warm.html"
+sig = "4c1705597d01c1b9"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Art Direction.md"
+target = "web/scripts/check_contrast.mjs"
+sig = "9e0ee08583948840"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Art Direction.md"
+target = "web/scripts/gen_tokens.mjs"
+sig = "92fae0d493f0d595"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Art Direction.md"
+target = "web/src/tokens.css"
+sig = "fa55cbd39152a16e"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Art Direction.md"
+target = "web/src/tokens.ts"
+sig = "53c405d4b17cdc2d"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Art Direction.md"
+target = "web/tokens/palette.json"
+sig = "95a649247c5afcc5"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/cluster.py#Cluster"
+sig = "5deaf7fb798b9874"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/jobs.py#Job"
+sig = "64aa2e55be19d06c"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/jobs.py#JobResult"
+sig = "6c7833630793b19f"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
+sig = "ea6def626bef7acf"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
+sig = "377baff36924ff7a"
+
+[[bindings]]
 doc = "docs/vault/Concepts/Determinism.md"
 target = "src/scheduler_dojo/sim/scoring.py#bounded_slowdown"
 sig = "6201f9a99a624410"
@@ -171,9 +231,34 @@ target = "src/scheduler_dojo/sim/scoring.py#wait_p95"
 sig = "9297e6349298cf25"
 
 [[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "levels/tutorials/city1.json"
+sig = "0a438c518ae24cdb"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "levels/tutorials/city2.json"
+sig = "59cfd84020e1f8e4"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "levels/tutorials/city3.json"
+sig = "fa2470ab6d758153"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
+sig = "ea6def626bef7acf"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
+sig = "377baff36924ff7a"
+
+[[bindings]]
 doc = "docs/vault/Decision Log.md"
 target = ".github/workflows/ci.yml"
-sig = "de92c136ff1281c4"
+sig = "0cedb0e126a9c49b"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -386,6 +471,11 @@ target = "src/scheduler_dojo/sim/trajectory.py#trajectory_hash"
 sig = "2728adb840ec72c5"
 
 [[bindings]]
+doc = "docs/vault/Decision Log.md"
+target = "web/tokens/palette.json"
+sig = "95a649247c5afcc5"
+
+[[bindings]]
 doc = "docs/vault/Home.md"
 target = "scripts/build_wheel.sh"
 sig = "d50429d7f2095511"
@@ -449,6 +539,11 @@ sig = "377baff36924ff7a"
 doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/sim/trajectory.py#trajectory_hash"
 sig = "2728adb840ec72c5"
+
+[[bindings]]
+doc = "docs/vault/Home.md"
+target = "web/tokens/palette.json"
+sig = "95a649247c5afcc5"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "prebuild": "node scripts/copy-levels.mjs",
+    "prebuild": "node scripts/gen_tokens.mjs && node scripts/copy-levels.mjs",
     "build": "vite build",
     "preview": "vite preview",
     "smoke": "node ../scripts/node_smoke.mjs",

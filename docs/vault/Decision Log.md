@@ -243,3 +243,16 @@ The tutorial's rule cards (order-only katas) compile to text via `kata.formatter
 kata library are one store and the editor hand-off (card text → full editor) is lossless by
 construction. Trade-off: a card's editable "one line" must stay parseable in isolation — the line
 always renders as its full module. See [[Kata]], [[scheduler_dojo-kata-formatter]].
+
+## 2026-10-01 — Cool direction wins the campus mockdown `[agent decision]`
+Two independent mockups of "City 3, mid-week" (warm vs cool), same scene contract. Cool's
+feeder-road-booth-lots composition reads at a glance and never clips; warm's vertical road crowded
+the lots and clipped its GPU/high-mem lots at 1600 px. Cool's `:root` role tokens became
+`web/tokens/palette.json` (with lightened bay-material floors to pass the WCAG gate); warm's legend
+and annotation discipline were kept. Shots: `docs/screenshots/art1/`.
+
+## 2026-10-01 — Tutorial city editions are deterministic patches, not forked levels `[agent decision]`
+City 1's "one neighbourhood until day 3" is a `level_patch` over the canonical `level1` (whitelisted
+generator knobs), so calibration, goldens and share cards keep referring to the one level; the
+patched variant is pinned by its own tutorial golden. Alternatives (recalibrate levels to tutorial
+pacing / separate tutorial ids) fork the calibration story for no pedagogical gain. See [[Tutorial]].

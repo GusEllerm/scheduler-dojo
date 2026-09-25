@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "city": 2,
+  "title": "You cannot keep up",
+  "level": "level2",
+  "level_patch": {
+    "story": "Four neighbours, one road, no time to wave traffic by hand."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        { "set_mode": "booth:cards" },
+        {
+          "callout": {
+            "title": "The booth is staffed",
+            "body": "Four neighbourhoods pour onto one road now. The booth ranks the queue for you, day and night. It is running the same card you chose last week — cards can be swapped any time, mid-week, no pause needed.",
+            "anchor": "booth",
+            "actions": ["Good"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "sim_secs": 2400 } }]
+    },
+    {
+      "id": "swap-cards",
+      "when": { "after_sim_secs": 3600, "once": true },
+      "do": [
+        { "highlight": { "target": "road" } },
+        {
+          "callout": {
+            "title": "Swap the rule, watch the road",
+            "body": "Open the booth and swap the card. Watch the road re-order itself the moment you do — the order of vehicles on the road IS the rule, laid out in the open.",
+            "anchor": "booth",
+            "actions": ["Trying it"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "card_swapped": true, "timeout_secs": 7200 } }]
+    },
+    {
+      "id": "edit-line",
+      "when": { "after_days": 3, "once": true },
+      "do": [
+        { "set_mode": "booth:line" },
+        {
+          "callout": {
+            "title": "A card is a program",
+            "body": "Here is the whole text of the card you are running — one module, one line that ranks every vehicle. You can edit that line right here. Try ranking by what a vehicle asks for instead of when it arrived, and watch who starts swimming.",
+            "anchor": "booth",
+            "actions": ["Editing"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "line_edited": true, "timeout_secs": 10800 } }]
+    },
+    {
+      "id": "edit-landed",
+      "when": { "on_event": "line_edited", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "You just wrote a kata",
+            "body": "That line is the entire language so far: rank by a key, the engine sorts by it. Everything you will automate this year is someone editing that key. The full editor is coming — you have already earned it.",
+            "anchor": "booth",
+            "actions": ["Onward"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "week_end": true } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+      "do": [{ "offer_upgrade": { "pick_of": 2 } }],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "next": 3 }
+}

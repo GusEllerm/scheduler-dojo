@@ -26,7 +26,11 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
-**Phase two (the campus, `PROMPT-ART.md`) — in progress.** Art 0 (audit + housekeeping) done: full
+**Phase two (the campus, `PROMPT-ART.md`) — in progress.** Art 0 (audit) and Art 1 (direction) done:
+cool direction chosen from two mockups (`docs/screenshots/art1/`), token system
+`web/tokens/palette.json` + generators + WCAG gate in CI, [[Campus]]/[[Tutorial]]/[[Art Direction]]
+notes, tutorial data for cities 1–3 validated by `scripts/check_tutorials.py`.
+Art 0 audit: full
 visual audit at `docs/screenshots/audit/` + `Sessions/2026-10-01 Phase 2 audit.md` (ranked top-10
 changes; confirmed the timeline repacks lanes by first-fit and `_jobs_json` ships node *counts*),
 curated phase-one shots at `docs/screenshots/phase-one/`, `screenshots/` gitignored. Phase two
@@ -115,8 +119,8 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | Stage | Deliverable | State |
 |---|---|---|
 | Art 0 | Audit, screenshots curated, ranked change list | ✅ done |
-| Art 1 | Direction: 2 mockups + decision, Art Direction + Campus notes, tutorial-script schema | ⬜ next |
-| Art 2 | Engine additions §5.1–8 + visual harness (hashes reviewed, not silently changed) | ⬜ |
+| Art 1 | Direction: 2 mockups + decision, Art Direction + Campus notes, tutorial-script schema | ✅ done |
+| Art 2 | Engine additions §5.1–8 + visual harness (hashes reviewed, not silently changed) | ⬜ next |
 | Art 3 | Campus renderer (Watch for 9 cities, 60 fps, reduced-motion) | ⬜ |
 | Art 4 | Hand play + city-1 tutorial + first booth reveal | ⬜ |
 | Art 5 | Booth: cards→editor, why-panel, step mode, cones | ⬜ |
@@ -150,8 +154,10 @@ See [[Decision Log]]. Currently only the bootstrap choices in §3 of `PROMPT.md`
 ## Reading order
 
 1. [[Determinism]] — the invariant every other note assumes.
-2. `PROMPT.md` (repo root) — the full product brief.
-3. Stage session logs under [[Sessions]].
+2. [[Campus]] — the phase-two picture: every mapping from engine fact to thing on screen.
+3. [[Tutorial]] — the pain→tool→guided-use sequence, as data.
+4. `PROMPT.md` + `PROMPT-ART.md` (repo root) — the product briefs.
+5. Stage session logs under [[Sessions]].
 
 ## Map
 

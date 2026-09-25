@@ -1,0 +1,307 @@
+{
+  "$comment": "Single source of truth for campus colors (Art Direction §Concepts). Generate with `node scripts/gen_tokens.mjs`; check contrast with `node scripts/check_contrast.mjs`. Derived from the chosen cool mockup (web/mockups/cool.html); warm was the rejected direction.",
+  "version": 1,
+  "groups": {
+    "neighbourhood": "categorical, colorblind-safe, max 8 — always paired with a shape and a label, never color alone",
+    "vehicle-state": "what is happening to a job right now",
+    "bay-material": "what a node is (partition/site)",
+    "judgement": "verdicts: pass, gold, warning, overflow",
+    "chrome": "clock, week band, review playhead"
+  },
+  "roles": {
+    "nb-1": {
+      "group": "neighbourhood"
+    },
+    "nb-2": {
+      "group": "neighbourhood"
+    },
+    "nb-3": {
+      "group": "neighbourhood"
+    },
+    "nb-4": {
+      "group": "neighbourhood"
+    },
+    "nb-5": {
+      "group": "neighbourhood"
+    },
+    "nb-6": {
+      "group": "neighbourhood"
+    },
+    "nb-7": {
+      "group": "neighbourhood"
+    },
+    "nb-8": {
+      "group": "neighbourhood"
+    },
+    "veh-queued": {
+      "group": "vehicle-state"
+    },
+    "veh-chosen": {
+      "group": "vehicle-state"
+    },
+    "veh-reserved": {
+      "group": "vehicle-state"
+    },
+    "veh-running": {
+      "group": "vehicle-state"
+    },
+    "veh-done": {
+      "group": "vehicle-state"
+    },
+    "veh-timeout": {
+      "group": "vehicle-state"
+    },
+    "veh-preempted": {
+      "group": "vehicle-state"
+    },
+    "veh-transfer": {
+      "group": "vehicle-state"
+    },
+    "bay-idle": {
+      "group": "bay-material"
+    },
+    "bay-default": {
+      "group": "bay-material"
+    },
+    "bay-gpu": {
+      "group": "bay-material"
+    },
+    "bay-himem": {
+      "group": "bay-material"
+    },
+    "bay-remote": {
+      "group": "bay-material"
+    },
+    "bay-wasted": {
+      "group": "bay-material",
+      "note": "dark bay = wasted capacity"
+    },
+    "ok": {
+      "group": "judgement"
+    },
+    "gold": {
+      "group": "judgement"
+    },
+    "warn": {
+      "group": "judgement"
+    },
+    "overflow": {
+      "group": "judgement"
+    },
+    "clock": {
+      "group": "chrome"
+    },
+    "week": {
+      "group": "chrome"
+    },
+    "playhead": {
+      "group": "chrome"
+    }
+  },
+  "themes": {
+    "light": {
+      "nb-1": "#1f6fb2",
+      "nb-2": "#0f7d84",
+      "nb-3": "#6a4fa0",
+      "nb-4": "#35785a",
+      "nb-5": "#4691ab",
+      "nb-6": "#8071b8",
+      "nb-7": "#2d5f7d",
+      "nb-8": "#4a8a6f",
+      "veh-queued": "#46607a",
+      "veh-chosen": "#0b6fb8",
+      "veh-reserved": "#6d6ac2",
+      "veh-running": "#2e6f5e",
+      "veh-done": "#8ba0b2",
+      "veh-timeout": "#b3564a",
+      "veh-preempted": "#8b6a9e",
+      "veh-transfer": "#3d8b9e",
+      "bay-idle": "#eef4f9",
+      "bay-default": "#aebfd4",
+      "bay-gpu": "#9ac0cc",
+      "bay-himem": "#b3badb",
+      "bay-remote": "#a8bf99",
+      "bay-wasted": "#4b5a66",
+      "ok": "#23745a",
+      "gold": "#8f6a17",
+      "warn": "#b35c1f",
+      "overflow": "#7c4150",
+      "clock": "#1d4e79",
+      "week": "#5c7791",
+      "playhead": "#0a5e99",
+      "ground": "#e8eff6",
+      "ink": "#132a3d",
+      "ink-soft": "#486078",
+      "road": "#cfdbe7",
+      "ring-track": "#c3d2df",
+      "panel": "#f4f8fc",
+      "line": "#b6c8d8"
+    },
+    "dark": {
+      "nb-1": "#6cb2ea",
+      "nb-2": "#54c3cb",
+      "nb-3": "#a794e0",
+      "nb-4": "#6fbf92",
+      "nb-5": "#7cc0da",
+      "nb-6": "#b3a6e6",
+      "nb-7": "#7fb3cf",
+      "nb-8": "#8fcfae",
+      "veh-queued": "#8aa4bc",
+      "veh-chosen": "#5cc0ff",
+      "veh-reserved": "#a49ff0",
+      "veh-running": "#6fd0aa",
+      "veh-done": "#5a7086",
+      "veh-timeout": "#e88d7f",
+      "veh-preempted": "#c9a6dd",
+      "veh-transfer": "#7fd3e6",
+      "bay-idle": "#1a2938",
+      "bay-default": "#2e4050",
+      "bay-gpu": "#2b4550",
+      "bay-himem": "#313c5a",
+      "bay-remote": "#3a463a",
+      "bay-wasted": "#b8c6d2",
+      "ok": "#5cc396",
+      "gold": "#ddb95f",
+      "warn": "#e6a066",
+      "overflow": "#d08a9a",
+      "clock": "#7cc4f2",
+      "week": "#7d93a8",
+      "playhead": "#5cc0ff",
+      "ground": "#0e1a26",
+      "ink": "#e4eef7",
+      "ink-soft": "#a2b8ca",
+      "road": "#1d2f40",
+      "ring-track": "#2b4054",
+      "panel": "#16232f",
+      "line": "#31485e"
+    }
+  },
+  "contrast_pairs": [
+    {
+      "fg": "ink",
+      "bg": "ground",
+      "min": 4.5,
+      "why": "body text"
+    },
+    {
+      "fg": "ink",
+      "bg": "road",
+      "min": 4.5,
+      "why": "labels drawn on the road"
+    },
+    {
+      "fg": "ink-soft",
+      "bg": "ground",
+      "min": 4.5,
+      "why": "secondary text"
+    },
+    {
+      "fg": "ink",
+      "bg": "panel",
+      "min": 4.5,
+      "why": "detail-card text"
+    },
+    {
+      "fg": "veh-queued",
+      "bg": "road",
+      "min": 3,
+      "why": "queued vehicle fill"
+    },
+    {
+      "fg": "veh-chosen",
+      "bg": "road",
+      "min": 3,
+      "why": "the chosen vehicle"
+    },
+    {
+      "fg": "veh-running",
+      "bg": "bay-default",
+      "min": 3,
+      "why": "running vehicle in its bays"
+    },
+    {
+      "fg": "veh-timeout",
+      "bg": "ground",
+      "min": 3,
+      "why": "timed-out vehicle (always ink-outlined + labeled)"
+    },
+    {
+      "fg": "nb-1",
+      "bg": "ground",
+      "min": 3,
+      "why": "neighbourhood outline vs map"
+    },
+    {
+      "fg": "nb-4",
+      "bg": "ground",
+      "min": 3,
+      "why": "worst-case neighbourhood vs map"
+    },
+    {
+      "fg": "warn",
+      "bg": "ring-track",
+      "min": 3,
+      "why": "patience ring warning arc"
+    },
+    {
+      "fg": "overflow",
+      "bg": "ground",
+      "min": 3,
+      "why": "overflowing ring"
+    },
+    {
+      "fg": "gold",
+      "bg": "ground",
+      "min": 3,
+      "why": "gold bar / verdict"
+    },
+    {
+      "fg": "ok",
+      "bg": "ground",
+      "min": 3,
+      "why": "pass verdict"
+    },
+    {
+      "fg": "playhead",
+      "bg": "bay-default",
+      "min": 3,
+      "why": "strip playhead"
+    },
+    {
+      "fg": "bay-wasted",
+      "bg": "bay-default",
+      "min": 3,
+      "why": "dark-bay marker vs lot floor"
+    },
+    {
+      "fg": "bay-default",
+      "bg": "ground",
+      "min": 1.6,
+      "why": "lot floor vs map (large area)"
+    },
+    {
+      "fg": "clock",
+      "bg": "ground",
+      "min": 4.5,
+      "why": "clock text"
+    },
+    {
+      "fg": "bay-gpu",
+      "bg": "ground",
+      "min": 1.6,
+      "why": "GPU lot floor vs map (large area)"
+    },
+    {
+      "fg": "bay-himem",
+      "bg": "ground",
+      "min": 1.6,
+      "why": "high-mem lot floor vs map"
+    },
+    {
+      "fg": "bay-remote",
+      "bg": "ground",
+      "min": 1.6,
+      "why": "remote lot floor vs map"
+    }
+  ]
+}

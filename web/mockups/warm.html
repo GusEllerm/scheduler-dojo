@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<!--
+  Scheduler Dojo — phase-two art mockup: WARM campus ("City 3, mid-week").
+  Self-contained static page, ~1600x900 scene. No external assets.
+
+  MAPPING RULES (the grammar this mockup tests):
+    * VEHICLE WIDTH  (across the road)   ∝ nodes requested (1–4 lane units). A 4-node
+      vehicle spans 4 adjacent bays when it parks.
+    * VEHICLE LENGTH (along the road)    ∝ walltime requested (longer pill = longer job).
+    * VEHICLE COLOUR = owning neighbourhood; FILL TREATMENT = state
+      (queued = muted solid, chosen = wave-mark + hot outline, running = full colour,
+       reserved = translucent ghost under a cone).
+    * PATIENCE RING = bounded slowdown: the arc fills as a job waits; full ring means
+      policy has effectively parked them (warning). Shape per neighbourhood = colourblind redundancy.
+    * BAY MATERIAL = partition (Main asphalt / GPU hatch / High-mem stipple);
+      DARK bays = wasted capacity the scheduler cannot place into.
+  Palette discipline: every colour is a role token on :root; dark theme re-maps roles only.
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1600">
+<title>Scheduler Dojo — City 3, mid-week (warm)</title>
+<style>
+/* ============ TOKENS (roles only; sibling mockup uses the same role names, cooler hues) ============ */
+:root{
+  /* ground + chrome */
+  --bg:#f6ecd8; --panel:#fbf4e5; --ground:#f1e3c9; --ink:#3d2f1f; --ink-soft:#6f5a3e;
+  --line:#d9c49e; --road:#e9d7b2; --road-edge:#c9ab7c; --chip:#fdf8ec;
+  /* neighbourhoods (colourblind-safe: distinct hue AND lightness, Okabe-Ito-leaning) */
+  --nb-1:#bd5f10; /* Alpha — burnt orange  */
+  --nb-2:#2f6f9f; /* Beta  — deep sky      */
+  --nb-3:#1c8a72; /* Gamma — bluish green  */
+  --nb-4:#9a7b12; /* Delta — dark gold     */
+  --nb-5:#8f4f96; --nb-6:#3a5fb0; --nb-7:#cf8a1f; --nb-8:#b1442f;
+  /* vehicle states (colour from neighbourhood; these tokens set the *treatment*) */
+  --veh-queued:#8a7355;    /* wash mixed into nb hue => muted solid */
+  --veh-chosen:#b8341f;    /* hot vermilion outline + wave-mark     */
+  --veh-reserved:#6f5a3e;  /* ghost stroke                          */
+  --veh-running:#4a6b3f;   /* tick rail under running pills         */
+  --veh-done:#71834f; --veh-timeout:#a02c1c; --veh-preempted:#96468f; --veh-transfer:#3f7f8f;
+  /* bays / partitions */
+  --bay-idle:#e6d7b8; --bay-default:#ab9a80; --bay-gpu:#bfae90; --bay-himem:#cbb791;
+  --bay-remote:#7d8a96; --bay-dark:#2c2214; --bay-line:#8a7457; --bay-hatch:#6b5a42;
+  /* status */
+  --ok:#2e7d55; --gold:#b97f0e; --warn:#c03a1e; --overflow:#8f1f10;
+  /* time chrome */
+  --clock:#3d2f1f; --week:#6f5a3e; --playhead:#b8341f;
+  --sun:#e8a83c; --sun-ray:#d99a2b;
+}
+:root[data-theme=dark]{
+  --bg:#221910; --panel:#2b2015; --ground:#2e2316; --ink:#f2e5cd; --ink-soft:#c8b391;
+  --line:#57462d; --road:#3a2c1b; --road-edge:#6d5636; --chip:#332718;
+  --nb-1:#f08a3c; --nb-2:#74b6e2; --nb-3:#3fc9a8; --nb-4:#e3c14e;
+  --nb-5:#c98fd0; --nb-6:#85a7ea; --nb-7:#f0a93c; --nb-8:#e0705c;
+  --veh-queued:#7c6a51; --veh-chosen:#ff6a4d; --veh-reserved:#c8b391; --veh-running:#9dbb74;
+  --veh-done:#a8b878; --veh-timeout:#ff6a55; --veh-preempted:#d59ad9; --veh-transfer:#79b9c9;
+  --bay-idle:#3a2e1e; --bay-default:#5b4d3c; --bay-gpu:#544634; --bay-himem:#67573d;
+  --bay-remote:#3d4a57; --bay-dark:#120d07; --bay-line:#84704f; --bay-hatch:#8a7355;
+  --ok:#5fc98e; --gold:#eebb4d; --warn:#ff7a55; --overflow:#ff5544;
+  --clock:#f2e5cd; --week:#c8b391; --playhead:#ff7a55;
+  --sun:#c98f3a; --sun-ray:#a9772c;
+}
+/* ============ layout ============ */
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.stage{position:relative;width:1600px;margin:0 auto}
+svg{display:block;width:1600px;height:900px}
+button#theme{position:absolute;top:10px;right:14px;z-index:2;cursor:pointer;
+  background:var(--chip);color:var(--ink);border:1.5px solid var(--line);border-radius:999px;
+  padding:4px 12px;font:600 12px/1.4 inherit}
+/* ============ element classes (role tokens only) ============ */
+text{fill:var(--ink)} .soft{fill:var(--ink-soft)}
+.panel{fill:var(--panel);stroke:var(--line)} .chipbg{fill:var(--chip);stroke:var(--line)}
+.ground{fill:var(--ground)}
+.road{fill:var(--road);stroke:var(--road-edge);stroke-width:2}
+.dash{stroke:var(--line);stroke-width:2;stroke-dasharray:2 7;fill:none;stroke-linecap:round}
+.nb1{--nb:var(--nb-1)} .nb2{--nb:var(--nb-2)} .nb3{--nb:var(--nb-3)} .nb4{--nb:var(--nb-4)}
+.parcel{fill:var(--nb);stroke:var(--nb);stroke-opacity:.55;fill-opacity:.85;stroke-width:3}
+.ring-track{fill:none;stroke:var(--line);stroke-width:6}
+.ring{fill:none;stroke:var(--ok);stroke-width:6;stroke-linecap:round}
+.ring.hot{stroke:var(--warn)}
+/* vehicles: WIDTH across road = nodes; LENGTH along road = walltime */
+.veh{stroke:var(--nb);stroke-width:2;fill:color-mix(in srgb, var(--nb) 68%, var(--veh-queued))}
+.veh.run{fill:var(--nb)}
+.veh.ghost{fill:color-mix(in srgb, var(--nb) 26%, transparent);stroke:var(--veh-reserved);
+  stroke-dasharray:5 4;stroke-width:2}
+.veh.chosen{stroke:var(--veh-chosen);stroke-width:3.5}
+.wave{fill:none;stroke:var(--veh-chosen);stroke-width:2.5;stroke-linecap:round}
+.tick{fill:var(--veh-running)}
+.bay{stroke:var(--bay-line);stroke-width:1.5}
+.bay.idle{fill:var(--bay-idle)} .bay.def{fill:var(--bay-default)}
+.bay.gpu{fill:var(--bay-gpu)} .bay.himem{fill:var(--bay-himem)}
+.bay.dark{fill:var(--bay-dark);stroke:var(--warn);stroke-dasharray:5 4}
+.lot{fill:none;stroke:var(--bay-line);stroke-width:2;stroke-dasharray:1 0}
+.cone{fill:url(#coneGrad);stroke:var(--veh-reserved);stroke-dasharray:4 4;stroke-width:1.5}
+.arrow{fill:none;stroke:var(--playhead);stroke-width:2.5;stroke-dasharray:6 5}
+.leader{fill:none;stroke:var(--ink-soft);stroke-width:1.5;stroke-dasharray:3 4}
+.note{fill:var(--ink-soft);font-size:12.5px}
+.lbl{font-size:14px;font-weight:700}
+.ttl{font-size:21px;font-weight:700}
+.cap{font-size:12px;font-weight:700;letter-spacing:.4px;fill:var(--ink-soft)}
+.sun{fill:var(--sun)} .ray{stroke:var(--sun-ray);stroke-width:3;stroke-linecap:round}
+</style>
+</head>
+<body>
+<div class="stage">
+<button id="theme" onclick="document.documentElement.dataset.theme =
+  (document.documentElement.dataset.theme==='dark'?'light':'dark')">light / dark</button>
+
+<svg viewBox="0 0 1600 900" role="img" aria-label="City 3, mid-week: four neighbourhoods feed a road
+  queue of nine vehicles into three partition lots past a lit dispatch booth.">
+<defs>
+  <pattern id="hatch" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="7" class="hatchline" stroke="var(--bay-hatch)" stroke-width="1.4"/>
+  </pattern>
+  <pattern id="stipple" width="10" height="10" patternUnits="userSpaceOnUse">
+    <circle cx="3" cy="3" r="1.5" fill="var(--bay-hatch)"/><circle cx="8" cy="8" r="1.5" fill="var(--bay-hatch)"/>
+  </pattern>
+  <linearGradient id="coneGrad" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="var(--veh-reserved)" stop-opacity=".28"/>
+    <stop offset="1" stop-color="var(--veh-reserved)" stop-opacity=".05"/>
+  </linearGradient>
+  <marker id="head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+    <path d="M0 0 L10 5 L0 10 z" fill="var(--playhead)"/>
+  </marker>
+</defs>
+
+<!-- ground -->
+<rect class="ground" x="0" y="54" width="1600" height="770"/>
+
+<!-- ================= TOP CHROME STRIP (week / clock / pips) ================= -->
+<rect class="panel" x="0" y="0" width="1600" height="54"/>
+<line x1="0" y1="54" x2="1600" y2="54" stroke="var(--line)" stroke-width="2"/>
+<text class="ttl" x="24" y="35">City 3 — The convoy that never parks</text>
+<text class="cap" x="640" y="34" fill="var(--week)">WEEK 1 · DAY 3 · MID-WEEK</text>
+<!-- analog clock (~14:20) — time-of-day, no digits -->
+<g transform="translate(880,27)">
+  <circle r="15" fill="var(--chip)" stroke="var(--clock)" stroke-width="2"/>
+  <line x1="0" y1="0" x2="9.4" y2="-3.4" stroke="var(--clock)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="0" y1="0" x2="0" y2="-11" stroke="var(--clock)" stroke-width="1.8" stroke-linecap="round"
+        transform="rotate(120)"/>
+</g>
+<!-- two ring-warning pips: one gold (approaching), one red (near full = Beta) -->
+<g transform="translate(940,27)">
+  <circle r="9" fill="none" stroke="var(--line)" stroke-width="3"/>
+  <path d="M0 -9 A9 9 0 1 1 -7.7 4.5" fill="none" stroke="var(--gold)" stroke-width="3" stroke-linecap="round"/>
+  <text class="soft" x="16" y="4" font-size="12">rings</text>
+  <circle cx="70" r="9" fill="none" stroke="var(--line)" stroke-width="3"/>
+  <path d="M0 -9 A9 9 0 1 1 -6.7 -6.0" fill="none" stroke="var(--warn)" stroke-width="3" stroke-linecap="round"/>
+</g>
+
+<!-- sun-position cue: mid-week daytime, sun west of noon, warm -->
+<g transform="translate(1500,112)">
+  <circle class="sun" r="21"/>
+  <g class="ray"><line y1="-30" y2="-38"/><line x1="21" y1="-21" x2="27" y2="-27"/>
+  <line x1="30" y2="0" x2="38" y2="0"/><line x1="21" y1="21" x2="27" y2="27"/>
+  <line x2="30" y2="0"/><line x1="-21" y1="21" x2="-27" y2="27"/><line x1="-30" y2="0" x2="-38" y2="0"/>
+  <line x1="-21" y1="-21" x2="-27" y2="-27"/></g>
+</g>
+<text class="cap" x="1444" y="168" font-size="11">afternoon · warm</text>
+
+<!-- ================= NEIGHBOURHOODS (one per user; distinct shape = colourblind redundancy) ===== -->
+<!-- Alpha: square, top-left. Patience ring ~1/3, calm. -->
+<g class="nb1">
+  <rect class="parcel" x="134" y="129" width="72" height="72" rx="8"/>
+  <circle class="ring-track" cx="170" cy="165" r="58"/>
+  <path class="ring" d="M170 107 A58 58 0 0 1 220.8 192.9"/>
+  <rect class="chipbg" x="140" y="232" width="62" height="22" rx="6"/>
+  <text class="lbl" x="152" y="248">ALPHA</text>
+</g>
+<!-- Beta: hexagon, top-centre. Ring nearly FULL -> warning colour. -->
+<g class="nb2">
+  <polygon class="parcel" points="550,148 525,105 475,105 450,148 475,191 525,191"/>
+  <circle class="ring-track" cx="500" cy="148" r="58"/>
+  <path class="ring hot" d="M500 90 A58 58 0 1 1 472.1 97.2"/>
+  <rect class="chipbg" x="472" y="214" width="58" height="22" rx="6"/>
+  <text class="lbl" x="484" y="230">BETA</text>
+</g>
+<!-- Gamma: diamond, top-right -->
+<g class="nb3">
+  <polygon class="parcel" points="790,108 842,160 790,212 738,160"/>
+  <circle class="ring-track" cx="790" cy="160" r="56"/>
+  <path class="ring" d="M790 104 A56 56 0 0 1 839.1 187"/>
+  <rect class="chipbg" x="756" y="226" width="70" height="22" rx="6"/>
+  <text class="lbl" x="768" y="242">GAMMA</text>
+</g>
+<!-- Delta: octagon, left-middle -->
+<g class="nb4">
+  <polygon class="parcel" points="180.7,416.8 156.8,440.7 123.2,440.7 99.3,416.8 99.3,383.2 123.2,359.3 156.8,359.3 180.7,383.2"/>
+  <circle class="ring-track" cx="140" cy="400" r="58"/>
+  <path class="ring" d="M140 342 A58 58 0 0 1 190.8 427.9"/>
+  <rect class="chipbg" x="110" y="468" width="62" height="22" rx="6"/>
+  <text class="lbl" x="122" y="484">DELTA</text>
+</g>
+<!-- driveways: parcels feed the mouth of the road -->
+<path class="dash" d="M170 254 C170 300 300 175 372 168"/>
+<path class="dash" d="M500 236 C500 275 430 180 392 168"/>
+<path class="dash" d="M760 210 C680 260 480 190 414 168"/>
+<path class="dash" d="M188 400 C250 400 300 330 320 300"/>
+
+<!-- ================= THE ROAD = the queue (rank 1 = closest to the lots) ================= -->
+<rect class="road" x="300" y="165" width="160" height="455" rx="18"/>
+<!-- apron: road's entrance run into the lots -->
+<rect class="road" x="452" y="560" width="620" height="60" rx="14"/>
+<!-- lane guides (4 lane units = a 4-node vehicle spans 4 bays) -->
+<g stroke="var(--road-edge)" stroke-width="1" stroke-dasharray="3 8" opacity=".7">
+  <line x1="334" y1="180" x2="334" y2="610"/><line x1="368" y1="180" x2="368" y2="610"/>
+  <line x1="402" y1="180" x2="402" y2="610"/><line x1="436" y1="180" x2="436" y2="610"/>
+</g>
+<!-- playhead: the dispatch line at the head of the queue -->
+<line x1="308" y1="608" x2="452" y2="608" stroke="var(--playhead)" stroke-width="3"/>
+<text class="cap" x="452" y="648" fill="var(--ink-soft)">THE QUEUE · POLICY RANK ORDER</text>
+
+<!-- queued vehicles: y-stack top(far)->bottom(head); width=nodes*34, height=walltime -->
+<g id="queue">
+  <!-- rank 9 (furthest back) -->
+  <rect class="veh nb1" x="363" y="173" width="34" height="37" rx="8"/>
+  <rect class="veh nb4" x="346" y="218" width="68" height="42" rx="9"/>   <!-- 8 -->
+  <rect class="veh nb3" x="363" y="268" width="34" height="27" rx="8"/>   <!-- 7 -->
+  <rect class="veh nb2" x="346" y="303" width="68" height="62" rx="9"/>   <!-- 6 -->
+  <rect class="veh nb1" x="329" y="373" width="102" height="32" rx="9"/>  <!-- 5: 3 nodes -->
+  <rect class="veh nb4" x="363" y="413" width="34" height="47" rx="8"/>   <!-- 4 -->
+  <rect class="veh nb3" x="346" y="468" width="68" height="37" rx="9"/>   <!-- 3 -->
+  <rect class="veh nb2" x="322" y="513" width="136" height="57" rx="10"/> <!-- 2: 4 nodes = spans 4 bays -->
+  <text class="note" x="464" y="546" font-size="12">4 nodes → parks across 4 bays</text>
+  <!-- rank 1 = CHOSEN next: wave-mark, hot outline; it backfills under the GPU reservation -->
+  <g class="nb1">
+    <rect class="veh chosen" x="363" y="578" width="34" height="22" rx="7"/>
+    <path class="wave" d="M367 589 q4.5 -6 9 0 t9 0 t9 0"/>
+  </g>
+</g>
+
+<!-- backfill: the SHORT rank-1 vehicle slips under the reservation cone -->
+<path class="arrow" d="M397 585 C 640 585 810 520 1000 470 C 1150 428 1330 396 1414 374" marker-end="url(#head)"/>
+<rect class="chipbg" x="640" y="452" width="236" height="24" rx="7"/>
+<text class="note" x="650" y="469">backfill — short job slips under a reservation</text>
+
+<!-- ================= DISPATCH BOOTH (staffed: lamp lit, semaphore raised) ================= -->
+<g transform="translate(968,486)">
+  <rect x="0" y="18" width="52" height="34" rx="4" fill="var(--chip)" stroke="var(--ink)" stroke-width="2"/>
+  <polygon points="-4,18 26,-2 56,18" fill="var(--nb-8)" stroke="var(--ink)" stroke-width="2"/>
+  <rect x="18" y="28" width="16" height="12" rx="2" fill="var(--gold)" stroke="var(--ink)" stroke-width="1.5"/>
+  <circle cx="26" cy="34" r="14" fill="var(--gold)" opacity=".22"/>            <!-- warm lamp glow -->
+  <line x1="46" y1="18" x2="46" y2="-22" stroke="var(--ink)" stroke-width="2"/><!-- semaphore mast -->
+  <polygon points="46,-22 66,-15 46,-8" fill="var(--ok)" stroke="var(--ink)" stroke-width="1.5"/> <!-- raised = staffed -->
+  <text class="lbl" x="-16" y="68">DISPATCH</text>
+</g>
+
+<!-- ================= THE LOTS = partitions (material carries meaning, not colour alone) ===== -->
+<!-- Main: 6 bays, asphalt (solid warm grey) -->
+<rect class="lot" x="1058" y="205" width="330" height="227" rx="12" fill="var(--bay-default)" fill-opacity=".22"/>
+<text class="cap" x="1064" y="196">MAIN · ASPHALT · 6 BAYS</text>
+<g id="main">
+  <rect class="bay def" x="1070" y="230" width="96" height="88" rx="12"/>
+  <rect class="bay def" x="1176" y="230" width="96" height="88" rx="12"/>
+  <rect class="bay dark" x="1282" y="230" width="96" height="88" rx="12"/>   <!-- wasted -->
+  <rect class="bay dark" x="1070" y="328" width="96" height="88" rx="12"/>   <!-- wasted -->
+  <rect class="bay def" x="1176" y="328" width="96" height="88" rx="12"/>
+  <rect class="bay def" x="1282" y="328" width="96" height="88" rx="12"/>
+  <!-- running vehicles (nb colour = owner) + runtime-remaining tick -->
+  <g class="nb1"><rect class="veh run" x="1084" y="252" width="68" height="40" rx="9"/>
+    <rect class="tick" x="1084" y="298" width="46" height="5" rx="2.5"/></g>
+  <g class="nb3"><rect class="veh run" x="1190" y="252" width="68" height="40" rx="9"/>
+    <rect class="tick" x="1190" y="298" width="20" height="5" rx="2.5"/></g>
+</g>
+<path class="leader" d="M1118 420 C1118 440 1108 452 1098 461"/>
+<text class="note" x="1064" y="470" fill="var(--warn)">dark bays = fragments too small</text>
+<text class="note" x="1064" y="486" fill="var(--warn)">for anything queued — wasted capacity</text>
+
+<!-- GPU: 2 bays, fine hatch material -->
+<rect class="lot" x="1408" y="205" width="144" height="219" rx="12" fill="url(#hatch)" fill-opacity=".55"/>
+<text class="cap" x="1408" y="196">GPU · HATCH</text>
+<g id="gpu">
+  <rect class="bay gpu" x="1420" y="230" width="120" height="84" rx="12"/>
+  <g class="nb2"><rect class="veh run" x="1434" y="250" width="92" height="40" rx="9"/>
+    <rect class="tick" x="1434" y="296" width="62" height="5" rx="2.5"/></g>
+  <!-- reserved bay: translucent reservation cone + ghost vehicle + countdown -->
+  <rect class="bay gpu" x="1420" y="330" width="120" height="82" rx="12"/>
+  <polygon class="cone" points="1420,330 1420,412 1540,392 1540,350"/>
+  <g class="nb4"><rect class="veh ghost" x="1434" y="352" width="92" height="38" rx="9"/></g>
+  <rect class="chipbg" x="1462" y="336" width="66" height="20" rx="6"/>
+  <text class="note" x="1470" y="351">6:40 ⏳</text>
+</g>
+
+<!-- High-mem: 2 bays, stipple material -->
+<rect class="lot" x="1408" y="441" width="144" height="200" rx="12" fill="url(#stipple)" fill-opacity=".5"/>
+<text class="cap" x="1408" y="433">HIGH-MEM · STIPPLE</text>
+<g id="himem">
+  <rect class="bay himem" x="1420" y="468" width="120" height="72" rx="12"/>
+  <g class="nb4"><rect class="veh run" x="1434" y="482" width="92" height="36" rx="9"/>
+    <rect class="tick" x="1434" y="523" width="30" height="5" rx="2.5"/></g>
+  <rect class="bay himem" x="1420" y="552" width="120" height="72" rx="12"/>
+</g>
+
+<!-- ================= BOTTOM LEGEND (labels/shapes carry meaning; colour never alone) ========= -->
+<line x1="0" y1="828" x2="1600" y2="828" stroke="var(--line)" stroke-width="2"/>
+<g transform="translate(24,856)" font-size="13">
+  <!-- vehicle size -->
+  <g class="nb2">
+    <rect class="veh" x="0" y="6" width="58" height="20" rx="6"/>
+    <line x1="0" y1="36" x2="58" y2="36" stroke="var(--ink-soft)" stroke-width="1.5"/>
+    <line x1="72" y1="4" x2="72" y2="28" stroke="var(--ink-soft)" stroke-width="1.5"/>
+  </g>
+  <text class="soft" x="82" y="20">length = walltime · </text>
+  <text class="soft" x="82" y="38">width = nodes (1–4; 4 spans four bays)</text>
+  <!-- states -->
+  <g transform="translate(360,0)">
+    <g class="nb1"><rect class="veh" x="0" y="8" width="26" height="18" rx="5"/></g>
+    <text class="soft" x="32" y="22">queued</text>
+    <g class="nb1"><rect class="veh chosen" x="96" y="8" width="26" height="18" rx="5"/>
+      <path class="wave" d="M99 17 q3.5 -5 7 0 t7 0"/></g>
+    <text class="soft" x="128" y="22">chosen next</text>
+    <g class="nb3"><rect class="veh run" x="222" y="8" width="26" height="18" rx="5"/>
+      <rect class="tick" x="222" y="29" width="16" height="4" rx="2"/></g>
+    <text class="soft" x="254" y="22">running · bar = time left</text>
+    <g class="nb4"><rect class="veh ghost" x="410" y="8" width="26" height="18" rx="5"/></g>
+    <text class="soft" x="442" y="22">reserved</text>
+  </g>
+  <!-- bay materials -->
+  <g transform="translate(920,0)">
+    <rect class="bay def" x="0" y="6" width="30" height="22" rx="5"/><text class="soft" x="36" y="22">Main</text>
+    <rect class="bay gpu" x="96" y="6" width="30" height="22" rx="5"/>
+    <rect x="96" y="6" width="30" height="22" rx="5" fill="url(#hatch)" fill-opacity=".55" stroke="none"/>
+    <text class="soft" x="132" y="22">GPU</text>
+    <rect class="bay himem" x="184" y="6" width="30" height="22" rx="5"/>
+    <rect x="184" y="6" width="30" height="22" rx="5" fill="url(#stipple)" fill-opacity=".5" stroke="none"/>
+    <text class="soft" x="220" y="22">High-mem</text>
+    <rect class="bay dark" x="290" y="6" width="30" height="22" rx="5"/><text class="soft" x="326" y="22">dark = wasted</text>
+  </g>
+  <!-- patience ring -->
+  <g transform="translate(1362,17)">
+    <circle r="12" fill="none" stroke="var(--line)" stroke-width="4"/>
+    <path d="M0 -12 A12 12 0 0 1 10.3 6" fill="none" stroke="var(--ok)" stroke-width="4" stroke-linecap="round"/>
+  </g>
+  <text class="soft" x="1384" y="14">patience ring: fills as a user waits</text>
+  <text class="soft" x="1384" y="32">full red = slowdown reached</text>
+</g>
+</svg>
+</div>
+</body>
+</html>

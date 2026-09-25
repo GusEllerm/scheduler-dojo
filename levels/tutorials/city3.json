@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "city": 3,
+  "title": "The convoy that never parks",
+  "level": "level3",
+  "level_patch": {
+    "story": "One huge convoy blocks the road while bays flicker empty around it."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "The convoy",
+            "body": "Research parked one enormous vehicle at the head of the queue — it needs every bay at once, and until they are all free together, nothing moves. Watch the small vehicles pile up behind it, and watch their rings.",
+            "anchor": "road",
+            "actions": ["How long?"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "first_time": "pressure_moved", "timeout_secs": 7200 } }]
+    },
+    {
+      "id": "starvation-named",
+      "when": { "first_time": "pressure_moved", "once": true },
+        "do": [
+        {
+          "callout": {
+            "title": "That feeling has a name",
+            "body": "Starvation: a job that never gets a turn because a bigger one always blocks it. Fairness of ordering is not enough — you need to book the future, not just serve the present.",
+            "anchor": "ring:batch",
+            "actions": ["Show me reservations"]
+          }
+        },
+        { "offer_upgrade": { "forced": "reserve" } }
+      ],
+      "then": [{ "wait_for": { "owned": "reserve" } }]
+    },
+    {
+      "id": "cone-by-hand",
+      "when": { "on_event": "upgrade_placed:reserve", "once": true },
+        "do": [
+        { "reveal": { "building": "reserve" } },
+        {
+          "callout": {
+            "title": "Place a cone",
+            "body": "A cone books bays for a future vehicle without occupying them now. Put one on the convoy: pick the vehicle, then its bays. Everything else can see the booking — that is what makes slipping a short vehicle underneath safe.",
+            "anchor": "lots",
+            "actions": ["Cone it"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "cone_placed": true, "timeout_secs": 7200 } }]
+    },
+    {
+      "id": "backfill-seen",
+      "when": { "first_time": "backfill_placed", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "Backfill — the gap you can rent by the hour",
+            "body": "That short vehicle just parked in the convoy's booked bays and will be gone before the convoy arrives. It has a name in every scheduler manual: backfill. You just did one by hand.",
+            "anchor": "vehicle:backfill",
+            "actions": ["Rent by the hour"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "day": 3 } }]
+    },
+    {
+      "id": "place-card",
+      "when": { "after_days": 3, "once": true },
+      "do": [
+        { "set_mode": "booth:cards" },
+        {
+          "callout": {
+            "title": "A second module",
+            "body": "The booth can run a second rule now: not only who to serve first, but what to do about the gaps — the place card decides when to reserve and when to backfill. Slot it beside your order card and the booth does your cones for you.",
+            "anchor": "booth",
+            "actions": ["Two cards"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "cards_placed": 2, "timeout_secs": 10800 } }]
+    },
+    {
+      "id": "editor-handoff",
+      "when": { "on_event": "cards_placed:2", "once": true },
+      "do": [
+        { "set_mode": "booth:editor" },
+        {
+          "callout": {
+            "title": "Your cards, in text",
+            "body": "Open the editor: here are the two cards you have been using, written out as exactly what they always were — a kata. Every card you will ever slot is one of these; the editor just lets you see the whole thing. Change anything; Check will tell you what breaks.",
+            "anchor": "booth",
+            "actions": ["Open it"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "week_end": true } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+        "do": [{ "offer_upgrade": { "pick_of": 2 } }],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "next": 4, "endless_unlock": true }
+}
