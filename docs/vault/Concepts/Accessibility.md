@@ -35,7 +35,8 @@ a mouse, because a scheduling lesson you cannot read is not a lesson.
    ("Levels", "Play mode", "Run variants") and mode/level buttons keep `aria-pressed`.
 5. **Modals are dialogs and are closable by keyboard.** The upgrade shop, the share modal, the campus
    booth (`web/src/booth.ts` `openBoothDialog`) and the tutorial callouts/offer panels
-   (`web/src/tutorial.ts`) are `role="dialog" aria-modal="true" aria-labelledby=<their heading>`;
+   (`web/src/tutorial.ts`, and the booth dialog in `web/src/booth.ts` via the shared `trapDialog`)
+   are `role="dialog" aria-modal="true" aria-labelledby=<their heading>`;
    Escape closes them, Tab is kept inside the panel (`trapDialog` is the shared trap), and focus
    returns to the control that opened them. The tutorial's "Skip tutorial" button sits above the
    callout overlay in z-order so the escape hatch is reachable while a callout is open.

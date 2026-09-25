@@ -30,7 +30,10 @@ tags: [concept, phase-two]
 
 - `when`: `after_days` | `after_sim_secs` | `on_event` (`week_end`, `first_place`, `first_preempt`,
   …) | `first_time` (`pressure_moved`, `timeout`, `fallback`) — evaluated at the engine tick.
-- `do`: `callout` (anchored text), `highlight` (scene id), `lock` (`none|hand|place|booth`),
+- `do`: `callout` (anchored text), `highlight` (scene id; `pulseAnchor`), `lock` (`none|hand|place|booth`),
+  `swap_card` (open the booth pulsing a slot; fires the `card_swapped` atom) and `edit_line`
+  (one-line mode on a named card; fires `line_edited`) — both booth modes via `web/src/booth.ts`,
+  whose arrangement serializes to the run's kata and persists under the `boothKata` pref,
   `reveal` (`booth|ring:USER|building:NAME|cone`), `set_mode` (`hand|booth:cards|booth:line|
   booth:editor|step`), `offer_upgrade` (`reservations|sensors|fairness|preempt|route`).
 - `then`: `wait_for` (`placed_any` | `sim_secs` | `booth_staffed` | `chosen` | `week_end` | `day`,

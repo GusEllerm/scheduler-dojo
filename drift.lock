@@ -8,7 +8,7 @@ sig = "e9ea1263dc50d9a6"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/booth.ts"
-sig = "6f33212ee8c60885"
+sig = "d1f4f91cd3e5cb6f"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -23,7 +23,7 @@ sig = "c3c1f2a41308a7c3"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/main.ts"
-sig = "2c935aa378cc3a5c"
+sig = "b7c8d28215d44b31"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -33,12 +33,12 @@ sig = "b581ee11e56b2792"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/style.css"
-sig = "cce8dc6e063584ea"
+sig = "505f5a4720ffa125"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/tutorial.ts"
-sig = "79b8a1f528f01b4e"
+sig = "92393128d098b9b0"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Art Direction.md"
@@ -343,12 +343,12 @@ sig = "582ef806afb7f540"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "web/src/booth.ts"
-sig = "6f33212ee8c60885"
+sig = "d1f4f91cd3e5cb6f"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "web/src/tutorial.ts"
-sig = "79b8a1f528f01b4e"
+sig = "92393128d098b9b0"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
