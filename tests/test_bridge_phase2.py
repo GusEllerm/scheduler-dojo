@@ -118,11 +118,12 @@ def test_endless_level_is_stepable_and_matches_endless_run():
     bridge.validate_level(lvl)  # raises LevelError if the builder emitted a bad level
     one = bridge.endless_run(growth, seed=2, policy="fifo")
     h = bridge.start(lvl, seed=2, policy="fifo")["handle"]
-    final = None
+    done = False
     for _ in range(2000):
-        out = bridge.step(h)
-        if out["finished"]:
-            final = out["summary"]
+        done = bridge.step_n(h, 1)["done"]
+        if done:
             break
-    assert final is not None and final["trajectory_hash"] == one["trajectory_hash"]
+    assert done, "the stepped endless level never finished"
+    final = bridge.step_result(h)
+    assert final["trajectory_hash"] == one["trajectory_hash"]
     assert final["end_time"] == one["end_time"]
