@@ -291,3 +291,48 @@ def test_check_shadow_builtin():
     report = check(src)
     assert not report.ok
     assert report.errors[0]["code"] == "shadow_builtin"
+
+
+# --- round-trip regressions from the adversarial Kata review -------------------
+
+
+@needs_parse
+def test_format_float_avoids_exponent_notation():
+    src = "place by p:\n    x = 0.00001\n"
+    out = format(src)
+    parse(out)                       # exponent form (1e-05) would NOT re-parse
+    assert "1e-05" not in out and "e-" not in out
+    assert format(out) == out  # idempotent
+
+
+@needs_parse
+def test_format_float_large_avoids_exponent():
+    src = "place by p:\n    x = 1000000000000000000.0\n"
+    out = format(src)
+    parse(out)
+    assert "e+" not in out and "e18" not in out.lower()
+
+
+@needs_parse
+def test_format_reescapes_string_literals():
+    src = 'place by p:\n    if job.user == "al\\"ice":\n        pass\n'
+    out = format(src)
+    parse(out)  # unescaped `"al"ice"` would be an unterminated string
+    assert format(out) == out
+
+
+@needs_parse
+def test_format_duplicate_slot_keeps_executing_module():
+    # ast.slots() = last module per slot wins (what executes); format must keep THAT one.
+    src = "place by a:\n    pass\nplace by b:\n    place(first(queue()))\n"
+    p = parse(src)
+    assert p.slots()["place"].name == "b"
+    out = format(src)
+    assert "place by b" in out and "place by a" not in out
+
+
+def test_check_deeply_nested_does_not_overflow():
+    from scheduler_dojo.kata.check import check
+
+    r = check("place by p:\n    y = " + "(" * 500 + "1" + ")" * 500 + "\n")
+    assert isinstance(r.ok, bool)  # a Report, never a RecursionError traceback

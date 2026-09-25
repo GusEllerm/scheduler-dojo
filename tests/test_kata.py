@@ -171,3 +171,13 @@ def test_cli_missing_file_is_a_clean_error(tmp_path, capsys):
     rc = main(["kata", "check", str(tmp_path / "nope.kata")])
     assert rc == 2
     assert "cannot read" in capsys.readouterr().err
+
+
+def test_list_concat_is_capped_not_fatal():
+    # `xs = xs | xs` in a loop must not OOM-kill the process; it falls back cleanly.
+    cluster = _small_cluster()
+    jobs = [Job(id=str(i), user="u", submit_time=0, nodes_req=1, walltime_req=50,
+                actual_runtime=50) for i in range(5)]
+    _, policy = _run_kata(
+        "place by p:\n  xs = nodes()\n  while true:\n    xs = xs | xs\n", jobs=jobs)
+    assert policy.last_fallback == "policy"  # clean fallback, no crash

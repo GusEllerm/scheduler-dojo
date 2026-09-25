@@ -20,6 +20,8 @@ from scheduler_dojo.kata import ast
 from scheduler_dojo.kata.builtins import TupleRec, NameVal, sortable, truth
 from scheduler_dojo.kata.errors import EngineError
 
+_MAX_LIST = 200_000  # safety cap on '|' concatenation result size (DoS guard)
+
 MAX_DEPTH = 200
 
 ModuleResult = namedtuple("ModuleResult", ["value", "scope"])
@@ -230,6 +232,10 @@ class Interp:
             return self._cmp(op, left, right)
         if op == "|":
             if isinstance(left, list) and isinstance(right, list):
+                # Bound allocation: `xs = xs | xs` doubles per step and would OOM-kill the
+                # process (uncaught by the step budget). A cap makes it a clean fallback.
+                if len(left) + len(right) > _MAX_LIST:
+                    self._err("list too large to concatenate", "policy")
                 return list(left) + list(right)
             if isinstance(left, tuple) and isinstance(right, tuple):
                 return tuple(left) + tuple(right)

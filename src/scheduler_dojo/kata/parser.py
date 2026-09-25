@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from scheduler_dojo.kata import ast
 from scheduler_dojo.kata.ast import Program
+import sys
 from scheduler_dojo.kata.errors import KataSyntaxError
 from scheduler_dojo.kata.lexer import KEYWORDS, Token, tokenize
 
@@ -43,8 +44,16 @@ _COMPARISONS = {"LT": "<", "LE": "<=", "GT": ">", "GE": ">=", "EQ": "==", "NEQ":
 
 
 def parse(src: str) -> Program:
-    """Parse Kata source into an AST. Raises KataSyntaxError on any violation."""
-    return parse_program(tokenize(src))
+    """Parse Kata source into an AST. Raises KataSyntaxError on any violation (including a
+    runaway nesting depth that would otherwise overflow the Python recursion limit)."""
+    prev = sys.getrecursionlimit()
+    sys.setrecursionlimit(max(prev, 20000))  # headroom so we *detect* depth, not crash
+    try:
+        return parse_program(tokenize(src))
+    except RecursionError as exc:
+        raise KataSyntaxError("expression nests too deeply", code="max_depth") from exc
+    finally:
+        sys.setrecursionlimit(prev)
 
 
 def parse_program(tokens: list[Token]) -> Program:

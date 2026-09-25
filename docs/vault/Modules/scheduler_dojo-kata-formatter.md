@@ -13,7 +13,12 @@
 
 - **Canonical ordering**: `def`s first (alphabetical), then modules in slot order
   `order, place, preempt, route`; 4-space indent; blank line between sections; a single trailing
-  newline; empty blocks print `pass` so output always re-parses.
+  newline; empty blocks print `pass` so output always re-parses. On a duplicate slot module the
+  formatter keeps the **last** per slot, matching `ast.slots()` (which is what the interpreter runs).
+- **Round-trip safety** (so `parse(format(src))` always works): floats print in a decimal form the
+  lexer re-reads (repr's `1e-05`/`1e+18` would not parse — fall back to fixed-point), and string
+  literals are re-escaped for `\` and `"`. `parse` also converts a recursion-limit overflow (patho-
+  logically deep nesting) into a `max_depth` `KataSyntaxError` so `check()` returns a Report, never a traceback.
 - **Parenthesization**: precedence `or < and < not < cmp < + - | < * / // % < unary- < atoms`; a child
   gets parens iff its precedence is below the position's minimum (left = `prec(op)`, right =
   `prec(op)+1` since binary ops are left-assoc ⇒ `a - (b - c)` keeps parens). Single-element tuples

@@ -258,7 +258,7 @@ sig = "bf5ab518f84cdc0b"
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
 target = "src/scheduler_dojo/kata/interp.py#Interp"
-sig = "5d52d52e668b1b6d"
+sig = "cb9ad8a9552c7b9a"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -957,8 +957,28 @@ sig = "8910c73df162f71f"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-formatter.md"
+target = "src/scheduler_dojo/kata/ast.py#Program"
+sig = "fbb52743ddf386a3"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-kata-formatter.md"
+target = "src/scheduler_dojo/kata/check.py#check"
+sig = "0360d87a499ee13c"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-kata-formatter.md"
+target = "src/scheduler_dojo/kata/errors.py#KataSyntaxError"
+sig = "66e94da19d677dc8"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-kata-formatter.md"
 target = "src/scheduler_dojo/kata/formatter.py#format"
 sig = "bf5ab518f84cdc0b"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-kata-formatter.md"
+target = "src/scheduler_dojo/kata/parser.py#parse"
+sig = "8cdd58b363d51335"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-interp.md"
@@ -972,8 +992,13 @@ sig = "db45b4171523b623"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-interp.md"
+target = "src/scheduler_dojo/kata/interp.py"
+sig = "2de5a053f6b8a2c2"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-kata-interp.md"
 target = "src/scheduler_dojo/kata/interp.py#Interp"
-sig = "5d52d52e668b1b6d"
+sig = "cb9ad8a9552c7b9a"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-interp.md"
@@ -998,7 +1023,7 @@ sig = "66e94da19d677dc8"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-lexer.md"
 target = "src/scheduler_dojo/kata/formatter.py"
-sig = "383a081033203661"
+sig = "60b47100e96ffa27"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-lexer.md"

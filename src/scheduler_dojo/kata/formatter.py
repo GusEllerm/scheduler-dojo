@@ -64,13 +64,18 @@ def format_expr(e: ast.Expr) -> str:
     if isinstance(e, ast.Int):
         return str(e.value)
     if isinstance(e, ast.Float):
-        return repr(e.value)
+        # repr switches to exponent form (1e-05 / 1e+18) which the lexer (no exponent
+        # token) cannot re-read; fall back to a fixed-point form that round-trips.
+        r = repr(e.value)
+        return r if not any(c in r for c in 'eE') else '{:.17f}'.format(e.value)
     if isinstance(e, ast.Bool):
         return "true" if e.value else "false"
     if isinstance(e, ast.Nil):
         return "nil"
     if isinstance(e, ast.Str):
-        return f'"{e.value}"'
+        # Re-escape backslash and quote so the literal re-parses (lexer: \X -> X).
+        esc = str(e.value).replace(chr(92), chr(92)*2).replace('"', chr(92) + '"')
+        return '"' + esc + '"'
     if isinstance(e, ast.Name):
         return e.id
     if isinstance(e, ast.Attribute):
@@ -151,7 +156,7 @@ def format_program(program: ast.Program) -> str:
         sections.append("\n".join([header] + _body_lines(d.body, 1)))
     chosen: dict[str, ast.Module] = {}
     for m in program.modules:
-        chosen.setdefault(m.slot, m)  # first module wins per slot (one module per slot in v1)
+        chosen[m.slot] = m  # LAST module per slot wins, matching ast.slots() (what executes)
     by_slot = [m for slot in ast.SLOTS for m in ([chosen[slot]] if slot in chosen else [])]
     for m in by_slot:
         sections.append("\n".join([f"{m.slot} by {m.name}:"] + _body_lines(m.body, 1)))
