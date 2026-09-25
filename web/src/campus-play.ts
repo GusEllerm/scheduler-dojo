@@ -11,7 +11,8 @@
 
 import { bridge, BridgeError, type BuildingInfo, type HandSuggestions, type Level, type RunResult,
   type StepState, type TraceRecord, type UpgradeInfo } from "./bridge";
-import { buildScene, buildingHint, type CampusScene, type Cone, type SnapshotLike } from "./campus";
+import { buildScene, buildingHint, fairnessShares, type CampusScene, type Cone,
+  type SnapshotLike } from "./campus";
 import { bayBox, hitTest, vehicleBox } from "./campus-hit";
 import { misfitReason, whyRows, WHY_EMPTY, type JobFacts } from "./campus-why";
 import { boothCards, openBoothDialog, saveBoothChoice, type BoothDialogHandle } from "./booth";
@@ -29,6 +30,12 @@ const TRACE_DEPTH = 24;
 export interface CampusPlayOptions {
   level: Level;
   container: HTMLElement;
+  /**
+   * Art 6b: the campus right rail — the fairness share meters mount here. Optional and NEVER
+   * passed by the visual harness, so the canvas's parent geometry (every Art 3 baseline) is
+   * untouched; `main.ts` owns the element and clears it between runs.
+   */
+  rail?: HTMLElement;
   reducedMotion?: boolean;
   policy?: string;
   kata?: string;
@@ -143,6 +150,15 @@ export class CampusPlay {
   private managedByTutorial = false;
   private readonly paintedBuildings = new Set<string>();
   private scenePaintedOnce = false;
+  /* --- Art 6b: the fairness rail (never built for the visual harness) --------------------- */
+  private railEl: HTMLElement | null = null;
+  private fairnessCard: HTMLElement | null = null;
+  private fairnessList: HTMLElement | null = null;
+  private readonly fairnessEls = new Map<string, HTMLElement>();
+  private readonly fairnessParts = new Map<string, { fill: HTMLElement; tick: HTMLElement;
+    text: HTMLElement; mark: HTMLElement }>();
+  /** a `reveal {building: fairness}` beat showed the board before the save owned it */
+  private fairnessFlashed = false;
 
   private constructor(opts: CampusPlayOptions) {
     this.opts = opts;
@@ -171,6 +187,32 @@ export class CampusPlay {
     this.chipEl.className = "campus-mode-chip";
     this.chipEl.setAttribute("role", "status");
     this.chipEl.hidden = true;
+    // Art 6b: the fairness meters live in the caller's right rail (never in the canvas column, so
+    // the canvas geometry — and every Art 3 baseline — is untouched). Structural DOM, not paint:
+    // a list of text rows a screen reader can browse ([[Accessibility]] known gap about the canvas).
+    if (opts.rail && !this.opts.manual) {
+      this.railEl = opts.rail;
+      const card = document.createElement("section");
+      card.className = "campus-fairness";
+      card.setAttribute("aria-labelledby", "campus-fairness-title");
+      card.hidden = true;
+      const head = document.createElement("h3");
+      head.id = "campus-fairness-title";
+      head.textContent = "Fairness — who is parked";
+      const note = document.createElement("p");
+      note.className = "campus-fairness-note";
+      note.textContent = "Share of vehicle-minutes served so far vs share of what each "
+        + "neighbourhood submitted. A ◆ marks a neighbour served under half its share.";
+      const list = document.createElement("ul");
+      list.className = "campus-fairness-list";
+      list.setAttribute("role", "list");
+      list.setAttribute("aria-label", "Per-neighbourhood served share versus submitted share");
+      card.append(head, note, list);
+      this.railEl.append(card);
+      this.railEl.hidden = true;
+      this.fairnessCard = card;
+      this.fairnessList = list;
+    }
     // Art 5b: the why-panel lives in the stage, under the clock. It reads the engine's decision
     // trace only, is collapsible, and announces new rows politely. A hand booth has decided
     // nothing (the manual policy places nothing), so the panel stays hidden there.
@@ -577,6 +619,95 @@ export class CampusPlay {
   }
 
 
+  /* ---------------------------------------- Art 6b: the fairness rail (meters) -- */
+
+  /**
+   * Is the community board pinned on? Two honest ways (§2.4): the save OWNS `fairness` and the
+   * sprite is revealed (free play ⇒ owned ⇒ revealed), or a script's `reveal {building: fairness}`
+   * beat showed it first (city 5 hangs the board before the grant lands).
+   */
+  private fairnessPinned(scene: CampusScene): boolean {
+    if (this.fairnessFlashed) return true;
+    if (!this.buildingDefs.some((b) => b.id === "fairness")) return false;
+    return scene.buildings.some((b) => b.id === "fairness" && b.revealed);
+  }
+
+  /**
+   * Paint the per-neighbourhood share bars from the snapshot's job list (`fairnessShares` does the
+   * only fairness arithmetic on the client: integer seconds, sorted users). Structural DOM — a
+   * list of text rows, not canvas paint — and NOT a live region, so it never spams per snapshot
+   * ([[Accessibility]] rule 3/10).
+   */
+  private paintFairness(scene: CampusScene): void {
+    const card = this.fairnessCard;
+    const list = this.fairnessList;
+    if (!card || !list || !this.snap) return;
+    const show = this.fairnessPinned(scene);
+    card.hidden = !show;
+    if (this.railEl) this.railEl.hidden = !show;
+    if (!show) {
+      this.fairnessEls.clear();
+      this.fairnessParts.clear();
+      list.textContent = "";
+      return;
+    }
+    const rows = fairnessShares(this.snap.jobs ?? [], this.snap.now);
+    const seen = new Set<string>();
+    for (const r of rows) {
+      seen.add(r.user);
+      let parts = this.fairnessParts.get(r.user);
+      if (!parts) {
+        const li = document.createElement("li");
+        const who = document.createElement("span");
+        who.className = "fairness-who";
+        const dot = document.createElement("i");           // the OWNER token colour …
+        dot.className = "fairness-dot";
+        dot.style.background = this.ownerColor(r.user);
+        const name = document.createElement("b");          // … never alone: the label rides with it
+        name.textContent = r.user;
+        const mark = document.createElement("span");       // the `warn` marker (glyph + word)
+        mark.className = "fairness-mark";
+        mark.hidden = true;
+        who.append(dot, name, mark);
+        const bar = document.createElement("div");
+        bar.className = "fairness-bar";
+        bar.setAttribute("aria-hidden", "true");           // the row's text is the accessible truth
+        const fill = document.createElement("i");
+        fill.className = "fairness-served";
+        fill.style.background = this.ownerColor(r.user);
+        const tick = document.createElement("i");          // the entitlement line (their share)
+        tick.className = "fairness-due";
+        bar.append(fill, tick);
+        const text = document.createElement("span");
+        text.className = "fairness-text";
+        li.append(who, bar, text);
+        this.fairnessEls.set(r.user, li);
+        parts = { fill, tick, text, mark };
+        this.fairnessParts.set(r.user, parts);
+        list.append(li);
+      }
+      const pct = (x: number) => Math.round(Math.max(0, Math.min(1, x)) * 100);
+      parts.fill.style.width = `${pct(r.servedShare)}%`;
+      parts.tick.style.left = `${pct(r.askedShare)}%`;
+      parts.text.textContent = `${pct(r.servedShare)}% served of ${pct(r.askedShare)}% submitted `
+        + `· ${fmt(r.servedSecs)} parked, ${fmt(r.askedSecs)} claimed`
+        + `${r.waiting > 0 ? ` · ${r.waiting} waiting` : ""}`;
+      parts.mark.hidden = !r.starved;
+      parts.mark.textContent = r.starved ? "\u25c6 starved" : "";
+      const li = this.fairnessEls.get(r.user);
+      li?.classList.toggle("starved", r.starved);
+      if (li) li.title = `${r.user}: ${fmt(r.servedSecs)} of ${fmt(r.askedSecs)} vehicle-minutes `
+        + `served (${pct(r.servedShare)}% of all served time vs ${pct(r.askedShare)}% of all `
+        + `claimed time)${r.starved ? " — STARVED" : ""}`;
+    }
+    for (const [user, li] of this.fairnessEls) {
+      if (seen.has(user)) continue;
+      li.remove();
+      this.fairnessEls.delete(user);
+      this.fairnessParts.delete(user);
+    }
+  }
+
   /* ------------------------------------------------------------------ loop -- */
 
   private rebase(): void {
@@ -697,6 +828,7 @@ export class CampusPlay {
     if (!this.harnessMode) {
       this.weekTick(state);
       this.postScene(scene);
+      this.paintFairness(scene);
     }
     // The tutorial runner's eyes: one call per engine snapshot, after the scene exists.
     try { this.onStep?.(state); } catch { /* a broken observer must never kill the campus */ }
@@ -989,7 +1121,10 @@ export class CampusPlay {
     this.pair = { prev: null, cur: scene, at: performance.now(), simAt: this.snap.now };
     this.paintFrame(1);
     this.paintHandControls();
-    if (!this.harnessMode) this.postScene(scene);   // a building granted mid-pause still lands
+    if (!this.harnessMode) {
+      this.postScene(scene);   // a building granted mid-pause still lands
+      this.paintFairness(scene);
+    }
   }
 
   private paintHandControls(): void {
@@ -1335,6 +1470,7 @@ export class CampusPlay {
    * while a tutorial manages the stage; elsewhere everything owned is revealed by default.
    */
   revealBuilding(name: string): void {
+    if (name === "fairness") this.fairnessFlashed = true;   // the community board goes up
     this.revealedBuildings?.add(name);
     this.repaint();
     const def = this.buildingDefs.find((b) => b.id === name);
@@ -1465,6 +1601,12 @@ export class CampusPlay {
     this.boothDialog?.close();
     this.weekPanel?.close();
     this.opts.container.textContent = "";
+    this.fairnessCard?.remove();          // the rail is the shell's element — drop ours from it
+    this.fairnessCard = null;
+    this.fairnessList = null;
+    this.fairnessEls.clear();
+    this.fairnessParts.clear();
+    if (this.railEl) this.railEl.hidden = true;
   }
 }
 

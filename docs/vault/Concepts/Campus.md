@@ -97,6 +97,42 @@ ring, a transferring vehicle — never a timer), its callout shows once and the
 (v3); `persistence.save`'s merge is additive, so the ledger survives every UI write (verified
 round-trip; see `Sessions/2026-10-02 Phase 2 Art 6.md`).
 
+## The fairness rail, the chain, and 820 px (Art 6b)
+
+**The community board is a rail, not a paint.** `CampusPlayOptions.rail` is an optional element the
+shell mounts beside the canvas column (`main.ts`: `.campus-body` = stage + rail), and it is
+**never** passed by the visual harness — the canvas's `parentElement` geometry is untouched, which is
+why the Art 3 baselines are still byte-identical. Inside it `paintFairness` keeps one
+`.campus-fairness` card: a `role="list"` of `li` rows, each with the OWNER token swatch, the label, a
+served-share bar with the entitlement tick at the submitted share, and a text sentence carrying every
+number (`fairnessShares` in `web/src/campus.ts` does the only fairness arithmetic on the client:
+`served = min(end, now) - start` vs `claimed = est` per job, summed over sorted user ids, integer
+seconds — pure, no clock, no decisions; the engine's `fairness` metric stays the score's truth). The
+bars are `aria-hidden`; a neighbour served **under half** its submitted share gets the `warn` token
+marker (a ◆ glyph *and* the word "starved" — colour never carries it alone, [[Accessibility]]). The
+rail is structural DOM, not a live region: per-snapshot text that never interrupts (rule 3).
+
+**When it shows** (§2.4 "rings become share meters"): `fairnessPinned` is true when the save owns
+`fairness` *and* the sprite is revealed (free play ⇒ owned ⇒ revealed), or when a script's
+`reveal {building: fairness}` beat has flashed it (city 5 hangs the board). Otherwise the rail stays
+`hidden`, which also means the canvas keeps its full width.
+
+**Campaign chaining is the script's ending, not the picker's.** `TutorialRunner.finish(…, completed)`
+calls `TutorialOptions.onEnd` with the script's `end.next` / `end.endless_unlock` — and ONLY for a
+real ending: skipping out of a script or a teardown `destroy()` ends a script without finishing a
+city, so neither offers the chain. `main.ts` answers with a "Next city ▸" chip in the campus toolbar
+that sets `campusCity` + `campusVariant = "hand"` + `campusTutorial = true` and calls
+`startCampusRun()`: a fresh hand campus on the *edition* of the next level with its script re-attached
+— no level picker, `prefs.city` remembers where the chain got to. `endless_unlock` (city 3, city 9)
+flips an availability chip instead; Endless itself is Art 7. A hand city whose script hands off to the
+kata editor (cities 1-2 have no kata mode) gets a "◀ Back to campus" chip so the hand-off cannot
+strand the chain ([[Tutorial]]).
+
+**820 px.** `.campus-body` is a row at desktop widths and stacks under 860 px (rail under canvas);
+the campus control/hand/variant bars wrap, the offers panel goes one card per row and narrows. No
+behaviour, no canvas geometry — verified with measured boxes and a clipped-text sweep at 820 and
+1280 (`Sessions/2026-10-02 Phase 2 Art 6.md`).
+
 ## Scene vocabulary (renderer contract)
 
 The TS scene layer owns *sprites and layout only*: `vehicle` (job + state: queued/chosen/reserved/

@@ -1395,3 +1395,57 @@ ul.kata-errors {
 .campus-controls button[hidden] { display: none; }
 /* A dimmed (unrevealed, tutorial-managed) building reads as a placeholder on the canvas; nothing
    in the DOM chrome — the sprite itself carries the `?` (campus-render.ts). */
+
+/* ---- phase two, Art 6b: campaign chaining, the fairness rail, the 820 px pass ---- */
+/* The campus body is a two-column row: the canvas column (unchanged geometry — the rail is a
+   SIBLING of the stage, never its parent, so `canvas.parentElement` width and every Art 3 baseline
+   are untouched) and the right rail. Below 860 px the rail stacks under the canvas so nothing
+   overlaps and no text is clipped (brief §7: test at 1280 px and 820 px). */
+.campus-body { display: flex; gap: 12px; align-items: flex-start; }
+.campus-body > .campus-stage { flex: 1 1 auto; min-width: 0; }
+.campus-rail { flex: 0 1 260px; min-width: 0; }
+.campus-rail[hidden] { display: none; }
+
+/* The fairness meters (§2.4: rings read as share meters against entitlement). Structural DOM: a
+   list of text rows, so a screen reader browses shares instead of hearing paint. Bars are
+   decoration (`aria-hidden`); the row's own sentence carries every number. Colors are owner
+   tokens, and the starved marker is a glyph + a word, never hue alone (Concepts/Accessibility 8). */
+.campus-fairness { border: 1px solid var(--sd-line); border-radius: 10px; padding: 6px 10px 8px;
+  background: var(--sd-panel); color: var(--sd-ink); }  /* the card is campus paper: set the campus
+  ink explicitly — the page's own `--text` is a light ink tuned for the dark panels, and the labels
+  would otherwise be light-on-light ([[Art Direction]] contrast check covers the sd-* pair) */
+.campus-fairness[hidden] { display: none; }
+.campus-fairness h3 { margin: 4px 0 2px; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--sd-ink-soft); }
+.campus-fairness-note { margin: 0 0 6px; font-size: 11px; color: var(--sd-ink-soft); }
+.campus-fairness-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.campus-fairness-list li { display: grid; gap: 2px; font-size: 12px; overflow-wrap: anywhere; }
+.campus-fairness-list li.starved { border-left: 3px solid var(--sd-warn); padding-left: 7px; }
+.fairness-who { display: flex; gap: 6px; align-items: baseline; }
+.fairness-who b { font-size: 12px; }
+.fairness-dot { width: 9px; height: 9px; border-radius: 2px; background: var(--sd-ink-soft); }
+.fairness-mark { color: var(--sd-warn); font-weight: 600; font-size: 11px; }
+.fairness-mark[hidden] { display: none; }
+.fairness-bar { position: relative; height: 7px; border-radius: 4px; background: var(--sd-ground);
+  border: 1px solid var(--sd-line); }
+.fairness-served { position: absolute; inset: 0 auto 0 0; border-radius: 4px; min-width: 0; }
+.fairness-due { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px;
+  background: var(--sd-ink); }
+.fairness-text { font-size: 11px; color: var(--sd-ink-soft); }
+
+/* The chaining chips: "Next city ▸" (only while a chain is pending) and Endless availability. */
+.campus-next-chip { border-color: var(--sd-gold); font-weight: 600; }
+.campus-endless-chip[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.kata-back-chip { margin: 0 0 6px; }
+
+/* 820 px (and anything narrower): every campus bar wraps, the rail drops under the canvas, and the
+   offers panel goes one-per-row. All layout — no behaviour, no canvas geometry. */
+@media (max-width: 860px) {
+  .campus-body { flex-direction: column; }
+  .campus-rail { flex: 1 1 auto; width: 100%; }
+  .campus-controls, .campus-hand-bar, .campus-variant-bar { flex-wrap: wrap; }
+  .offers-list { grid-template-columns: minmax(0, 1fr); }
+  .offers-panel { width: min(520px, calc(100% - 16px)); }
+  .campus-toast { max-width: min(320px, 60%); }
+  .mode-level-pickers { align-items: flex-start; }
+}

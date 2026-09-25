@@ -39,6 +39,9 @@ tags: [concept, phase-two]
   booth:editor|step`), `offer_upgrade` (`reservations|sensors|fairness|preempt|route`).
 - `then`: `wait_for` (`placed_any` | `sim_secs` | `booth_staffed` | `chosen` | `week_end` | `day`,
   with an optional `timeout_secs` that auto-continues), or `end`.
+- `end`: `{on: {event: week_end}, next: N, endless_unlock: true}` — `next` is the **campaign chain**
+  (Art 6b: `TutorialRunner` reports it to `main.ts`, which offers "Next city ▸"; see below),
+  `endless_unlock` (cities 3 and 9) flips Endless availability (Art 7 launches the mode).
 - `offer_upgrade` has two shapes: `{forced: id}` — the guided first-use FREE grant (the runner calls
   `bridge.progression_grant`, credits never move; the city that forces a building INTRODUCES it for
   the checker's monotonicity rule) — and `{pick_of: 2}` — the honest week-end draw from
@@ -146,9 +149,27 @@ whose `when`/`wait_for` (`week_end`) resolve normally. Beats a fast run skipped 
 week was always going to end without. Determinism unaffected: the release reads the event set,
 which reads the sim clock.
 
+## The chain (Art 6b)
+
+A script's `end.next` IS the campaign: `finish()` — and only a real ending, never a skip and never a
+teardown `destroy()` — calls `TutorialOptions.onEnd({city, next, endlessUnlock, completed})`, and
+`main.ts` answers with a **"Next city ▸"** chip in the campus toolbar. Pressing it re-runs
+`startCampusRun()` with `campusCity = cityN`, `campusVariant = "hand"`, `campusTutorial = true`: a
+fresh hand campus, the *edition* of the next canonical level, the next script attached. The level
+picker is never touched (that is the brief's "unaided"), `prefs.city` remembers the frontier, and the
+tutorial chip re-labels itself to the new city. `endless_unlock` flips an availability chip instead
+of a chain (Endless is Art 7).
+
+Two seams that chain through a mode switch: the campus hand modes (levels 1-2) have no kata mode, so
+a booth hand-off there hops app modes to the editor — the kata panel now carries a **"◀ Back to
+campus"** chip for exactly that case (the same city script restarts from its top, Art 5 semantics).
+And `modeAllowed("campus")` is deliberately **not** level-bound: hand cities are 1-2 in the *watch*
+picker, but campus play runs nine scripted cities.
+
 **Verification (headless, cities 1–6).** `__tutorial.debugState()` sequences per city, week-end
 screenshots and the per-city `weeks` ledger after taking an offer: see
-`Sessions/2026-10-02 Phase 2 Art 6.md`.
+`Sessions/2026-10-02 Phase 2 Art 6.md`. Art 6b re-drove the whole chain from a fresh save with
+`?city=1` and nothing but in-game buttons (the Next-city chips included) — the log is in the same note.
 
 ## Help drawer
 

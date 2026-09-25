@@ -23,12 +23,17 @@ sig = "d1f4f91cd3e5cb6f"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/campus-play.ts"
-sig = "af8c00a0733fe1f9"
+sig = "cc365b0c58836aca"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/campus-why.ts"
 sig = "ffa1de33c4fa0aca"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/campus.ts"
+sig = "af925ba1e4bb2dfa"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -43,7 +48,7 @@ sig = "c3c1f2a41308a7c3"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/main.ts"
-sig = "b7c8d28215d44b31"
+sig = "bb4b83664210834e"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -58,12 +63,12 @@ sig = "b581ee11e56b2792"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/style.css"
-sig = "ecfe7ff8ba9851a1"
+sig = "2bcac9f69b05fe0e"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/tutorial.ts"
-sig = "3b25bc943961fd2a"
+sig = "e8d727dbdcc2e2dc"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Art Direction.md"
@@ -222,13 +227,23 @@ sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/scoring.py#fairness"
+sig = "e8534d29c115e0c7"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/campus-play.ts"
-sig = "af8c00a0733fe1f9"
+sig = "cc365b0c58836aca"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/campus-why.ts"
 sig = "ffa1de33c4fa0aca"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "web/src/campus.ts"
+sig = "af925ba1e4bb2dfa"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -503,7 +518,7 @@ sig = "e1855274fae72a4b"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "web/src/tutorial.ts"
-sig = "3b25bc943961fd2a"
+sig = "e8d727dbdcc2e2dc"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"

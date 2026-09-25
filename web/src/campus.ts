@@ -58,6 +58,69 @@ export interface Neighbourhood {
 }
 
 /**
+ * Art 6b: one row of the fairness meter (§2.4: "rings become share meters against entitlement").
+ * Pure projection of the job list the snapshots carry — integer seconds, sorted users, no clock,
+ * no decisions: `served` is what a neighbourhood has actually had parked so far, `asked` is what
+ * it submitted (its claimed lengths), and a neighbour served under half its share is `starved`.
+ * `fairnessShares` is the only fairness arithmetic on the client; the engine's own `fairness`
+ * metric stays the score's truth ([[Scoring]]).
+ */
+export interface FairnessShare {
+  user: string;
+  index: number;           // 0..7 → the same owner token the neighbourhood paints with
+  servedSecs: number;
+  servedShare: number;     // 0..1
+  askedSecs: number;
+  askedShare: number;      // 0..1
+  waiting: number;         // submitted, not yet started
+  starved: boolean;
+}
+
+/** What the meter needs from a job — a subset of `SnapshotLike["jobs"]`. */
+export interface FairnessJob {
+  user: string;
+  submit: number;
+  start: number | null;
+  end: number | null;
+  est: number;
+}
+
+/** Neighbour order = sorted user id (never a Map's insertion order); shares of the totals. */
+export function fairnessShares(jobs: readonly FairnessJob[], now: number): FairnessShare[] {
+  const order: string[] = [];
+  const served = new Map<string, number>();
+  const asked = new Map<string, number>();
+  const waiting = new Map<string, number>();
+  for (const j of [...jobs].sort((a, b) => (a.user < b.user ? -1 : a.user > b.user ? 1 : 0))) {
+    if (!served.has(j.user)) {
+      served.set(j.user, 0); asked.set(j.user, 0); waiting.set(j.user, 0);
+      order.push(j.user);
+    }
+    if (j.submit > now) continue;                       // not on the road yet — no stake, no claim
+    asked.set(j.user, (asked.get(j.user) ?? 0) + Math.max(0, j.est));
+    if (j.start === null || j.start > now) {
+      waiting.set(j.user, (waiting.get(j.user) ?? 0) + 1);
+      continue;
+    }
+    const parked = Math.min(j.end ?? now, now) - j.start;
+    served.set(j.user, (served.get(j.user) ?? 0) + Math.max(0, parked));
+  }
+  const servedTotal = [...served.values()].reduce((a, b) => a + b, 0);
+  const askedTotal = [...asked.values()].reduce((a, b) => a + b, 0);
+  return order.map((user, i) => {
+    const s = served.get(user) ?? 0;
+    const a = asked.get(user) ?? 0;
+    const servedShare = servedTotal > 0 ? s / servedTotal : 0;
+    const askedShare = askedTotal > 0 ? a / askedTotal : 0;
+    // "Under half of what it asked for, share-wise" — a claim the player can see being broken,
+    // not a mood: the row also carries the numbers and the waiting count in text.
+    return { user, index: i % 8, servedSecs: s, servedShare, askedSecs: a, askedShare,
+             waiting: waiting.get(user) ?? 0,
+             starved: askedShare > 0 && servedShare < askedShare * 0.5 };
+  });
+}
+
+/**
  * Art 6: a building standing on the campus (§2.4). Layout derives a deterministic box from the
  * building's engine `anchor` (`lot`/`road`/`neighbourhood`/`edge`); the painter picks a geometric
  * sprite per id. `revealed:false` (tutorial mode, not yet handed out) draws dimmed with a `?`.

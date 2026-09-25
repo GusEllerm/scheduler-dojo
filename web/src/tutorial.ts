@@ -38,7 +38,20 @@ export interface TutorialScript {
   level: string;
   level_patch?: Record<string, unknown>;
   steps: TutorialStep[];
-  end?: { on?: Record<string, unknown>; next?: number };
+  /** `next` is the campaign chain (Art 6b: "Next city ▸"); `endless_unlock` flips Endless availability. */
+  end?: { on?: Record<string, unknown>; next?: number; endless_unlock?: boolean };
+}
+
+/** What a script's OWN ending says about the campaign (Art 6b chaining) — see `TutorialOptions.onEnd`. */
+export interface TutorialEnding {
+  /** the city that just ended */
+  city: number;
+  /** the city its `end.next` names, or null when the campaign has no scripted follow-on */
+  next: number | null;
+  /** `end.endless_unlock` (city 3 and city 9): Endless becomes available (Art 7 launches it) */
+  endlessUnlock: boolean;
+  /** true when the script ran to its own end; false when the player skipped out of it */
+  completed: boolean;
 }
 
 /**
@@ -100,6 +113,13 @@ const BEHIND_HORIZON_FRACTION = 0.6;
 
 export interface TutorialOptions {
   onStatus?: (text: string) => void;
+  /**
+   * Art 6b: the script reached its own ending (`then: [{end: true}]` or the last step). Reports
+   * `end.next` / `end.endless_unlock` so the shell can offer "Next city ▸" without the player
+   * touching the level picker. Deliberately NOT called for "Skip tutorial" or a teardown
+   * `destroy()` — those end a script, they do not finish a city.
+   */
+  onEnd?: (ending: TutorialEnding) => void;
 }
 
 export class TutorialRunner {
@@ -322,7 +342,7 @@ export class TutorialRunner {
       for (const next of step.then ?? []) {
         if (this.abort) return;
         if (next.end) {
-          this.finish("tutorial complete");
+          this.finish("tutorial complete", true);
           return;
         }
         const spec = next.wait_for ?? {};
@@ -347,7 +367,7 @@ export class TutorialRunner {
         if (result === "skip") return;
       }
     }
-    this.finish("tutorial complete");
+    this.finish("tutorial complete", true);
   }
 
   private async doAction(action: Record<string, unknown>): Promise<void> {
@@ -534,7 +554,7 @@ export class TutorialRunner {
     this.skipButton.remove();
   }
 
-  private finish(status: string): void {
+  private finish(status: string, completed = false): void {
     if (this.abort) return;
     this.abort = true;
     this.uiResolve?.();
@@ -550,5 +570,16 @@ export class TutorialRunner {
     this.campus.onStep = undefined;
     this.campus.onEvent = this.prevStepOnEvent;
     this.options.onStatus?.(status);
+    // Art 6b: the campaign chain, and only for a real ending. Skips and teardowns (`destroy`)
+    // fall through — a skipped city is not a completed one, and a mode switch must never sprout
+    // a "Next city ▸" button.
+    if (completed) {
+      this.options.onEnd?.({
+        city: Number(this.script.city ?? 0),
+        next: Number.isFinite(Number(this.script.end?.next)) ? Number(this.script.end?.next) : null,
+        endlessUnlock: !!this.script.end?.endless_unlock,
+        completed,
+      });
+    }
   }
 }

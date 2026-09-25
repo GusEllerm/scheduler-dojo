@@ -64,7 +64,17 @@ a mouse, because a scheduling lesson you cannot read is not a lesson.
    needs k bays side by side, which is the lesson); Enter attempts the park — the engine decides via
    `hand_place`; Escape clears the bays then the vehicle. The canvas takes the same
    `:focus-visible` ring as every other control (`web/src/style.css`).
-10. **Hand-play state changes have exactly one polite channel each (Art 5b).** Selection, staged
+10. **The campus rail is structure, not paint (Art 6b).** The fairness meters
+(`web/src/campus-play.ts` `paintFairness`, `fairnessShares` in `web/src/campus.ts`) are a
+`role="list"` of `li` rows — owner swatch, label, a served-share bar with the entitlement tick, and a
+sentence carrying every number (`43% served of 12% submitted · 11m parked, 3h54m claimed · 20
+waiting`). The bars are `aria-hidden`, the block is **not** a live region (it repaints per snapshot —
+rule 3), and the `warn` state is a ◆ glyph plus the word "starved", never hue alone. The campaign
+chips ("Next city ▸", "Endless ▸", "◀ Back to campus") are plain buttons in the labelled
+`role="group"` toolbar, so they sit in tab order where the campus controls are; the Endless chip is
+`aria-disabled` while the mode does not exist yet, never `display: none`, so its unavailability is
+discoverable.
+11. **Hand-play state changes have exactly one polite channel each (Art 5b).** Selection, staged
     bays and the cone hint are announced through the campus toast (`role="status"`,
     `aria-live="polite"`); a `hand_place` refusal goes to the reason line under the hand bar
     (`role="status"`, `aria-live="polite"`, the engine's `PolicyError` code kept verbatim —
@@ -97,7 +107,10 @@ screen reader would make.
   the reduced-motion query, so their autoplay still animates. The watch path is covered.
 - The campus canvas explains itself through announcements, not structure: a screen reader hears the
   selection/staging state and the booth's decisions, but there is no per-vehicle list to browse (the
-  strip's job table would be that).
+  strip's job table would be that). The Art 6b fairness rail is the first *structural* campus readout.
+- The 820 px pass (Art 6b) is measured — boxes and a clipped-text sweep at 820 and 1280 — but the
+  campus has had no screen-reader reader test; the offers dialog's focus order was checked with Tab
+  only (`Sessions/2026-10-02 Phase 2 Art 6.md`).
 - The hand campus is keyboard-playable; the *live* campus intentionally has no focus target (nothing
   to choose while the booth decides), so its only controls are the Pause/Step/speed buttons.
 - Share-card PNGs are images with an `aria-label` summary; the card's own text is not selectable.

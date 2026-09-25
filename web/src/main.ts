@@ -10,7 +10,7 @@ import "./tokens.css"; // the --sd-* palette the campus canvas reads via tokens.
 import { bridge, BridgeError, formatKataErrors, type Level, type RunResult } from "./bridge";
 import { HandGame } from "./hand";
 import { CampusPlay } from "./campus-play";
-import { TutorialRunner, cityLevel } from "./tutorial";
+import { TutorialRunner, cityLevel, type TutorialEnding } from "./tutorial";
 import { getBoothChoice, saveBoothChoice } from "./booth";
 import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
@@ -125,16 +125,27 @@ let levelPicker: HTMLElement;
 let handBadge: HTMLElement;
 let handPanel: HTMLElement;
 let campusPanel: HTMLElement;
+let campusBody: HTMLElement;
 let campusStage: HTMLElement;
+let campusRail: HTMLElement;
 let campusToolbar: HTMLElement | null = null;
 const campusVariantButtons = new Map<"live" | "hand", HTMLButtonElement>();
 let campusTutorialChip: HTMLButtonElement | null = null;
+/** Art 6b chaining: "Next city ▸" (the script ended and its `end.next` names a city). */
+let campusNextChip: HTMLButtonElement | null = null;
+/** Art 6b: Endless availability — flipped by a script's `endless_unlock`, launched for real by Art 7. */
+let campusEndlessChip: HTMLButtonElement | null = null;
+/** A scripted booth hand-off that hopped to kata mode; Back to campus returns to the chain. */
+let returnCampus = false;
+let kataBackChip: HTMLButtonElement | null = null;
 let campus: CampusPlay | null = null;
 /** Art 4: which campus run is up (live auto vs hand) and whether a city script is attached. */
 let campusVariant: "live" | "hand" = "live";
 let campusTutorial = false;
 /** Art 5: which city script the tutorial chip / `?city=N` boots (`city1` … `city9`). */
 let campusCity = "city1";
+/** Art 6b: the chained city a finished script points at, pending a "Next city ▸" press. */
+let campusNextCity: number | null = null;
 let tutorialRunner: TutorialRunner | null = null;
 const cityParam = new URLSearchParams(location.search).get("city");
 /** `?city=N` (any city): boot straight into that city's scripted hand campus. */
@@ -184,6 +195,10 @@ async function main(): Promise<void> {
     campusVariant = "hand";
     campusTutorial = true;
     campusCity = `city${cityNum}`;
+  } else if (typeof prefs.city === "number" && prefs.city >= 1 && prefs.city <= 9) {
+    // Art 6b: the campaign remembers the city the chain last reached (the chip only — the player
+    // still chooses whether to run the script).
+    campusCity = `city${prefs.city}`;
   }
   buildChrome();
   mountProgressionChrome();
@@ -206,6 +221,12 @@ async function main(): Promise<void> {
 
 function levelId(): string {
   return String(level.id ?? "level1");
+}
+
+/** The campaign city the campus is currently showing (city editions keep the canonical level id). */
+function cityNumber(): number {
+  const m = /^city([1-9])$/.exec(campusCity);
+  return m ? Number(m[1]) : 0;
 }
 
 /** Create the mode/level pickers, the "hand" badge and the hand/kata panels (before the timeline). */
@@ -281,9 +302,20 @@ function buildChrome(): void {
   campusHeading.textContent = "Campus";
   campusHeading.id = "campus-heading";
   campusPanel.setAttribute("aria-labelledby", "campus-heading");
+  campusBody = document.createElement("div");
+  campusBody.className = "campus-body";
   campusStage = document.createElement("div");
   campusStage.className = "campus-stage";
-  campusPanel.append(campusHeading, campusStage);
+  // Art 6b: the right rail — the fairness share meters live here (`CampusPlayOptions.rail`). It is
+  // `hidden` whenever there is nothing to pin, so the canvas keeps its full width (and the visual
+  // harness, which never gets a rail, keeps its exact geometry).
+  campusRail = document.createElement("div");
+  campusRail.className = "campus-rail";
+  campusRail.setAttribute("role", "group");
+  campusRail.setAttribute("aria-label", "Campus meters");
+  campusRail.hidden = true;
+  campusBody.append(campusStage, campusRail);
+  campusPanel.append(campusHeading, campusBody);
   dom.app.insertBefore(campusPanel, timelinePanel);
 
   kataPanel = document.createElement("section");
@@ -300,6 +332,20 @@ function buildChrome(): void {
   kataNotice.setAttribute("aria-live", "polite");
   kataStage = document.createElement("div");
   kataPanel.append(kataHeading, kataNotice, kataStage);
+  // Art 6b: a mid-chain booth hand-off out of a HAND city (1-2) must not lose the campaign — this
+  // chip gets the player back onto the campus (same city script, re-attached from its top).
+  kataBackChip = document.createElement("button");
+  kataBackChip.type = "button";
+  kataBackChip.className = "campus-tutorial-chip kata-back-chip";
+  kataBackChip.textContent = "\u25c0 Back to campus";
+  kataBackChip.title = "return to the city you came from (its tutorial script restarts)";
+  kataBackChip.hidden = true;
+  kataBackChip.addEventListener("click", () => {
+    returnCampus = false;
+    kataBackChip!.hidden = true;
+    void setMode("campus").catch(fail);
+  });
+  kataPanel.insertBefore(kataBackChip, kataHeading);
   dom.app.insertBefore(kataPanel, timelinePanel);
 }
 
@@ -374,11 +420,11 @@ function flushPendingWatchRecord(): void {
   if (record) window.setTimeout(() => void record().catch(fail), 3000);
 }
 
-/** Feed a finished run into progression (credits) and repaint the HUD. */
-async function recordCompletion(run: RunResult, dedupeBySeed: boolean): Promise<void> {
+/** Per-run record for `recordCompletion` (a city edition scores against its own level id). */
+async function recordCompletion(run: RunResult, dedupeBySeed: boolean, id = levelId()): Promise<void> {
   try {
-    if (dedupeBySeed && progression.hasPass(levelId(), run.seed)) return;
-    await progression.complete(levelId(), run.score ?? 0, run.seed);
+    if (dedupeBySeed && progression.hasPass(id, run.seed)) return;
+    await progression.complete(id, run.score ?? 0, run.seed);
     await hud?.refresh();
   } catch (error) {
     console.warn("progression completion failed", error);
@@ -387,6 +433,7 @@ async function recordCompletion(run: RunResult, dedupeBySeed: boolean): Promise<
 
 /** Is a mode available for the level currently loaded? */
 function modeAllowed(m: Mode): boolean {
+  // Campus play is not level-bound (hand cities 1-2 and the scripted cities included).
   if (m === "watch" || m === "campus") return true;
   if (m === "hand") return HAND_LEVELS.includes(levelId());
   return KATA_LEVELS.includes(levelId());
@@ -460,6 +507,8 @@ function destroyModes(): void {
   campus?.destroy();
   campus = null;
   campusStage.textContent = "";
+  campusRail.textContent = "";
+  campusRail.hidden = true;
   kata?.destroy();
   kata = null;
   activeKataLevel = null;
@@ -523,6 +572,8 @@ function buildCampusToolbar(): void {
   campusToolbar?.remove();
   campusVariantButtons.clear();
   campusTutorialChip = null;
+  campusNextChip = null;
+  campusEndlessChip = null;
   campusToolbar = document.createElement("div");
   campusToolbar.className = "campus-variant-bar";
   campusToolbar.setAttribute("role", "group");
@@ -550,8 +601,62 @@ function buildCampusToolbar(): void {
   });
   campusToolbar.append(chip);
   campusTutorialChip = chip;
-  campusPanel.insertBefore(campusToolbar, campusStage);
+  campusToolbar.append(buildNextCityChip(), buildEndlessChip());
+  campusPanel.insertBefore(campusToolbar, campusBody);
   void paintCampusToolbar().catch(() => undefined);
+}
+
+/** Art 6b "Next city ▸": hidden until a script ends with `end.next` — the chain needs no picker. */
+function buildNextCityChip(): HTMLButtonElement {
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = "campus-tutorial-chip campus-next-chip";
+  next.title = "the campaign chain: this city's script ends by handing you the next city";
+  next.hidden = true;
+  next.addEventListener("click", () => {
+    if (campusNextCity === null) return;
+    const nextCity = campusNextCity;
+    campusNextCity = null;
+    next.hidden = true;
+    campusCity = `city${nextCity}`;
+    campusTutorial = true;
+    campusVariant = "hand";
+    saveStore({ prefs: { mode: "campus" as "watch", city: nextCity } });
+    void startCampusRun().catch(fail);
+  });
+  campusNextChip = next;
+  return next;
+}
+
+/** Art 6b: Endless availability (flipped by `endless_unlock`; the mode itself is Art 7). */
+function buildEndlessChip(): HTMLButtonElement {
+  const endless = document.createElement("button");
+  endless.type = "button";
+  endless.className = "campus-tutorial-chip campus-endless-chip";
+  endless.title = "unlocked by city 3 — the growing city itself arrives with Art 7";
+  endless.disabled = true;
+  endless.addEventListener("click", () => paint("endless: unlocked, launching in Art 7", shown));
+  campusEndlessChip = endless;
+  return endless;
+}
+
+/** A city script finished (Art 6b): offer the chain, and flip Endless availability when earned. */
+function onScriptEnd(ending: TutorialEnding): void {
+  if (ending.endlessUnlock) {
+    saveStore({ prefs: { endlessUnlocked: true } });
+    void paintCampusToolbar().catch(() => undefined);
+    paint("endless unlocked — the growing city arrives with Art 7", 0);
+  }
+  if (ending.completed && ending.next !== null && ending.next >= 1 && ending.next <= 9) {
+    campusNextCity = ending.next;
+    if (!campusNextChip) return;
+    campusNextChip.textContent = `Next city \u25b8 (${ending.next})`;
+    campusNextChip.hidden = false;
+    campusNextChip.focus?.();
+    paint(`city ${ending.city} done \u2014 \u25b8 next city in the toolbar`, 0);
+    return;
+  }
+  if (campusNextChip) { campusNextChip.hidden = true; campusNextCity = null; }
 }
 
 /** Live/Hand pressed states + chip visibility (belt ≤ Orange, or `?city=N` forcing it on). */
@@ -559,13 +664,23 @@ async function paintCampusToolbar(): Promise<void> {
   for (const [variant, button] of campusVariantButtons) {
     button.setAttribute("aria-pressed", String(campusVariant === variant));
   }
-  if (!campusTutorialChip) return;
+  if (campusTutorialChip) {
+    campusTutorialChip.textContent = `Tutorial: ${campusCity.replace("city", "city ")}`;
+  }
   if (cityNum !== null) campusTutorial = true;
   let belt = playerBelt;
   if (belt === undefined) belt = (await progression.view()).belt;
   const early = ["white", "yellow", "orange"].includes(String(belt).toLowerCase());
-  campusTutorialChip.hidden = !(early || cityNum !== null);
-  campusTutorialChip.setAttribute("aria-pressed", String(campusTutorial));
+  if (campusTutorialChip) {
+    campusTutorialChip.hidden = !(early || cityNum !== null);
+    campusTutorialChip.setAttribute("aria-pressed", String(campusTutorial));
+  }
+  if (!campusEndlessChip) return;
+  // Available once a script granted it, or once the campaign is past city 3 (the hand-off path
+  // into a script never runs `onEnd` for the city that unlocked it).
+  const unlocked = loadStore().prefs.endlessUnlocked === true || cityNumber() > 3;
+  campusEndlessChip.textContent = unlocked ? "Endless ▸ (Art 7)" : "Endless ▸ (locked)";
+  campusEndlessChip.setAttribute("aria-disabled", String(!unlocked));
 }
 
 /** (Re)start the campus run for the current variant, patching in the city edition when scripted. */
@@ -575,6 +690,10 @@ async function startCampusRun(): Promise<void> {
   campus?.destroy();
   campus = null;
   campusStage.textContent = "";
+  campusRail.textContent = "";
+  campusRail.hidden = true;
+  if (campusNextChip) campusNextChip.hidden = true;
+  campusNextCity = null;
   await paintCampusToolbar().catch(() => undefined);
   let runLevel = level;
   let ruleCardsSource: string | undefined;
@@ -592,6 +711,7 @@ async function startCampusRun(): Promise<void> {
   campus = await CampusPlay.create({
     level: runLevel,
     container: campusStage,
+    rail: campusRail,
     mode: campusVariant,
     reducedMotion: reduceMotion,
     ruleCardsSource,
@@ -599,12 +719,17 @@ async function startCampusRun(): Promise<void> {
     onOpenEditor: (kata) => { void handoffToKata(kata).catch(fail); },
     onFinish: (run) => {
       renderReadout({ key: "campus", label: "campus", run });
-      void recordCompletion(run, true).catch(fail);
+      // A city edition's run records against the edition's level (`level6`), not the level the
+      // picker last happened to load — the chain never touches the picker.
+      void recordCompletion(run, true, String(run.level_id || levelId())).catch(fail);
     },
     onStatus: (text) => paint(text, 0),
   });
   if (campusVariant === "hand" && campusTutorial) {
-    tutorialRunner = await TutorialRunner.start(campusCity, campus, { onStatus: (text) => paint(text, 0) });
+    tutorialRunner = await TutorialRunner.start(campusCity, campus, {
+      onStatus: (text) => paint(text, 0),
+      onEnd: onScriptEnd,
+    });
   }
 }
 
@@ -623,6 +748,7 @@ async function handoffToKata(kata: string): Promise<void> {
   }
   mode = "kata";
   saveStore({ prefs: { mode: mode as "watch" } });
+  returnCampus = true; // city 1/2 hand-offs are mid-chain: offer "Back to campus" (Art 6b)
   await setLevel("level3"); // loads under kata mode (allowed there) and saves the prefs
 }
 
@@ -647,6 +773,7 @@ async function enterHand(): Promise<void> {
  * kata runs only see tiers the player actually owns; locked tiers get a notice, not a surprise. */
 async function enterKata(): Promise<void> {
   dom.picker.textContent = "";
+  if (kataBackChip) kataBackChip.hidden = !returnCampus;
   activeKataLevel = gatedKataLevel();
   paintKataNotice();
   kata = mountKataPlay(kataStage, activeKataLevel, {
