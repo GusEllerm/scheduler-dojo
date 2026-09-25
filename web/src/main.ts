@@ -5,9 +5,13 @@
  */
 
 import "./style.css";
+import "./tokens.css"; // the --sd-* palette the campus canvas reads via tokens.ts (Art 3 left
+// this to the harness page alone; a page without it renders a clock-only campus — Art 4 fix)
 import { bridge, BridgeError, formatKataErrors, type Level, type RunResult } from "./bridge";
 import { HandGame } from "./hand";
 import { CampusPlay } from "./campus-play";
+import { TutorialRunner, cityLevel } from "./tutorial";
+import { getBoothChoice } from "./booth";
 import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
 import * as progression from "./progression";
@@ -122,7 +126,15 @@ let handBadge: HTMLElement;
 let handPanel: HTMLElement;
 let campusPanel: HTMLElement;
 let campusStage: HTMLElement;
+let campusToolbar: HTMLElement | null = null;
+const campusVariantButtons = new Map<"live" | "hand", HTMLButtonElement>();
+let campusTutorialChip: HTMLButtonElement | null = null;
 let campus: CampusPlay | null = null;
+/** Art 4: which campus run is up (live auto vs hand) and whether the city-1 script is attached. */
+let campusVariant: "live" | "hand" = "live";
+let campusTutorial = false;
+let tutorialRunner: TutorialRunner | null = null;
+const cityParam = new URLSearchParams(location.search).get("city");
 let handStage: HTMLElement;
 let handGauges: HTMLElement;
 let kataPanel: HTMLElement;
@@ -162,6 +174,12 @@ async function main(): Promise<void> {
   const prefs = loadStore().prefs;
   const savedMode = prefs.mode as string | undefined;
   mode = savedMode === "hand" || savedMode === "kata" || savedMode === "campus" ? savedMode : "watch";
+  if (cityParam === "1") {
+    // ?city=1: boot straight into the campus tutorial — hand traffic, script attached.
+    mode = "campus";
+    campusVariant = "hand";
+    campusTutorial = true;
+  }
   buildChrome();
   mountProgressionChrome();
   await applyDriftOnBoot();
@@ -432,6 +450,8 @@ function destroyModes(): void {
   hand = null;
   handStage.textContent = "";
   handGauges.textContent = "";
+  tutorialRunner?.destroy();
+  tutorialRunner = null;
   campus?.destroy();
   campus = null;
   campusStage.textContent = "";
@@ -481,21 +501,104 @@ async function enterWatch(): Promise<void> {
   };
 }
 
-/** Campus mode (phase two, Art 3): the present-tense view — a live top-down campus driven by
- * stepping the same engine the CLI runs, painted by the scene renderer. The timeline below keeps
- * its post-run review role (§2.6): when the live run finishes, it replays the finished run. */
+/**
+ * Campus mode (phase two): the present-tense view. Art 4 adds the run variants *inside* the
+ * campus stage (not a 5th top-level mode): "Campus (live)" is the Art 3 auto-stepping engine
+ * view; "Campus (hand)" is hand traffic through `hand_start`/`hand_place`/`hand_tick`; and the
+ * "Tutorial: city 1" chip (shown while the belt is Orange or below, or via `?city=1`) restarts
+ * the hand run on the city-1 *edition* of the level with the tutorial runner attached.
+ */
 async function enterCampus(): Promise<void> {
   dom.picker.textContent = "";
+  buildCampusToolbar();
+  await startCampusRun();
+}
+
+function buildCampusToolbar(): void {
+  campusToolbar?.remove();
+  campusVariantButtons.clear();
+  campusTutorialChip = null;
+  campusToolbar = document.createElement("div");
+  campusToolbar.className = "campus-variant-bar";
+  campusToolbar.setAttribute("role", "group");
+  campusToolbar.setAttribute("aria-label", "Campus run variant");
+  for (const [variant, text] of [["live", "Campus (live)"], ["hand", "Campus (hand)"]] as const) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = text;
+    button.addEventListener("click", () => {
+      if (campusVariant === variant && campus) return;
+      campusVariant = variant;
+      void startCampusRun().catch(fail);
+    });
+    campusToolbar.append(button);
+    campusVariantButtons.set(variant, button);
+  }
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = "campus-tutorial-chip";
+  chip.textContent = "Tutorial: city 1";
+  chip.addEventListener("click", () => {
+    campusTutorial = !campusTutorial;
+    if (campusTutorial) campusVariant = "hand"; // the script drives hand traffic
+    void startCampusRun().catch(fail);
+  });
+  campusToolbar.append(chip);
+  campusTutorialChip = chip;
+  campusPanel.insertBefore(campusToolbar, campusStage);
+  void paintCampusToolbar().catch(() => undefined);
+}
+
+/** Live/Hand pressed states + chip visibility (belt ≤ Orange, or `?city=1` forcing it on). */
+async function paintCampusToolbar(): Promise<void> {
+  for (const [variant, button] of campusVariantButtons) {
+    button.setAttribute("aria-pressed", String(campusVariant === variant));
+  }
+  if (!campusTutorialChip) return;
+  if (cityParam === "1") campusTutorial = true;
+  let belt = playerBelt;
+  if (belt === undefined) belt = (await progression.view()).belt;
+  const early = ["white", "yellow", "orange"].includes(String(belt).toLowerCase());
+  campusTutorialChip.hidden = !(early || cityParam === "1");
+  campusTutorialChip.setAttribute("aria-pressed", String(campusTutorial));
+}
+
+/** (Re)start the campus run for the current variant, patching in the city edition when scripted. */
+async function startCampusRun(): Promise<void> {
+  tutorialRunner?.destroy();
+  tutorialRunner = null;
+  campus?.destroy();
+  campus = null;
+  campusStage.textContent = "";
+  await paintCampusToolbar().catch(() => undefined);
+  let runLevel = level;
+  let ruleCardsSource: string | undefined;
+  if (campusTutorial) {
+    const edition = await cityLevel("city1").catch((error: unknown) => {
+      console.warn("tutorial city level failed", error);
+      return null;
+    });
+    if (edition) runLevel = edition.level;
+  }
+  if (campusVariant === "hand") {
+    const reference = typeof runLevel.reference_kata === "string" ? String(runLevel.reference_kata) : null;
+    if (reference) ruleCardsSource = await fetchText(`levels/${reference}`).catch(() => undefined);
+  }
   campus = await CampusPlay.create({
-    level,
+    level: runLevel,
     container: campusStage,
+    mode: campusVariant,
     reducedMotion: reduceMotion,
+    ruleCardsSource,
     onFinish: (run) => {
       renderReadout({ key: "campus", label: "campus", run });
       void recordCompletion(run, true).catch(fail);
     },
     onStatus: (text) => paint(text, 0),
   });
+  if (campusVariant === "hand" && campusTutorial) {
+    tutorialRunner = await TutorialRunner.start("city1", campus, { onStatus: (text) => paint(text, 0) });
+  }
 }
 
 /** Hand mode: mount the HandGame controller (it mounts the gauges itself). */
@@ -523,6 +626,9 @@ async function enterKata(): Promise<void> {
   paintKataNotice();
   kata = mountKataPlay(kataStage, activeKataLevel, {
     timeline: dom.timeline,
+    // Art 4: a kata chosen at the campus booth preselects the editor (the "staff the booth"
+    // record — hand mode cannot switch a live run's policy, so the choice lands here).
+    initialKata: getBoothChoice()?.text,
     onRun: (run) => {
       renderReadout({ key: "kata", label: "kata", run });
       void recordCompletion(run, false).catch(fail);

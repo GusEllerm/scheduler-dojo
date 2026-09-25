@@ -70,3 +70,21 @@ running/done/timeout/preempted/transferring), `bay`, `lot`, `neighbourhood`, `ri
 derives no judgement. Hit-test targets: vehicle, bay, building, ring → detail cards. If the snapshot
 lacks a fact (e.g. true placements), that is an engine bug to fix in [[scheduler_dojo-bridge]], not
 a renderer workaround — the phase-one lane repack is the cautionary tale.
+
+## Hand play on the campus (Art 4)
+
+`CampusPlay.create({ mode: "hand" })` runs the same engine through `hand_start`/`hand_place`/
+`hand_tick`/`hand_result` ([[scheduler_dojo-bridge]]): nothing auto-places, the engine still
+validates every `hand_place` (a `PolicyError` is a red campus toast, never a crash), and parked
+vehicles show as running in the same snapshot — the scene is built from step snapshots exactly like
+the live view, and `chosen` is null while the booth is unstaffed (nothing was "picked"). Hand
+additions to the scene model are optional fields (`selectedId`, `staged {bays, fits, user}`,
+`booth.revealed`) so live frames are pixel-identical: a staged ghost is owner color at low alpha
+edged `ok`/`overflow` (a client-side guess; `hand_place` is the truth), an unrevealed booth is
+dimmed and refuses taps. Tap geometry: `vehicleBox` mirrors the renderer's `roadSlots` exactly, and
+the road band paints **before** the queued vehicles (Art 3 painted it after, which hid the queue —
+fixed in Art 4). A hand-mode canvas resize re-projects the scene (the live loop self-heals every
+frame; the hand view has no frames). `hand_start` has already processed the first arrival batch, so
+those jobs are in no `unseen` list: the viewer seeds its job union from a decide-nothing idle
+`start` of the same level (arrival data is engine data, not a decision). See
+`Sessions/2026-10-02 Phase 2 Art 4.md`.

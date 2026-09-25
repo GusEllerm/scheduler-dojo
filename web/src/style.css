@@ -1259,3 +1259,50 @@ ul.kata-errors {
 .campus-controls { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
 .campus-clock { margin-top: 2px; }
 .campus-detail { position: absolute; padding: 4px 8px; border-radius: 8px; background: var(--sd-panel); color: var(--sd-ink); border: 1px solid var(--sd-line); font-size: 12px; pointer-events: none; }
+
+/* ---- phase two, Art 4: campus hand play, booth, tutorial ---- */
+.campus-variant-bar { display: flex; gap: 8px; align-items: center; margin: 4px 0; }
+.campus-variant-bar button[aria-pressed="true"] { border-color: var(--sd-gold); font-weight: 600; }
+.campus-tutorial-chip { border-radius: 999px; }
+.campus-hand-bar { display: flex; gap: 8px; align-items: center; }
+.campus-hand-bar button.suggest { outline: 2px solid var(--sd-gold); }
+.campus-toast { position: absolute; left: 12px; top: 10px; z-index: 4; max-width: min(420px, 70%);
+  padding: 6px 10px; border-radius: 8px; background: var(--sd-panel); color: var(--sd-ink);
+  border: 1px solid var(--sd-line); font-size: 12px; }
+.campus-toast.error { border-color: var(--sd-overflow); border-width: 2px; }
+.campus-mode-chip { position: absolute; right: 12px; top: 10px; z-index: 4; padding: 2px 10px;
+  border-radius: 999px; background: var(--sd-panel); color: var(--sd-ink);
+  border: 1px solid var(--sd-line); font-size: 11px; }
+.tutorial-skip { position: absolute; right: 12px; top: 38px; z-index: 9; font-size: 11px; }
+.callout-overlay { position: absolute; inset: 0; z-index: 6; background: rgba(0, 0, 0, 0.25); }
+.callout-panel { position: absolute; width: min(320px, calc(100% - 24px)); box-sizing: border-box;
+  padding: 10px 12px; border-radius: 10px; background: var(--sd-panel); color: var(--sd-ink);
+  border: 1px solid var(--sd-line); }
+.callout-panel h3 { margin: 0 0 6px; font-size: 15px; }
+.callout-panel p { margin: 0 0 8px; font-size: 13px; }
+.callout-actions { display: flex; gap: 8px; }
+.offers-list { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.offer-card { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--sd-line); }
+.offers-note { margin-top: 6px; font-size: 12px; color: var(--sd-ink-soft, inherit); }
+.booth-overlay { position: fixed; inset: 0; z-index: 30; display: flex; align-items: flex-start;
+  justify-content: center; padding: 5vh 16px; background: rgba(0, 0, 0, 0.35); overflow: auto; }
+.booth-overlay[hidden] { display: none; }
+.booth-panel { width: min(640px, 100%); padding: 12px 16px; border-radius: 12px;
+  background: var(--sd-panel); color: var(--sd-ink); border: 1px solid var(--sd-line); }
+.booth-head { display: flex; gap: 10px; align-items: baseline; }
+.booth-head h3 { margin: 0; font-size: 17px; }
+.booth-state { flex: 1; font-size: 12px; }
+.booth-close { border: none; background: none; color: inherit; font-size: 20px; cursor: pointer; }
+.rule-cards { display: flex; gap: 10px; flex-wrap: wrap; }
+.rule-card { flex: 1 1 240px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--sd-line); }
+.rule-card h4 { margin: 0 0 6px; text-transform: uppercase; font-size: 11px; letter-spacing: 0.08em; }
+.rule-card-src, .booth-staff + pre { margin: 0; font-family: ui-monospace, monospace; font-size: 12px;
+  white-space: pre-wrap; }
+.rule-cards-empty { font-size: 13px; }
+.booth-staff { display: flex; gap: 8px; flex-wrap: wrap; }
+.booth-staff-card { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px;
+  border-radius: 8px; border: 1px solid var(--sd-line); background: none; color: inherit;
+  cursor: pointer; text-align: left; font: inherit; font-size: 12px; }
+.booth-note { font-size: 12px; }
+.booth-error { font-size: 12px; color: var(--sd-overflow); }

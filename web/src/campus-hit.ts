@@ -16,16 +16,27 @@ export type Hit =
   | null;
 
 
-/** Vehicle box on the road (queued placement), mirrors the renderer's left→rank order layout. */
+/** Vehicle box on the road (queued placement). This mirrors the renderer's `roadSlots` layout
+ *  exactly (lanes stacked top->bottom, filled left->right, VEH_UNIT_W = 14 px/node, slot width
+ *  road.w/ceil(n/lanes)) — the pre-Art-4 formula here disagreed with the painter, so clicking a
+ *  drawn vehicle missed it. Height is widened to a touch-friendly minimum around the pill. */
 export function vehicleBox(scene: CampusScene, v: Vehicle): { x: number; y: number; w: number; h: number } {
-  const unitW = 12; // px per requested node (visual width)
-  const w = Math.max(18, v.nodes * unitW);
-  if (v.state === "queued" || v.state === "reserved" || v.state === "chosen") {
-    const rank = v.rank ?? 0;
-    const x = scene.road.x + 16 + rank * (scene.road.w - 40) / Math.max(12, scene.queuedOrder.length + 4);
-    return { x, y: scene.road.y + scene.road.h / 2 - 12, w: Math.max(w, 24), h: 24 };
+  if (v.state !== "queued" && v.state !== "reserved" && v.state !== "chosen") {
+    return { x: scene.road.x, y: scene.road.y, w: 0, h: 0 }; // running/done: hit via their bays
   }
-  return { x: scene.road.x, y: scene.road.y, w: 0, h: 0 }; // running/done: hit via their bays
+  const road = scene.road;
+  const laneH = (road.laneH ?? 30) || 30;
+  const lanes = Math.max(1, Math.floor(road.h / laneH));
+  const ids = scene.queuedOrder;
+  const per = Math.max(1, Math.ceil(ids.length / lanes));
+  const slot = road.w / Math.max(1, per);
+  const i = Math.max(0, ids.indexOf(v.id));
+  const lane = Math.floor(i / per), col = i % per;
+  const w = Math.max(8, Math.min(v.nodes * 14, slot - 4));
+  const len = Math.max(6, Math.min(8 + Math.sqrt(Math.max(0, v.est) / 60) * 1.6, laneH - 6));
+  const h = Math.max(len, 20);
+  return { x: road.x + col * slot + (slot - w) / 2, y: road.y + lane * laneH + (laneH - h) / 2,
+           w: Math.max(w, 24), h };
 }
 
 export function bayBox(scene: CampusScene, bay: Bay): { x: number; y: number; w: number; h: number } {

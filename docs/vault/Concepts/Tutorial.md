@@ -64,6 +64,38 @@ vocabulary ([[Campus]]); every named upgrade ∈ the five buildings; every named
 its declared tier; `level_patch` touches whitelisted fields; and city order never reveals a
 `building`/builtin before the city that owns it.
 
+## The runner (`web/src/tutorial.ts`, Art 4)
+
+`TutorialRunner.start(city, campus)` executes one script against a live **hand** campus
+(`CampusPlay.create({ mode: "hand" })`, wired inside the campus stage — not a 5th top-level mode;
+a "Tutorial: city 1" chip shows while the belt is Orange or below, and `?city=1` boots straight in).
+The script loads over HTTP from `levels/tutorials/<city>.json` first (Pyodide cannot see repo
+files; `tutorial_load` remains the CLI/Node path), and `cityLevel()` editions the canonical level
+client-side with the same whitelisted `story`/`duration`/`generator` merge `sim/tutorial.py`
+enforces — the merge feeds data to Python, which still validates and decides everything.
+
+- **Triggers read engine facts only**: the runner keeps a small ledger from the snapshots
+  `CampusPlay.onStep` exposes — sim time, day/week (`placed_total`/`week` fields when present,
+  else `finished + running` and `7 x watch_plan.stride` fallbacks), queue contents and submit
+  times seen in `unseen`, pressure moves, overflow, `done`. `behind` (sticky) = queue ≥ 3, or a
+  ring ≥ 0.75, or a vehicle waiting > 900 s, or 60 % of the horizon gone — so city 1 reveals the
+  booth before week end even against perfect play. No wall clock enters any predicate.
+- **`do`**: `lock` (disable the named control), `callout` (focus-trapped popover anchored via
+  `CampusPlay.anchorPoint`: `road` / `bays` / `booth` / `offers` / `ring:USER` / `bay:ID` /
+  `vehicle:ID` / `vehicle:last_placed`), `reveal {booth}` (`revealBooth`, which also unlocks the
+  booth card dialog), `set_mode` (a chip — in hand mode the booth cannot act yet), `offer_upgrade`
+  (the deterministic pair from `offers_list`, take-one).
+- **Cards are katas**: `web/src/booth.ts` renders the booth dialog's rule cards by splitting a kata
+  source into its non-empty `SLOTS` modules (`order, place, preempt, route` — line-splitting only,
+  no parsing). Staffing during a hand run **records** the choice (there is no mid-run policy
+  switch in the bridge — `hand_start` runs the manual policy): it fires the `booth_staffed`
+  tutorial event and persists the kata so the next kata run preselects it
+  (`KataPlayOptions.initialKata`). No invented engine behavior.
+- **Never hangs**: an unknown `when`/`do`/`wait_for` keyword warns on the console and is treated as
+  satisfied/skipped; every wait carries a sim-time stall watchdog of `max(2 x stride, 3600)` s;
+  `or_then` accepts the next step's `when` as an alternative; `timeout_secs` auto-continues; and a
+  permanent focusable "Skip tutorial" button ends the script and unlocks the campus.
+
 ## Help drawer
 
 The drawer lists exactly the concepts/builtins the player has unlocked (from save state), each a

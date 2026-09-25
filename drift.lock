@@ -7,18 +7,23 @@ sig = "e9ea1263dc50d9a6"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/booth.ts"
+sig = "6f33212ee8c60885"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/hand.ts"
 sig = "b2288880e1c8a2c5"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/kata-play.ts"
-sig = "88647cee3d919896"
+sig = "c3c1f2a41308a7c3"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/main.ts"
-sig = "c9f9ea756f16170a"
+sig = "2c935aa378cc3a5c"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -28,7 +33,12 @@ sig = "b581ee11e56b2792"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/style.css"
-sig = "354d1ba5a78c09d6"
+sig = "cce8dc6e063584ea"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/tutorial.ts"
+sig = "79b8a1f528f01b4e"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Art Direction.md"
@@ -67,8 +77,38 @@ sig = "95a649247c5afcc5"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#hand_place"
+sig = "fadbe1c42d07df62"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#hand_result"
+sig = "1e3a815e1592225b"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#hand_start"
+sig = "5f5dab47e77b8f73"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#hand_tick"
+sig = "183182d2dbac85db"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#start"
+sig = "96b4a4af600c4026"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/sim/cluster.py#Cluster"
 sig = "5deaf7fb798b9874"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/errors.py#PolicyError"
+sig = "3e8f316ded50a097"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -262,6 +302,36 @@ sig = "fa2470ab6d758153"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/bridge.py#hand_start"
+sig = "5f5dab47e77b8f73"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/bridge.py#offers_list"
+sig = "3147641edcd763fb"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/bridge.py#tutorial_load"
+sig = "6353064f6f84cf7d"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/kata/ast.py"
+sig = "4037875146024e46"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/progression.py#offers"
+sig = "d05d0c7c678135ff"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/sim/cluster.py#Allocation"
+sig = "4a4266ab3442e8b8"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/sim/scheduler.py#PolicyContext"
 sig = "ea6def626bef7acf"
 
@@ -269,6 +339,16 @@ sig = "ea6def626bef7acf"
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
 sig = "582ef806afb7f540"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "web/src/booth.ts"
+sig = "6f33212ee8c60885"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "web/src/tutorial.ts"
+sig = "79b8a1f528f01b4e"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"

@@ -33,9 +33,12 @@ a mouse, because a scheduling lesson you cannot read is not a lesson.
 4. **Every control has a name.** Icon-only buttons carry `aria-label`: the shop close (`mountShop`) and
    the share controls (`mountShareButton` and its modal). Pickers are `role="group"` with a label
    ("Levels", "Play mode", "Run variants") and mode/level buttons keep `aria-pressed`.
-5. **Modals are dialogs and are closable by keyboard.** The upgrade shop and the share modal are
-   `role="dialog" aria-modal="true" aria-labelledby=<their heading>`; Escape closes both, Tab is kept
-   inside the panel, and focus returns to the control that opened them.
+5. **Modals are dialogs and are closable by keyboard.** The upgrade shop, the share modal, the campus
+   booth (`web/src/booth.ts` `openBoothDialog`) and the tutorial callouts/offer panels
+   (`web/src/tutorial.ts`) are `role="dialog" aria-modal="true" aria-labelledby=<their heading>`;
+   Escape closes them, Tab is kept inside the panel (`trapDialog` is the shared trap), and focus
+   returns to the control that opened them. The tutorial's "Skip tutorial" button sits above the
+   callout overlay in z-order so the escape hatch is reachable while a callout is open.
 6. **Focus is always visible.** `web/src/style.css` puts a 3 px amber (`#ffd479`) `:focus-visible` ring
    on every link/button/input/select and on the CodeMirror kata editor (which otherwise suppresses the
    native ring). The ring colour clears AA on every surface in the theme. A skip link jumps to the

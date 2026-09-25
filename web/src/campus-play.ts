@@ -9,9 +9,10 @@
  * Nothing here decides: placement truth, order, rings, and the calendar all come from the engine.
  */
 
-import { bridge, type Level, type RunResult, type StepState } from "./bridge";
+import { bridge, BridgeError, type HandSuggestions, type Level, type RunResult, type StepState } from "./bridge";
 import { buildScene, type CampusScene, type SnapshotLike } from "./campus";
-import { hitTest } from "./campus-hit";
+import { bayBox, hitTest, vehicleBox } from "./campus-hit";
+import { openBoothDialog, saveBoothChoice } from "./booth";
 import { readTokens } from "./tokens";
 
 export interface CampusPlayOptions {
@@ -22,6 +23,11 @@ export interface CampusPlayOptions {
   kata?: string;
   /** Deterministic single-frame render for the visual harness: caller drives `renderAt`. */
   manual?: boolean;
+  /** Art 4: "hand" runs the same engine under the manual policy — the player parks vehicles and
+   *  presses Time (`hand_tick`); "live" (default) is the Art 3 auto-stepping campus, untouched. */
+  mode?: "live" | "hand";
+  /** Kata text whose modules render as the booth's rule cards (hand mode's booth dialog). */
+  ruleCardsSource?: string;
   onFinish?: (run: RunResult) => void;
   onStatus?: (text: string) => void;
 }
@@ -58,10 +64,36 @@ export class CampusPlay {
   private clockEl: HTMLElement;
   private detailEl: HTMLElement;
   private resizeObserver: ResizeObserver | null = null;
+  /* --- hand mode (Art 4); every field is inert in live mode ---------------------------------- */
+  /** Called with every engine snapshot absorbed by `step_once` (the tutorial runner's eyes). */
+  onStep?: (state: StepState) => void;
+  /** Player-side tutorial events (e.g. "booth_staffed" from the booth dialog). */
+  onEvent?: (name: string) => void;
+  private readonly handMode: boolean;
+  private suggestions: HandSuggestions = {};
+  private selected: string | null = null;
+  private staged: string[] = [];
+  private boothStaffed = true;
+  private boothRevealed = true;
+  private lockKind: "none" | "hand" | "place" | "booth" = "none";
+  private snap: SnapshotLike | null = null;
+  private handBusy = false;
+  private handBar: HTMLElement | null = null;
+  private parkBtn: HTMLButtonElement | null = null;
+  private timeBtn: HTMLButtonElement | null = null;
+  private toastEl: HTMLElement;
+  private toastTimer = 0;
+  private chipEl: HTMLElement;
+  private boothDialog: { close(): void } | null = null;
+  private undoBtn: HTMLButtonElement | null = null;
+  private staffedName: string | null = null;
+  private staffedKata: string | null = null;
 
   private constructor(opts: CampusPlayOptions) {
     this.opts = opts;
-    this.manual = opts.manual ?? false;
+    this.manual = (opts.manual ?? false) || opts.mode === "hand"; // hand time advances on presses, never rAF
+    this.handMode = opts.mode === "hand";
+    if (this.handMode) this.boothStaffed = false; // an unstinted booth has chosen nothing
     this.canvas = document.createElement("canvas");
     this.canvas.className = "campus-canvas";
     this.canvas.setAttribute("role", "img");
@@ -75,9 +107,19 @@ export class CampusPlay {
     this.detailEl.className = "campus-detail";
     this.detailEl.setAttribute("role", "status");
     this.detailEl.hidden = true;
-    this.opts.container.append(this.canvas, this.detailEl, this.controls, this.clockEl);
+    this.toastEl = document.createElement("div");
+    this.toastEl.className = "campus-toast";
+    this.toastEl.setAttribute("role", "status");
+    this.toastEl.setAttribute("aria-live", "polite");
+    this.toastEl.hidden = true;
+    this.chipEl = document.createElement("span");
+    this.chipEl.className = "campus-mode-chip";
+    this.chipEl.setAttribute("role", "status");
+    this.chipEl.hidden = true;
+    this.opts.container.append(this.canvas, this.detailEl, this.toastEl, this.chipEl, this.controls, this.clockEl);
     this.canvas.addEventListener("pointermove", (ev) => this.onPointer(ev));
     this.canvas.addEventListener("pointerleave", () => { this.detailEl.hidden = true; });
+    this.canvas.addEventListener("click", (ev) => this.onCanvasClick(ev)); // no-op outside hand mode
   }
 
   static async create(opts: CampusPlayOptions): Promise<CampusPlay> {
@@ -89,6 +131,30 @@ export class CampusPlay {
 
   private async start(): Promise<void> {
     this.plan = await bridge.watchPlan(this.opts.level);
+    if (this.handMode) {
+      // Nothing auto-places: the engine validates every hand_place and the scene is built from
+      // the same step snapshots the live campus uses (`hand_tick` returns a full `_snapshot`).
+      const started = await bridge.handStart(this.opts.level, null);
+      this.handle = started.handle;
+      this.nodes = (started.nodes ?? []).map((n) => ({ id: n.id, partition: n.partition,
+                                                       site: n.site }));
+      this.suggestions = started.suggestions ?? {};
+      // `hand_start` already processed the FIRST arrival batch, so those jobs are not in any
+      // `unseen` list a viewer could learn from. Seed the job union from a decide-nothing idle
+      // start of the same level (arrivals are engine data, not a decision) and discard its
+      // handle; the hand run itself is untouched.
+      try {
+        const seed = await bridge.startRun(this.opts.level, { policy: "idle" });
+        this.collect(seed.state);
+        await bridge.stepResult(seed.handle);
+      } catch { /* the queued-shell fallback in collect() still draws what is queued */ }
+      this.setupControls();
+      this.setupHandBar();
+      this.setupResize();
+      await this.setupRenderer();
+      this.step_once(started.state);
+      return;
+    }
     const started = await bridge.startRun(this.opts.level,
       { policy: this.opts.policy ?? String(this.opts.level.default_policy ?? "fifo"),
         kata: this.opts.kata ?? null });
@@ -114,7 +180,8 @@ export class CampusPlay {
       this.render = (scene, prev, t) => renderer.render(scene, prev, t);
       this.rendererResize = (w, h) => renderer.resize(w, h);
       this.resizeNow();
-    } catch {
+    } catch (e) {
+      console.warn("renderer setup failed", e);
       this.render = null; // clock-only fallback (keeps CI/headless alive before Art 3 lands)
     }
   }
@@ -139,9 +206,11 @@ export class CampusPlay {
     this.canvas.height = Math.floor(h * dpr);
     this.rendererResize?.(w, h);
     this.paintFrame(0);
+    if (this.handMode && this.snap) this.repaint(); // static hand frames must re-project on resize
   }
 
   private setupControls(): void {
+    if (this.handMode) return; // hand runs get the Park/Undo/Time bar instead (setupHandBar)
     const pauseBtn = document.createElement("button");
     pauseBtn.type = "button";
     pauseBtn.textContent = "Pause";
@@ -219,8 +288,8 @@ export class CampusPlay {
     return Math.floor(Math.min(t, cap));  // integer clock — never hand the engine a float
   }
 
-  /** Absorb one snapshot into the scene pair + job union view. */
-  private step_once(state: StepState): void {
+  /** Absorb one snapshot into the job union view and build the SnapshotLike the scene projects. */
+  private collect(state: StepState): SnapshotLike {
     const s = state as StepState & { jobs?: SnapshotLike["jobs"] };
     for (const r of state.running) {
       const j = this.jobs.get(r.id);
@@ -243,7 +312,16 @@ export class CampusPlay {
                               placed: r.nodes } as never);
       }
     }
-    const snap: SnapshotLike = {
+    // Queued but never introduced (hand_start's first batch): a shell at least draws the
+    // vehicle; `suggestions` (what FIFO would use) carries its width when the hint has it.
+    for (const id of state.queued) {
+      if (!this.jobs.has(id)) {
+        this.jobs.set(id, { id, user: "?", nodes: this.suggestions[id]?.length ?? 1, est: 0,
+                            submit: state.now, start: null, end: null, state: "unfinished",
+                            placed: [] } as never);
+      }
+    }
+    return {
       now: state.now,
       queued: state.queued,
       running: state.running,
@@ -254,12 +332,13 @@ export class CampusPlay {
       jobs: [...this.jobs.values()].sort((a, b) => (a.id < b.id ? -1 : 1)),
       nodes: this.nodes,
     };
-    const scene = buildScene({
-      width: this.cssWidth(), height: this.cssHeight(),
-      nodes: this.nodes, jobs: snap.jobs, snap,
-      clock: { week: 1, day: Math.floor(state.now / Math.max(1, this.plan.stride)) + 1,
-               sun: ((state.now % (this.plan.stride * 7)) / (this.plan.stride * 7)) || 0 },
-    });
+  }
+
+  /** Absorb one snapshot into the scene pair + job union view. */
+  private step_once(state: StepState): void {
+    const snap = this.collect(state);
+    this.snap = snap;
+    const scene = this.sceneFrom(snap);
     this.pair = { prev: this.pair?.cur ?? null, cur: scene, at: performance.now(), simAt: state.now };
     this.paintFrame(this.opts.reducedMotion || this.manual ? 1 : 0);
     {
@@ -269,7 +348,29 @@ export class CampusPlay {
       this.clockEl.textContent =
         `day ${scene.day} · t=${fmt(state.now)} · ${running} on campus · ${done}/${v.length} done`;
     }
+    if (this.handMode) this.paintHandControls();
+    // The tutorial runner's eyes: one call per engine snapshot, after the scene exists.
+    try { this.onStep?.(state); } catch { /* a broken observer must never kill the campus */ }
     if (state.done) void this.finish();
+  }
+
+  /** Pure projection of the last snapshot + the current hand-selection into a scene. */
+  private sceneFrom(snap: SnapshotLike): CampusScene {
+    const sel = this.selected
+      ? snap.jobs?.find((j) => j.id === this.selected) ?? null
+      : null;
+    return buildScene({
+      width: this.cssWidth(), height: this.cssHeight(),
+      nodes: this.nodes, jobs: snap.jobs, snap,
+      clock: { week: 1, day: Math.floor(snap.now / Math.max(1, this.plan.stride)) + 1,
+               sun: ((snap.now % (this.plan.stride * 7)) / (this.plan.stride * 7)) || 0 },
+      staffed: this.boothStaffed,
+      selected: this.selected,
+      staged: sel && this.staged.length
+        ? { bays: [...this.staged], fits: this.stagedFits(sel, this.staged), user: sel.user }
+        : null,
+      boothRevealed: this.boothRevealed,
+    });
   }
 
   private async finish(): Promise<void> {
@@ -278,7 +379,11 @@ export class CampusPlay {
     if (this.raf) cancelAnimationFrame(this.raf);
     this.raf = 0;
     try {
-      const res = await bridge.stepResult(this.handle);
+      // Hand runs score through `hand_result` (identical payload, same determinism); live runs
+      // through `step_result`. Both carry the engine's score/bars/seed and the real placements.
+      const res = this.handMode
+        ? await bridge.handResult(this.handle)
+        : await bridge.stepResult(this.handle);
       // step_result now carries the engine's score/bars/seed/policy and the real-placement jobs.
       const run = {
         ...(res as unknown as RunResult),
@@ -345,10 +450,264 @@ export class CampusPlay {
     if (res.state.done) await this.finish();
   }
 
+  /* ------------------------------------------------- hand mode (Art 4) ------ */
+
+  /** The compact Park/Undo/Time bar; live mode never builds it. */
+  private setupHandBar(): void {
+    const bar = document.createElement("div");
+    bar.className = "campus-hand-bar";
+    bar.setAttribute("role", "group");
+    bar.setAttribute("aria-label", "Hand placement controls");
+    const park = document.createElement("button");
+    park.type = "button";
+    park.textContent = "Park it";
+    park.addEventListener("click", () => void this.placeSelected());
+    const undo = document.createElement("button");
+    undo.type = "button";
+    undo.textContent = "Undo";
+    undo.addEventListener("click", () => this.undoStaged());
+    const time = document.createElement("button");
+    time.type = "button";
+    time.textContent = "Time ▶";
+    time.title = "advance to the next arrival/finish (hand_tick)";
+    time.addEventListener("click", () => void this.tick());
+    bar.append(park, undo, time);
+    this.controls.append(bar);
+    this.handBar = bar;
+    this.parkBtn = park;
+    this.undoBtn = undo;
+    this.timeBtn = time;
+  }
+
+  /** Advance the manual clock one arrival/finish batch — the hand campus has no rAF clock. */
+  private async tick(): Promise<void> {
+    if (this.handBusy || this.finished) return;
+    this.handBusy = true;
+    try {
+      const res = await bridge.handTick(this.handle);
+      this.suggestions = res.suggestions ?? this.suggestions;
+      this.step_once(res.state);
+      if (res.done) this.showToast("Nothing left to park — the run is over.", false);
+    } catch (error) {
+      this.showToast(this.errorText(error), true);
+    } finally {
+      this.handBusy = false;
+      this.paintHandControls();
+    }
+  }
+
+  /** `hand_place`: the engine validates everything; a PolicyError is a toast, never a crash. */
+  private async placeSelected(): Promise<void> {
+    if (this.handBusy || this.finished || !this.selected || !this.staged.length) return;
+    if (this.lockKind === "hand" || this.lockKind === "place") return;
+    const job = this.selected;
+    const nodes = [...this.staged];
+    this.handBusy = true;
+    try {
+      const res = await bridge.handPlace(this.handle, job, nodes);
+      this.step_once(res.state); // the parked vehicle shows as running in the same snapshot
+      if (res.ok) {
+        this.selected = null;
+        this.staged = [];
+        this.repaint();
+      } else if (res.error) {
+        // Keep the selection staged so a fix (one bay more/moves) is one click away.
+        this.showToast(`${res.error.code}: ${res.error.message}`, true);
+      }
+    } catch (error) {
+      this.showToast(this.errorText(error), true);
+    } finally {
+      this.handBusy = false;
+      this.paintHandControls();
+    }
+  }
+
+  private undoStaged(): void {
+    if (this.finished) return;
+    if (this.staged.length) this.staged.pop();
+    else this.selected = null;
+    this.repaint();
+  }
+
+  /** tap vehicle → select; tap bay → stage; tap booth → rule cards (hand mode only). */
+  private onCanvasClick(ev: MouseEvent): void {
+    if (!this.handMode || this.finished || !this.pair) return;
+    const box = this.canvas.getBoundingClientRect();
+    const hit = hitTest(this.pair.cur, { x: ev.clientX - box.left, y: ev.clientY - box.top });
+    if (hit?.kind === "vehicle") {
+      if (this.lockKind === "hand") return;
+      this.selected = this.selected === hit.id ? null : hit.id;
+      this.staged = [];
+      this.repaint();
+    } else if (hit?.kind === "bay") {
+      if (!this.selected || this.lockKind === "hand" || this.lockKind === "place") return;
+      const at = this.staged.indexOf(hit.id);
+      if (at >= 0) this.staged.splice(at, 1);
+      else this.staged.push(hit.id); // an occupied bay may be staged — it previews red, the engine decides
+      this.repaint();
+    } else if (hit?.kind === "booth") {
+      if (!this.boothRevealed) this.showToast("The booth is not open yet — keep parking.", false);
+      else if (this.lockKind !== "booth") this.openBooth();
+    } else if (this.selected) {
+      this.selected = null;
+      this.staged = [];
+      this.repaint();
+    }
+  }
+
+  private openBooth(): void {
+    this.boothDialog?.close();
+    this.boothDialog = openBoothDialog({
+      kataSource: this.staffedKata ?? this.opts.ruleCardsSource ?? "",
+      staffed: this.boothStaffed,
+      staffedName: this.staffedName,
+      onStaff: (name, kataText) => this.staffBooth(name, kataText),
+    });
+  }
+
+  /**
+   * Staffing records the choice — there is NO mid-run policy switch in the bridge (hand_start
+   * runs the manual policy; inventing one would be inventing engine behavior), so the choice is
+   * announced to the tutorial (`booth_staffed`) and persisted for the next kata run to preselect.
+   */
+  private staffBooth(name: string, kataText: string): void {
+    this.staffedName = name;
+    this.staffedKata = kataText;
+    this.boothStaffed = true;
+    saveBoothChoice(name, kataText);
+    this.showToast(`Booth staffed: ${name} — recorded; the next kata run starts from it.`, false);
+    this.onEvent?.("booth_staffed");
+    this.repaint();
+  }
+
+  /** Would this staged set fit? A client-side GUESS for the ghost only — `hand_place` decides. */
+  private stagedFits(job: { id: string; nodes: number }, staged: string[]): boolean {
+    if (staged.length !== job.nodes) return false;
+    const occupied = new Set((this.snap?.running ?? []).flatMap((r) => r.nodes));
+    if (staged.some((id) => occupied.has(id))) return false;
+    // `suggestions` (what FIFO would take) only CONFIRMS: a matching set is certainly a fit; a
+    // different all-free right-size set may fit too — `hand_place` is the truth either way.
+    return true;
+  }
+
+  /** Repaint after a pure-UI state change (selection/staging/reveal) — no engine call. */
+  private repaint(): void {
+    if (!this.snap) return;
+    const scene = this.sceneFrom(this.snap);
+    this.pair = { prev: null, cur: scene, at: performance.now(), simAt: this.snap.now };
+    this.paintFrame(1);
+    this.paintHandControls();
+  }
+
+  private paintHandControls(): void {
+    if (!this.handMode) return;
+    const locked = this.lockKind;
+    if (this.handBar) this.handBar.hidden = this.finished;
+    this.parkBtn?.toggleAttribute("disabled",
+      this.finished || !this.selected || !this.staged.length
+      || locked === "hand" || locked === "place");
+    this.undoBtn?.toggleAttribute("disabled",
+      this.finished || (!this.selected && !this.staged.length));
+    // Time is the suggested action whenever nothing is selectable — an empty road says "advance".
+    const roadEmpty = (this.snap?.queued.length ?? 0) === 0;
+    this.timeBtn?.classList.toggle("suggest", !this.finished && roadEmpty);
+  }
+
+  private showToast(message: string, error: boolean): void {
+    window.clearTimeout(this.toastTimer);
+    this.toastEl.textContent = message;
+    this.toastEl.classList.toggle("error", error);
+    this.toastEl.hidden = false;
+    this.toastTimer = window.setTimeout(() => { this.toastEl.hidden = true; }, error ? 8000 : 5000);
+  }
+
+  private errorText(error: unknown): string {
+    return error instanceof BridgeError ? `${error.code}: ${error.message}`
+      : error instanceof Error ? error.message : String(error);
+  }
+
+  /* ------------------------------------------------ public surface (runner) -- */
+
+  /** The stage element the tutorial anchors its own DOM to. */
+  get stage(): HTMLElement { return this.opts.container; }
+
+  /** Seconds per calendar day (engine `watch_plan.stride`) — the runner's day arithmetic. */
+  get dayStride(): number { return Math.max(1, this.plan.stride); }
+
+  /** The level horizon in sim seconds (`watch_plan.duration`) — its one-week week-end. */
+  get durationSec(): number { return this.plan.duration; }
+
+  get isHand(): boolean { return this.handMode; }
+
+  currentScene(): CampusScene | null { return this.pair?.cur ?? null; }
+
+  /** The booth is drawn dimmed (and refuses taps) until the tutorial reveals it. */
+  revealBooth(revealed = true): void {
+    this.boothRevealed = revealed;
+    this.repaint();
+  }
+
+  /** Scripted `lock`: the named control is disabled (`none` disables nothing). */
+  setLock(kind: "none" | "hand" | "place" | "booth"): void {
+    this.lockKind = kind;
+    this.paintHandControls();
+  }
+
+  /** A scripted `set_mode` beats as a chip on the canvas (`""` clears it). */
+  setModeChip(text: string): void {
+    this.chipEl.textContent = text;
+    this.chipEl.hidden = !text;
+  }
+
+  notifyEvent(name: string): void { this.onEvent?.(name); }
+
+  /** Canvas-space point for a tutorial anchor name (Concepts/Campus scene vocabulary). */
+  anchorPoint(name: string, lastPlacedId?: string | null): { x: number; y: number } | null {
+    const s = this.pair?.cur;
+    if (!s) return null;
+    const center = (b: { x: number; y: number; w: number; h: number }) =>
+      ({ x: b.x + b.w / 2, y: b.y });
+    if (name === "road") return { x: s.road.x + s.road.w / 2, y: s.road.y + 8 };
+    if (name === "bays" || name === "lots") {
+      const lot = s.lots[0];
+      return lot ? { x: lot.x + lot.w / 2, y: lot.y + lot.h / 2 } : null;
+    }
+    if (name === "booth") return { x: s.booth.x + s.booth.w / 2, y: s.booth.y };
+    if (name === "offers") return { x: this.cssWidth() / 2, y: this.cssHeight() * 0.4 };
+    if (name === "vehicle:last_placed") {
+      if (lastPlacedId) {
+        const bay = s.bays.find((b) => b.occupiedBy === lastPlacedId);
+        if (bay) return center(bayBox(s, bay));
+      }
+      const running = s.vehicles.filter((v) => v.state === "running")
+        .sort((a, b) => (b.start ?? 0) - (a.start ?? 0) || (a.id < b.id ? -1 : 1))[0];
+      const bay = running ? s.bays.find((b) => b.occupiedBy === running.id) : null;
+      return bay ? center(bayBox(s, bay)) : { x: s.road.x + s.road.w / 2, y: s.road.y + 8 };
+    }
+    if (name.startsWith("ring:")) {
+      const who = name.slice(5);
+      const nb = who === "any_moving"
+        ? s.neighbourhoods.find((n) => n.ring > 0.01) ?? s.neighbourhoods[0]
+        : s.neighbourhoods.find((n) => n.user === who) ?? s.neighbourhoods[0];
+      return nb ? { x: nb.x, y: nb.y - nb.r - 12 } : null;
+    }
+    if (name.startsWith("bay:")) {
+      const bay = s.bays.find((b) => b.id === name.slice(4));
+      return bay ? center(bayBox(s, bay)) : null;
+    }
+    if (name.startsWith("vehicle:")) {
+      const v = s.vehicles.find((x) => x.id === name.slice(8));
+      return v ? center(vehicleBox(s, v)) : null;
+    }
+    return null;
+  }
+
   destroy(): void {
     this.destroyed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
     this.resizeObserver?.disconnect();
+    window.clearTimeout(this.toastTimer);
+    this.boothDialog?.close();
     this.opts.container.textContent = "";
   }
 }

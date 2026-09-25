@@ -6,12 +6,14 @@
 // `Math.random`, no timers. The caller owns rAF and passes an interpolation progress.
 //
 // DETERMINISM / DRAW ORDER (stable, top-to-bottom of the paint pass):
-//   1. ground fill + subtle ground grid          6. reserved cones (lot's road-side edge)
-//   2. sun disc on the top strip (ambient)        7. road band + dashed centerline
-//   3. queued vehicles on the road                8. neighbourhoods (shape, label, ring, %-mark)
-//   4. lots (material fill, pattern, label)       9. dispatch booth
-//   5. bays (material, wasted hint, run bars)    10. overflow pulse overlay
-// Same (canvas size, scene, prev, t) ⇒ pixel-identical output — the screenshot harness relies on it.
+//   1. ground fill + subtle ground grid          6. run bars + staged ghosts + reserved cones
+//   2. sun disc on the top strip (ambient)       7. neighbourhoods (shape, label, ring, %-mark)
+//   3. road band + dashed centerline             8. dispatch booth
+//   4. queued vehicles on the road (ON the band) 9. overflow pulse overlay
+//   5. lots + bays (material, wasted hint)
+// Art 4 note: the road paints before the vehicles (the Art 3 order buried the queue under the
+// opaque band). Same (canvas size, scene, prev, t) ⇒ pixel-identical output — the harness relies
+// on it.
 //
 // Performance stance (~600 vehicles / 64 bays): fills batched per color into shared Path2D,
 // zero shadowBlur, at most one cached gradient (the sun), neighbourhood shapes cached per
@@ -233,13 +235,13 @@ export class CampusRenderer {
     ctx.lineCap = "round";
     this.drawGround(ctx);
     this.drawSun(ctx, scene);
-    this.drawQueuedVehicles(ctx, scene, base, p);
+    this.drawRoad(ctx, scene);          // road FIRST — the queued vehicles park on top of it (Art 4 fix:
+    this.drawQueuedVehicles(ctx, scene, base, p); // the old order painted the opaque road over them)
     this.drawLots(ctx, scene);
     this.drawBays(ctx, scene);
     this.drawRunBars(ctx, scene);
     this.drawStaged(ctx, scene);
     this.drawCones(ctx, scene);
-    this.drawRoad(ctx, scene);
     this.drawNeighbourhoods(ctx, scene, base, p);
     this.drawBooth(ctx, scene);
     this.drawOverflowPulse(ctx, scene, base, p);

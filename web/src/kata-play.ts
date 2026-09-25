@@ -21,6 +21,8 @@ export interface KataPlayOptions {
   timeline: HTMLElement;
   /** Optional hook: called with every successful run (main.ts mirrors it into the global readout). */
   onRun?: (run: RunResult) => void;
+  /** Art 4: the kata chosen at the campus booth — preselects the editor over the reference. */
+  initialKata?: string;
 }
 
 export interface KataPlayHandle {
@@ -73,13 +75,17 @@ export function mountKataPlay(container: HTMLElement, level: Level, options: Kat
   const horizon = Number(level.duration ?? 0) || undefined;
   const levelId = String(level.id ?? "level");
 
-  // Start from the level's reference kata so the first Run is instructive.
+  // Start from the level's reference kata so the first Run is instructive; a booth-staffing
+  // choice (Art 4) wins, applied after the reference so the two loads never race.
   const reference = typeof level.reference_kata === "string" ? level.reference_kata : null;
   void (reference
     ? loadKataText({ name: "reference", blurb: "", path: reference })
         .then((text) => editor.setValue(text))
         .catch(() => undefined)
-    : Promise.resolve());
+    : Promise.resolve()
+  ).then(() => {
+    if (options.initialKata !== undefined) editor.setValue(options.initialKata);
+  });
 
   async function load(entry: KataEntry): Promise<void> {
     try {
