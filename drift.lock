@@ -292,8 +292,18 @@ sig = "6c7833630793b19f"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
+target = "src/scheduler_dojo/sim/level.py#load_jobs"
+sig = "015f3939a2ee1a3e"
+
+[[bindings]]
+doc = "docs/vault/Decision Log.md"
 target = "src/scheduler_dojo/sim/level.py#run_level"
 sig = "c4545758a470a286"
+
+[[bindings]]
+doc = "docs/vault/Decision Log.md"
+target = "src/scheduler_dojo/sim/level.py#validate_level"
+sig = "ad957b8a7071bdb6"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -314,6 +324,11 @@ sig = "377baff36924ff7a"
 doc = "docs/vault/Decision Log.md"
 target = "src/scheduler_dojo/sim/scheduler.py#fifo"
 sig = "6c88a909d3c715c7"
+
+[[bindings]]
+doc = "docs/vault/Decision Log.md"
+target = "src/scheduler_dojo/sim/scheduler.py#runtime_used"
+sig = "83ec01caaa456da4"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"

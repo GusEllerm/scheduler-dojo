@@ -191,3 +191,34 @@ Rather than port the sim/Kata to TypeScript, the browser loads the same `schedul
 match the engine and the `livedocs` stamps. A **Node-side** `node scripts/node_smoke.mjs` loads Pyodide,
 installs the wheel, and asserts the run's `trajectory_hash` equals the pytest golden — so CI proves the
 browser path without a browser. Trade-off: a heavier first load (mitigated by progress + wheel cache).
+
+## 2026-09-24 — Preemption: no-checkpoint requeue + a FINISH epoch guard `[agent decision]`
+`preempt` frees the nodes and returns the job to `QUEUED` to **re-run in full** (no checkpoint/resume).
+A no-checkpoint model is honest for batch jobs, keeps scoring simple (`runtime_used` = full re-run),
+and avoids a whole resume-state subsystem. The risk was a stale `FINISH` (from the preempted placement)
+finishing a re-run job early; we guard it by keying each `FINISH` `id#epoch` and bumping `run_epoch` on
+every place/preempt, ignoring a mismatch. Trade-off: preemption looks harsh (progress lost) — acceptable
+for teaching why you avoid preempting. See [[scheduler_dojo-sim-scheduler]].
+
+## 2026-09-24 — Multi-site routing = `run_site` + a `data_mb/rate` transfer delay `[agent decision]`
+Rather than a full data-placement model, `route(job, site)` records a `run_site`; `place` then restricts
+`first_fit` to that site and lengthens the run by `ceil(data_mb / transfer_rate_mbs)` when it leaves the
+data's `home_site`. It captures the co-location lesson (p95 wait collapses) in ~40 lines and stays
+trajectory-neutral when single-site (no `home_site`). Trade-off: transfer is a flat per-job delay, not a
+bandwidth-saturated network model. See [[scheduler_dojo-sim-scheduler]].
+
+## 2026-09-24 — Explicit `jobs` lists make trace/handcrafted levels runnable & calibratable `[agent decision]`
+A level may carry an explicit `jobs` list *or* a `generator` (`validate_level` accepts either;
+`load_jobs` prefers the explicit list). This lets `dojo import-trace` wrap a sacct CSV directly, and lets
+calibrated puzzles (preempt/route, where priority/`home_site`/`submit_time` must be hand-controlled) be
+honest puzzles rather than awkward generator draws. Trade-off: two level sources to validate. See
+[[scheduler_dojo-sim-level]], [[Concepts/Levels]].
+
+## 2026-09-24 — Belts track lifetime credits, not balance `[agent decision]`
+The belt is a function of *lifetime* credits, so spending on upgrades never demotes you. Spending is a
+choice that should not punish progress. Balance (spendable) and lifetime (belt) are separate counters.
+
+## 2026-09-24 — Owned upgrades are the source of truth for Kata tiers `[agent decision]`
+Kata play enables tiers as `level.unlocks ∩ owned` (owned tiers come from the progression shop), so a
+level listing a tier is a *ceiling*, and the upgrade shop actually gates the language. Keeps the level
+JSON declarative while making the economy meaningful. See [[scheduler_dojo-progression]].
