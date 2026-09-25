@@ -9,6 +9,9 @@ import { bridge, BridgeError, formatKataErrors, type Level, type RunResult } fro
 import { HandGame } from "./hand";
 import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
+import * as progression from "./progression";
+import { mountHud, type HudHandle } from "./hud";
+import { mountShop, type ShopHandle } from "./shop";
 import { formatTime, mountTimeline, type TimelineHandle } from "./render/timeline";
 import type { Stage, WorkerEvent } from "./worker";
 
@@ -107,6 +110,7 @@ let hand: HandGame | null = null;
 let kata: KataPlayHandle | null = null;
 
 // Hand/kata chrome built at boot (index.html stays untouched).
+let hudBox: HTMLElement;
 let modePicker: HTMLElement;
 let levelPicker: HTMLElement;
 let handBadge: HTMLElement;
@@ -117,6 +121,13 @@ let kataPanel: HTMLElement;
 let kataStage: HTMLElement;
 const modeButtons = new Map<Mode, HTMLButtonElement>();
 const levelButtons = new Map<string, HTMLButtonElement>();
+
+// Stage 7: progression HUD + upgrade shop (mounted once at boot).
+let hud: HudHandle | null = null;
+let shop: ShopHandle | null = null;
+/** A watch run whose completion is pending (recorded shortly after the app paints, so the HUD's
+ * first frame shows the pre-run state; deduped per level+seed so reloads never farm credits). */
+let pendingWatchRecord: (() => Promise<void>) | null = null;
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(new URL(path, document.baseURI).href);
@@ -135,10 +146,13 @@ async function main(): Promise<void> {
   const savedMode = prefs.mode as string | undefined;
   mode = savedMode === "hand" || savedMode === "kata" ? savedMode : "watch";
   buildChrome();
+  mountProgressionChrome();
+  await applyDriftOnBoot();
   const start = typeof prefs.level === "string" && LEVELS.includes(prefs.level) ? prefs.level : "level1";
   await loadLevel(start);
   dom.app.hidden = false;
   dom.loader.hidden = true;
+  flushPendingWatchRecord();
 }
 
 function levelId(): string {
@@ -184,6 +198,10 @@ function buildChrome(): void {
   handBadge.hidden = true;
   (dom.title.parentElement ?? dom.title).append(handBadge);
 
+  hudBox = document.createElement("div");
+  hudBox.className = "hud-slot";
+  header.append(hudBox);
+
   handPanel = document.createElement("section");
   handPanel.className = "panel";
   handPanel.hidden = true;
@@ -203,6 +221,50 @@ function buildChrome(): void {
   kataStage = document.createElement("div");
   kataPanel.append(kataHeading, kataStage);
   dom.app.insertBefore(kataPanel, timelinePanel);
+}
+
+/** Mount the HUD + shop once, then run the offline-drift "welcome back" once per boot. */
+function mountProgressionChrome(): void {
+  shop = mountShop({
+    onChange: () => {
+      void hud?.refresh().catch(fail);
+      void applyProgressionUnlocks().catch(fail); // freshly bought tiers widen the kata unlocks
+    },
+  });
+  hud = mountHud(hudBox, { onOpenShop: () => shop?.open() });
+}
+
+/** Offline drift on load: award idle credits (engine-capped) and toast a subtle welcome back. */
+async function applyDriftOnBoot(): Promise<void> {
+  const firstBoot = progression.getProgression() === null;
+  const { award } = await progression.drift();
+  if (!firstBoot && award > 0) hud?.announce(`welcome back +${award} credits`);
+  await hud?.refresh().catch(fail);
+}
+
+/** Level unlocks the player has earned: the level's own tiers ∪ the upgrades they own. */
+async function applyProgressionUnlocks(): Promise<void> {
+  const view = await progression.view();
+  const base = Array.isArray(level.unlocks) ? (level.unlocks as string[]) : ["core"];
+  level.unlocks = [...new Set([...base, ...view.unlocked])].sort();
+}
+
+/** Record the pending watch-run completion (once) a beat after the app became visible. */
+function flushPendingWatchRecord(): void {
+  const record = pendingWatchRecord;
+  pendingWatchRecord = null;
+  if (record) window.setTimeout(() => void record().catch(fail), 3000);
+}
+
+/** Feed a finished run into progression (credits) and repaint the HUD. */
+async function recordCompletion(run: RunResult, dedupeBySeed: boolean): Promise<void> {
+  try {
+    if (dedupeBySeed && progression.hasPass(levelId(), run.seed)) return;
+    await progression.complete(levelId(), run.score ?? 0, run.seed);
+    await hud?.refresh();
+  } catch (error) {
+    console.warn("progression completion failed", error);
+  }
 }
 
 /** Is a mode available for the level currently loaded? */
@@ -226,6 +288,7 @@ function paintControls(): void {
 
 async function loadLevel(id: string): Promise<void> {
   level = await fetchJson<Level>(`levels/${id}.json`);
+  await applyProgressionUnlocks().catch(() => undefined); // owned upgrades gate kata tiers
   levelDuration = Number(level.duration ?? 0);
   dom.title.textContent = String(level.title ?? level.id ?? "Level");
   dom.story.textContent = String(level.story ?? "");
@@ -254,12 +317,14 @@ async function setMode(next: Mode): Promise<void> {
   else if (next === "kata") await enterKata();
   else await enterWatch();
   paintControls();
+  flushPendingWatchRecord();
 }
 
 async function setLevel(id: string): Promise<void> {
   if (id === levelId()) return;
   saveStore({ prefs: { level: id } });
   await loadLevel(id);
+  flushPendingWatchRecord();
 }
 
 function destroyModes(): void {
@@ -301,7 +366,14 @@ async function enterWatch(): Promise<void> {
     }),
   );
   // Prefer the kata run as the opening view: an idle run has nothing on the lanes but ticks.
-  show(variants.findIndex((variant) => variant.key === "kata") > 0 ? variants.length - 1 : 0);
+  const opening = variants.findIndex((variant) => variant.key === "kata") > 0 ? variants.length - 1 : 0;
+  show(opening);
+  // A watch run "completes" the level once per seed (engine-tracked `passes` dedupe: page reloads
+  // never farm credits from automatic runs). Recorded after the app paints; see flushPending.
+  const watchRun = variants[opening]!.run;
+  pendingWatchRecord = async () => {
+    if (!progression.hasPass(levelId(), watchRun.seed)) await recordCompletion(watchRun, true);
+  };
 }
 
 /** Hand mode: mount the HandGame controller (it mounts the gauges itself). */
@@ -316,6 +388,7 @@ async function enterHand(): Promise<void> {
     onFinished: (run) => {
       // renderReadout already appends the persisted-best line for hand runs.
       renderReadout({ key: "hand", label: "hand", run });
+      void recordCompletion(run, false).catch(fail);
     },
   });
 }
@@ -327,6 +400,7 @@ async function enterKata(): Promise<void> {
     timeline: dom.timeline,
     onRun: (run) => {
       renderReadout({ key: "kata", label: "kata", run });
+      void recordCompletion(run, false).catch(fail);
     },
   });
 }

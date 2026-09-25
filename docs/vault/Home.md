@@ -26,6 +26,20 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
+**Stage 7 (Progression) & Stage 6 (Full kata play) — done.** Stage 6 adds a "Write a kata" mode
+(CodeMirror editor, lexer-mirrored highlighting, inline `check_kata` errors, kata library, Run/Step).
+Stage 7 adds the progression HUD (belt chip, credits, next-belt hint) + upgrade shop, backed by the
+progression engine via the bridge and persisted to localStorage. Belts track *lifetime* credits
+(spending never demotes); offline **drift** grants a welcome-back on load; owned upgrades
+(reserve/sensors/fairness/preempt/route) gate the matching Kata tiers. Both screenshot-verified
+(backfill kata → gold 800; buy Reservations 105→45 cr with correct gating; reload restores credits).
+
+**Stage 8 (engine + levels 6–9) — done.** Real **preemption** (`Scheduler.preempt`, epoch-guarded
+stale-FINISH), multi-site **routing** (`route`/`transfer_secs`/site-aware `first_fit`), and **trace
+import** (`dojo import-trace`, explicit-jobs levels); `dojo verify-card` + `share_encode`/`share_replay`
+(Stage 9 engine). Levels 6 (partitions/tags), 7 (preempt), 8 (two-site route), 9 (capstone) are
+calibrated fixed-seed puzzles whose reference katas beat FIFO. The Stage-9 share *UI* + PNG card remain.
+
 **Stage 5 (Hand placement) — done.** A manual-placement bridge API (`hand_start/place/tick/result`, a
 no-op manual policy with a read-only FIFO `suggestions` hint) drives a click-to-place UI: queue chips,
 node lanes, a Place/cancel confirm bar, live utilization + queue gauges, and Finish → scorecard +
@@ -68,8 +82,8 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 4 | Pyodide bridge + web shell: `bridge.py`, wheel build, Vite app, worker, timeline, Node smoke test | ✅ done |
 | 5 | Hand placement playable (levels 1–2), drag-and-drop, gauges, localStorage | ✅ done |
 | 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | ✅ done |
-| 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | planned |
-| 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | ◐ engine (preempt + trace import) done; levels/route pending |
+| 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | ✅ done |
+| 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | ✅ engine + levels done (share/PNG UI is Stage 9) |
 | 9 | Share cards: encode/decode, replay-verify, PNG card, `dojo verify-card` | planned |
 | 10 | Polish, a11y, Pages deploy, README/researchers page, final vault sweep | planned |
 

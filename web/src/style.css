@@ -748,3 +748,280 @@ ul.kata-errors {
     flex-basis: 100%;
   }
 }
+
+/* --- Stage 7: progression HUD (belt chip, credits, next-belt hint) --------------------- */
+
+.hud {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hud-slot {
+  display: flex;
+  align-items: center;
+}
+
+.hud-belt {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #1b2431;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Belt chip colors (light belts carry dark text for contrast). */
+.hud-belt.belt-white {
+  background: #e8edf4;
+  border-color: #cbd5e1;
+  color: #0d1117;
+}
+
+.hud-belt.belt-yellow {
+  background: #e5b93c;
+  border-color: #f0d27a;
+  color: #211a05;
+}
+
+.hud-belt.belt-orange {
+  background: #d9772f;
+  border-color: #f0a468;
+  color: #1d0f04;
+}
+
+.hud-belt.belt-green {
+  background: var(--good);
+  border-color: #63d3a1;
+  color: #042013;
+}
+
+.hud-belt.belt-blue {
+  background: var(--accent);
+  border-color: #8fb6fb;
+  color: #05122b;
+}
+
+.hud-belt.belt-purple {
+  background: #8b5cf6;
+  border-color: #b79bfb;
+  color: #150829;
+}
+
+.hud-belt.belt-brown {
+  background: #8a5a34;
+  border-color: #b8865d;
+  color: #fdf1e6;
+}
+
+.hud-belt.belt-black {
+  background: #0b0f14;
+  border-color: #6b7688;
+  color: #ffd86e;
+}
+
+.hud-credits {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.hud-next {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-shop-button {
+  background: #1b2431;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.hud-shop-button:hover {
+  border-color: var(--accent);
+}
+
+/* --- toasts (welcome-back drift grants) --------------------------------------------- */
+
+.hud-toasts {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 60;
+  display: grid;
+  gap: 6px;
+}
+
+.hud-toast {
+  background: #16202c;
+  border: 1px solid var(--good);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+/* --- Stage 7: upgrade shop modal ------------------------------------------------------ */
+
+.shop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background: rgb(5 8 12 / 0.72);
+  padding: 18px;
+}
+
+.shop-overlay[hidden] {
+  display: none;
+}
+
+.shop-panel {
+  width: min(760px, 96vw);
+  max-height: 88vh;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.shop-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.shop-head h2 {
+  margin: 0;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shop-purse {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.shop-close {
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+
+.shop-close:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.shop-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #131b25;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.shop-card.owned {
+  border-color: var(--good);
+}
+
+.shop-card.buyable {
+  border-color: var(--accent);
+}
+
+.shop-card.locked,
+.shop-card.poor {
+  opacity: 0.72;
+}
+
+.shop-card h3 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.shop-cost {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--warn);
+}
+
+.shop-blurb {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.shop-tier {
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
+.shop-state {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.shop-state.buyable {
+  color: var(--accent);
+}
+
+.shop-state.owned {
+  color: var(--good);
+}
+
+.shop-buy {
+  margin-top: auto;
+  background: #1b2431;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.shop-buy:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.shop-error {
+  grid-column: 1 / -1;
+  color: #ff7b72;
+  font-size: 12px;
+}

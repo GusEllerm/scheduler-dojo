@@ -352,13 +352,33 @@ sig = "8e781e03d7ff75e3"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
+target = "src/scheduler_dojo/bridge.py#check_kata"
+sig = "32d95ae87548eccb"
+
+[[bindings]]
+doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/bridge.py#run"
 sig = "593658e158d08307"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
+target = "src/scheduler_dojo/bridge.py#share_encode"
+sig = "fdd1925a1b8a917b"
+
+[[bindings]]
+doc = "docs/vault/Home.md"
+target = "src/scheduler_dojo/bridge.py#share_replay"
+sig = "8ebcd406eb2b54eb"
+
+[[bindings]]
+doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/kata/policy.py#KataPolicy"
 sig = "411bc2b56e42ed95"
+
+[[bindings]]
+doc = "docs/vault/Home.md"
+target = "src/scheduler_dojo/sim/cluster.py#Cluster"
+sig = "5deaf7fb798b9874"
 
 [[bindings]]
 doc = "docs/vault/Home.md"

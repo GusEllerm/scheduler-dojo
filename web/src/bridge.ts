@@ -76,6 +76,39 @@ export function formatKataErrors(errors: readonly (KataError | string)[]): strin
     .join("; ");
 }
 
+// --- progression (Stage 7; bridge.py progression_*) -------------------------------------
+
+/** The persisted progression state (see `scheduler_dojo.progression`); the client owns storage. */
+export interface ProgressionState {
+  version: number;
+  credits: number;
+  lifetime: number;
+  levels: Record<string, { best: number; gold: boolean; passes: number[] }>;
+  upgrades: string[];
+  last_seen: number;
+  /** Transient per-call extras the engine attaches (awards); not part of the saved contract. */
+  _last_award?: number;
+  _drift_award?: number;
+}
+
+export interface UpgradeInfo {
+  cost: number;
+  requires: string[];
+  unlocks: string[];
+  owned: boolean;
+  buyable: boolean;
+}
+
+/** What `progression_view` returns — a read-only HUD snapshot. */
+export interface ProgressionView {
+  belt: string;
+  next_belt: [string, number] | null;
+  credits: number;
+  lifetime: number;
+  unlocked: string[];
+  upgrades: Record<string, UpgradeInfo>;
+}
+
 /** A level document (the JSON in levels/*.json); kept loose — Python validates it. */
 export type Level = Record<string, unknown> & { id?: string; seed?: number };
 
@@ -206,6 +239,30 @@ export class DojoBridge {
   /** Finish the manual run: metrics + jobs + hash (identical determinism to any run). */
   handResult(handle: number): Promise<HandResultPayload> {
     return this.call<HandResultPayload>("hand_result", { handle });
+  }
+
+  // --- progression (Stage 7; bridge.py progression_*) ------------------------------------
+
+  /** Read-only HUD snapshot. `state` null ⇒ the engine migrates a fresh one for the view. */
+  progressionView(state: ProgressionState | null, now = 0): Promise<ProgressionView> {
+    return this.call<ProgressionView>("progression_view", { state, now });
+  }
+
+  /** Record a finished level run; returns the NEW state (credits awarded) to persist. */
+  progressionCompletion(state: ProgressionState | null, levelId: string, score: number, seed: number): Promise<ProgressionState> {
+    return this.call<ProgressionState>("progression_completion", {
+      state, level_id: levelId, score, seed,
+    });
+  }
+
+  /** Buy an upgrade; the engine raises unless `buyable` — check the view first. */
+  progressionBuy(state: ProgressionState | null, upgradeId: string): Promise<ProgressionState> {
+    return this.call<ProgressionState>("progression_buy", { state, upgrade_id: upgradeId });
+  }
+
+  /** Offline welcome-back credits since `last_seen` (capped); returns the NEW state. */
+  progressionDrift(state: ProgressionState | null, now: number): Promise<ProgressionState> {
+    return this.call<ProgressionState>("progression_drift", { state, now });
   }
 
   /** Tear the worker down (page teardown / tests). */

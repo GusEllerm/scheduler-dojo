@@ -27,6 +27,11 @@ export interface Store {
   version: number;
   progress: Record<string, LevelProgress>;
   prefs: Prefs;
+  /**
+   * Stage 7: the engine-shaped progression state (`scheduler_dojo.progression` owns the rules;
+   * we just store the dict the bridge returns). Loose on purpose — the engine migrates it.
+   */
+  progression?: Record<string, unknown>;
 }
 
 /** A partial document accepted by `save()` — same shape, everything optional. */
@@ -107,10 +112,14 @@ export function levelProgress(levelId: string): LevelProgress {
 function normalize(doc: Record<string, unknown>): Store {
   const progress = doc.progress;
   const prefs = doc.prefs;
+  const progression = doc.progression;
   return {
     version: typeof doc.version === "number" ? doc.version : VERSION,
     progress: typeof progress === "object" && progress !== null ? (progress as Record<string, LevelProgress>) : {},
     prefs: typeof prefs === "object" && prefs !== null ? (prefs as Prefs) : {},
+    ...(typeof progression === "object" && progression !== null && !Array.isArray(progression)
+      ? { progression: progression as Record<string, unknown> }
+      : {}),
   };
 }
 
