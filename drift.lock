@@ -153,7 +153,7 @@ sig = "9708b56589b17bff"
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
 target = "src/scheduler_dojo/sim/level.py#validate_level"
-sig = "8bde596e09df8942"
+sig = "d0250ce74322dd3c"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -163,7 +163,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -538,7 +538,7 @@ sig = "5deaf7fb798b9874"
 [[bindings]]
 doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/sim/level.py#validate_level"
-sig = "8bde596e09df8942"
+sig = "d0250ce74322dd3c"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
@@ -548,7 +548,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
@@ -788,7 +788,7 @@ sig = "9708b56589b17bff"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
 target = "src/scheduler_dojo/sim/level.py#run_level"
-sig = "eb3fedd1f6263b05"
+sig = "3d20f050a688e30e"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
