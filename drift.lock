@@ -123,7 +123,7 @@ sig = "1e3a815e1592225b"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/bridge.py#hand_start"
-sig = "5f5dab47e77b8f73"
+sig = "3e72036f73ccff9a"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -418,7 +418,7 @@ sig = "fb613de5f2de909d"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/bridge.py#hand_start"
-sig = "5f5dab47e77b8f73"
+sig = "3e72036f73ccff9a"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
