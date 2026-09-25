@@ -208,12 +208,12 @@ sig = "8340c65483615c2a"
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
 target = "src/scheduler_dojo/bridge.py#step_result"
-sig = "90a88352ad7151cd"
+sig = "fab47af691e88089"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
