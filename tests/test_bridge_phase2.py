@@ -108,3 +108,20 @@ def test_hand_snapshots_track_the_week_calendar():
     assert st["week"] == 1 and st["now"] < 7000  # still week one (stride 1000, 7 days)
     st = bridge.hand_tick(h)["state"]            # the t=7200 arrival crosses the boundary
     assert st["week"] == 2, st
+
+
+def test_endless_level_is_stepable_and_matches_endless_run():
+    """Art 7: the campus steps endless — the builder must feed validate/start and replay identical
+    to the one-shot endless_run."""
+    growth = {"base_qps": 0.001, "growth_per_day": 1.5, "growth": {"days": 3, "horizon": 6000}}
+    lvl = bridge.endless_level(growth, seed=2)
+    assert bridge.validate_level(lvl)["ok"]
+    one = bridge.endless_run(growth, seed=2, policy="fifo")["summary"]["served"]
+    h = bridge.start({"level": lvl, "seed": 2, "policy": "fifo"})["handle"]
+    served = 0
+    for _ in range(500):
+        out = bridge.step(h)
+        if out["finished"]:
+            served = out["summary"]["served"]
+            break
+    assert served == one

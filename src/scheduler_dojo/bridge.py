@@ -479,9 +479,10 @@ def tutorial_run(ref: str = "city1", policy: str = "fifo", kata: Any | None = No
     return run(load_city_level(ref), policy=policy, kata=kata, trace=trace)
 
 
-def endless_run(growth: dict, seed: int = 0, policy: str = "fifo",
-                kata: Any | None = None, trace: int = 0) -> dict:
-    """Run seeded endless growth (§5.7) as an inline level; the same seed replays identically."""
+def endless_level(growth: dict, seed: int = 0) -> dict:
+    """The inline LEVEL for seeded endless growth (§5.7) — so the campus can *step* it like any
+    other level instead of pre-running it. Same seed ⇒ byte-identical job stream, the same rule
+    the one-shot `endless_run` has."""
     from scheduler_dojo.sim.endless import DEFAULT_HORIZON, generate_endless_jobs
 
     jobs = generate_endless_jobs(int(seed), growth)
@@ -490,13 +491,20 @@ def endless_run(growth: dict, seed: int = 0, policy: str = "fifo",
     horizon = int((growth.get("growth") or {}).get("horizon",
                                                    growth.get("horizon", DEFAULT_HORIZON)))
     nodes = growth.get("cluster", {"nodes": [{"id": f"e{i}", "cpus": 8} for i in range(4)]})
-    lvl = {"id": "endless", "title": "Endless", "cluster": nodes,
-           "jobs": [{"id": j.id, "user": j.user, "submit_time": j.submit_time,
-                     "nodes_req": j.nodes_req, "walltime_req": j.walltime_req,
-                     "actual_runtime": j.actual_runtime}
-                    for j in jobs],
-           "duration": horizon,
-           "pressure": growth.get("pressure", {"cap": 2, "end_on_overflow": True})}
+    return {"id": "endless", "title": "Endless", "cluster": nodes,
+            "jobs": [{"id": j.id, "user": j.user, "submit_time": j.submit_time,
+                      "nodes_req": j.nodes_req, "walltime_req": j.walltime_req,
+                      "actual_runtime": j.actual_runtime}
+                     for j in jobs],
+            "duration": horizon,
+            "seed": int(seed),
+            "pressure": growth.get("pressure", {"cap": 2, "end_on_overflow": True})}
+
+
+def endless_run(growth: dict, seed: int = 0, policy: str = "fifo",
+                kata: Any | None = None, trace: int = 0) -> dict:
+    """Run seeded endless growth (§5.7) as an inline level; the same seed replays identically."""
+    lvl = endless_level(growth, seed)
     return run(lvl, seed=seed, policy=policy, kata=kata, trace=trace)
 
 
@@ -541,7 +549,7 @@ _DISPATCH = {
     "progression_buy": progression_buy, "progression_drift": progression_drift,
     "calendar_at": calendar_at, "watch_plan": watch_plan,
     "offers_list": offers_list, "offer_accept": offer_accept, "progression_grant": progression_grant,
-    "tutorial_load": tutorial_load, "tutorial_run": tutorial_run, "endless_run": endless_run,
+    "tutorial_load": tutorial_load, "tutorial_run": tutorial_run, "endless_run": endless_run, "endless_level": endless_level,
     "share_encode": share_encode, "share_replay": share_replay,
 }
 
