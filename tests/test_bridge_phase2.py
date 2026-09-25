@@ -116,12 +116,13 @@ def test_endless_level_is_stepable_and_matches_endless_run():
     growth = {"base_qps": 0.001, "growth_per_day": 1.5, "growth": {"days": 3, "horizon": 6000}}
     lvl = bridge.endless_level(growth, seed=2)
     bridge.validate_level(lvl)  # raises LevelError if the builder emitted a bad level
-    one = bridge.endless_run(growth, seed=2, policy="fifo")["summary"]["served"]
+    one = bridge.endless_run(growth, seed=2, policy="fifo")
     h = bridge.start({"level": lvl, "seed": 2, "policy": "fifo"})["handle"]
-    served = 0
-    for _ in range(500):
+    final = None
+    for _ in range(2000):
         out = bridge.step(h)
         if out["finished"]:
-            served = out["summary"]["served"]
+            final = out["summary"]
             break
-    assert served == one
+    assert final is not None and final["trajectory_hash"] == one["trajectory_hash"]
+    assert final["end_time"] == one["end_time"]
