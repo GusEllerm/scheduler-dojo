@@ -226,8 +226,11 @@ def run_level(level: dict[str, Any], *, seed: int | None = None, policy: str | N
     _LATE[0] = sched
     if sched_out is not None:
         sched_out["sched"] = sched
-    duration = level.get("duration")
-    return sched.run(until=duration)
+    # `duration` is a run LENGTH, applied t0-relative — the engine clamps `until=None` to
+    # `t0 + horizon` in every advance path (run, step_events, run_until). Passing the raw
+    # absolute `duration` here only agreed with the tick/step bounds while t0 == 0; endless
+    # streams start at t0 > 0 and the two definitions diverged (stepped ran past the horizon).
+    return sched.run()
 
 
 def fifo_policy():

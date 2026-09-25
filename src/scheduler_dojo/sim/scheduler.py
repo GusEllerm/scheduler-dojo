@@ -392,6 +392,12 @@ class Scheduler:
         decision) until the heap empties, the horizon `until` is reached, or `max_batches` batches
         are done. Returns True iff the heap is empty (run finished). Shared by `run`, `step_events`,
         and `run_until` so a stepped run is bit-for-bit identical to a full one."""
+        # The engine owns the horizon in EVERY advance path, not just `run` (F1 generalized):
+        # `step_events`/`run_until` passing `until=None` must truncate exactly where a canonical
+        # run would — stepping past `t0 + horizon` lets pressure (and anything time-bounded)
+        # observe events the canonical trajectory never contains.
+        if until is None and self.horizon is not None and self.horizon > 0:
+            until = self._t0 + self.horizon
         batches = 0
         if self.overflow_user is not None and self.pressure_end:
             # Patience already ran out and the level ends on overflow: the run is over.
