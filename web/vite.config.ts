@@ -27,8 +27,10 @@ function serveLevels(): Plugin {
 }
 
 export default defineConfig({
-  // `public/` (with public/wheels/*.whl staged by scripts/build_wheel.sh) is served at `/` in
-  // dev and copied verbatim into `dist/` on build — the worker installs the wheel from there.
+  // `public/` (with public/wheels/*.whl staged by scripts/build_wheel.sh AND public/levels copied by
+  // scripts/copy-levels.mjs) is served at `/` in dev and copied verbatim into `dist/` on build.
+  // base './' makes built asset URLs relative, so the site works under a GitHub-Pages subpath.
+  base: "./",
   publicDir: "public",
   plugins: [serveLevels()],
   server: { host: "127.0.0.1", port: 5173 },

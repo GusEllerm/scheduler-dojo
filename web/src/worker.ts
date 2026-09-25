@@ -11,7 +11,7 @@
  */
 
 import type { PyodideInterface } from "pyodide";
-import { PYODIDE_ESM_URL, PYODIDE_INDEX_URL, PYODIDE_VERSION, WHEEL_NAME, WHEEL_URL } from "./version";
+import { PYODIDE_ESM_URL, PYODIDE_INDEX_URL, PYODIDE_VERSION, WHEEL_NAME, wheelUrlFor } from "./version";
 
 /** Anything the loading screen can act on. */
 export type WorkerEvent =
@@ -127,7 +127,8 @@ async function boot(): Promise<void> {
   await py.loadPackage("micropip");
 
   status("wheel", `installing ${WHEEL_NAME}`);
-  await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(WHEEL_URL)})`);
+  const wheelUrl = wheelUrlFor(import.meta.url, WHEEL_NAME);
+  await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(wheelUrl)})`);
   uninstrumentFetch();
 
   status("bridge", "importing scheduler_dojo.bridge");

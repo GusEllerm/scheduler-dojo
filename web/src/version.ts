@@ -17,23 +17,14 @@ export const PYODIDE_ESM_URL = `${PYODIDE_INDEX_URL}pyodide.mjs`;
 /** Versioned wheel name staged by scripts/build_wheel.sh into web/public/wheels/. */
 export const WHEEL_NAME = "scheduler_dojo-0.1.0-py3-none-any.whl";
 
-/** vite's deploy base ("/" by default). */
-const BASE_URL: string =
-  ((import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL) ?? "/";
-
 /**
- * Absolute wheel URL derived from the *worker's own* location (origin) plus vite's `base` —
- * `public/` is served at that root in dev (`/src/worker.ts`) and in a build
- * (`/assets/worker-<hash>.js`), so this is correct for either layout and cwd-independent.
+ * Subpath-relative path from the worker's own URL to the wheel.
+ * - Built bundle lives at `<base>assets/worker-*.js` → the wheel is `../wheels/<name>`.
+ * - Dev serves the worker at `/src/worker.ts` → the wheel is `../../wheels/<name>` (public root).
+ * A GitHub-Pages project site is served under a subpath (`/scheduler-dojo/`); deriving the wheel URL
+ * from `import.meta.url` (not `location.origin`) is what makes the install work there too.
  */
-export const WHEEL_URL = new URL(`${BASE_URL}wheels/${WHEEL_NAME}`, originOf()).href;
-
-/** Base directory holding the wheel (what micropip installs from). */
-export const WHEELS_BASE = WHEEL_URL.slice(0, WHEEL_URL.lastIndexOf("/") + 1);
-
-function originOf(): string {
-  const href = (self as { location?: Location } | undefined)?.location?.href;
-  if (!href) return "http://localhost/";
-  const url = new URL(href);
-  return `${url.protocol}//${url.host}/`;
+export function wheelUrlFor(workerMetaUrl: string, name: string = WHEEL_NAME): string {
+  const up = workerMetaUrl.includes("/src/") ? "../../" : "../";
+  return new URL(`${up}wheels/${name}`, workerMetaUrl).href;
 }

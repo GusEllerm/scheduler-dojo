@@ -3,15 +3,33 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Scheduler Dojo — web tier</title>
+    <meta
+      name="description"
+      content="Scheduler Dojo — learn batch scheduling (Slurm-style backfill, preemption, fairness) by
+        playing the scheduler yourself, then automating yourself out of the job with a small policy
+        language called a kata."
+    />
+    <title>Scheduler Dojo — play the scheduler, then automate yourself out of the job</title>
     <script type="module" src="/src/main.ts"></script>
   </head>
   <body>
-    <div id="loader" class="loader">
+    <a class="skip-link" href="#timeline">Skip to timeline</a>
+
+    <div class="loader" id="loader">
       <div class="loader-card">
         <h1>Scheduler Dojo</h1>
-        <p class="loader-note" id="loader-note">starting…</p>
-        <div class="loader-bar"><div class="loader-fill" id="loader-fill"></div></div>
+        <p class="loader-note" id="loader-note" role="status" aria-live="polite">starting…</p>
+        <div
+          class="loader-bar"
+          id="loader-bar"
+          role="progressbar"
+          aria-labelledby="loader-note"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <div class="loader-fill" id="loader-fill"></div>
+        </div>
         <ul class="loader-stages" id="loader-stages"></ul>
       </div>
     </div>
@@ -22,16 +40,17 @@
           <h1 id="level-title">Level</h1>
           <p id="level-story" class="muted"></p>
         </div>
-        <div class="run-picker" id="run-picker"></div>
+        <div class="run-picker" id="run-picker" role="group" aria-label="Run variants"></div>
       </header>
 
-      <section class="panel">
-        <div class="readout" id="readout"></div>
+      <section class="panel" aria-labelledby="readout-heading">
+        <h2 class="visually-hidden" id="readout-heading">Run scorecard</h2>
+        <div class="readout" id="readout" role="status" aria-live="polite"></div>
       </section>
 
-      <section class="panel">
-        <h2>Timeline</h2>
-        <div id="timeline"></div>
+      <section class="panel" aria-labelledby="timeline-heading" id="timeline-section">
+        <h2 id="timeline-heading">Timeline</h2>
+        <div id="timeline" tabindex="-1"></div>
       </section>
     </main>
   </body>

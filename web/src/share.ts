@@ -145,6 +145,8 @@ export function mountShareButton(container: HTMLElement, context: ShareContext):
 export function showShareBanner(parent: HTMLElement, ok: boolean, detail: string): HTMLElement {
   const banner = document.createElement("div");
   banner.className = `share-banner ${ok ? "ok" : "bad"}`;
+  banner.setAttribute("role", "status");
+  banner.setAttribute("aria-live", "polite");
   banner.textContent = ok
     ? `replayed from share card — verified ✓ (hash ${detail})`
     : `card tampered / hash mismatch ✗ (${detail})`;
@@ -155,6 +157,8 @@ export function showShareBanner(parent: HTMLElement, ok: boolean, detail: string
 // --- modal -----------------------------------------------------------------------------
 
 let overlay: HTMLElement | null = null;
+/** What had focus before the card modal opened — closing hands the caret back to it. */
+let previousFocus: HTMLElement | null = null;
 
 function openShareModal(context: ShareContext, payload: string, url: string): void {
   closeShareModal();
@@ -165,11 +169,23 @@ function openShareModal(context: ShareContext, payload: string, url: string): vo
   });
   const modal = document.createElement("div");
   modal.className = "share-modal";
+  // A labelled modal dialog (Stage 10 a11y): focus moves in on open, Tab stays inside, Escape closes
+  // (the Escape listener is already registered at the bottom of this function).
+  modal.setAttribute("role", "dialog");
+  modal.setAttribute("aria-modal", "true");
+  modal.setAttribute("aria-labelledby", "share-title");
 
   const heading = document.createElement("h3");
+  heading.id = "share-title";
   heading.textContent = "Share card";
   const canvas = document.createElement("canvas");
   canvas.className = "share-card-canvas";
+  canvas.setAttribute("role", "img");
+  canvas.setAttribute(
+    "aria-label",
+    `Share card for ${context.title} (level ${context.levelId}, seed ${context.seed}, policy `
+      + `${context.policy})${context.run.score === undefined ? "" : `, score ${context.run.score}`}.`,
+  );
   drawShareCard(canvas, {
     title: context.title,
     levelId: context.levelId,
@@ -191,12 +207,16 @@ function openShareModal(context: ShareContext, payload: string, url: string): vo
   input.type = "text";
   input.readOnly = true;
   input.value = url;
+  input.setAttribute("aria-label", "Share link for this run");
   input.addEventListener("focus", () => input.select());
   const copy = document.createElement("button");
   copy.type = "button";
   copy.textContent = "Copy link";
+  copy.setAttribute("aria-label", "Copy share link to clipboard");
   const status = document.createElement("span");
   status.className = "share-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
   copy.addEventListener("click", () => {
     void copyText(url).then((done) => {
       status.textContent = done ? "link copied ✓" : "select + ⌘C";
@@ -226,6 +246,24 @@ function openShareModal(context: ShareContext, payload: string, url: string): vo
   root.append(modal);
   document.body.append(root);
   overlay = root;
+  previousFocus = document.activeElement as HTMLElement | null;
+  input.focus();
+  modal.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Escape") return; // handled by onKey below
+    if (event.key !== "Tab") return;
+    const items = [...modal.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input")];
+    if (!items.length) return;
+    const first = items[0] as HTMLElement;
+    const last = items[items.length - 1] as HTMLElement;
+    const active = document.activeElement as HTMLElement | null;
+    if (event.shiftKey && (active === first || !modal.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
   window.addEventListener("keydown", onKey, { once: true });
 }
 
@@ -237,6 +275,14 @@ function onKey(event: KeyboardEvent): void {
 function closeShareModal(): void {
   overlay?.remove();
   overlay = null;
+  // The Share button is disabled while the card is minting (so it was not focusable when the modal
+  // opened and `activeElement` was the body) — hand focus back to the button itself in that case.
+  const target =
+    previousFocus && previousFocus !== document.body
+      ? previousFocus
+      : document.querySelector<HTMLElement>(".share-row .share-button");
+  target?.focus?.();
+  previousFocus = null;
 }
 
 async function copyText(text: string): Promise<boolean> {

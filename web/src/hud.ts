@@ -26,6 +26,10 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
 
   const root = document.createElement("div");
   root.className = "hud";
+  // A polite live region: the score/credits line is re-read when it changes (Stage 10 a11y).
+  root.setAttribute("role", "status");
+  root.setAttribute("aria-live", "polite");
+  root.setAttribute("aria-label", "Player progress");
 
   const belt = document.createElement("span");
   belt.className = "hud-belt";
@@ -49,6 +53,9 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
 
   const toastHost = document.createElement("div");
   toastHost.className = "hud-toasts";
+  toastHost.setAttribute("role", "status");
+  toastHost.setAttribute("aria-live", "polite");
+  toastHost.setAttribute("aria-label", "Notifications");
   document.body.append(toastHost);
 
   let toastTimer = 0;
@@ -56,7 +63,9 @@ export function mountHud(container: HTMLElement, options: HudOptions = {}): HudH
   function paint(v: ProgressionView): void {
     belt.textContent = v.belt;
     belt.className = `hud-belt ${BELT_CLASS(v.belt)}`;
+    belt.setAttribute("aria-label", `belt: ${v.belt}`);
     credits.textContent = `${v.credits} cr`;
+    credits.setAttribute("aria-label", `spendable credits: ${v.credits}`);
     next.textContent = v.next_belt ? `→ ${v.next_belt[0]} in ${v.next_belt[1]}` : "top belt";
   }
 

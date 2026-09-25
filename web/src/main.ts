@@ -27,6 +27,8 @@ const dom = {
   loader: must("loader"),
   note: must("loader-note"),
   fill: must("loader-fill") as HTMLElement,
+  /** Optional: the progressbar wrapper around the fill (ARIA only, never fatal if absent). */
+  bar: document.getElementById("loader-bar"),
   stages: must("loader-stages"),
   app: must("app"),
   title: must("level-title"),
@@ -57,6 +59,7 @@ const stageStart = new Map<Stage, number>();
 function paint(note: string, value: number): void {
   shown = Math.max(shown, Math.min(1, value));
   dom.fill.style.width = `${Math.round(shown * 100)}%`;
+  dom.bar?.setAttribute("aria-valuenow", String(Math.round(shown * 100)));
   dom.note.textContent = note;
 }
 
@@ -185,8 +188,12 @@ function buildChrome(): void {
   controls.className = "mode-level-pickers";
   levelPicker = document.createElement("div");
   levelPicker.className = "run-picker";
+  levelPicker.setAttribute("role", "group");
+  levelPicker.setAttribute("aria-label", "Levels");
   modePicker = document.createElement("div");
   modePicker.className = "run-picker";
+  modePicker.setAttribute("role", "group");
+  modePicker.setAttribute("aria-label", "Play mode");
   controls.append(levelPicker, modePicker);
   header.append(controls);
 
@@ -214,11 +221,14 @@ function buildChrome(): void {
   handBadge = document.createElement("span");
   handBadge.className = "hand-badge";
   handBadge.textContent = "hand";
+  handBadge.title = "hand mode — you place the jobs";
   handBadge.hidden = true;
   (dom.title.parentElement ?? dom.title).append(handBadge);
 
   hudBox = document.createElement("div");
   hudBox.className = "hud-slot";
+  hudBox.setAttribute("role", "group");
+  hudBox.setAttribute("aria-label", "Player progress");
   header.append(hudBox);
 
   handPanel = document.createElement("section");
@@ -226,7 +236,11 @@ function buildChrome(): void {
   handPanel.hidden = true;
   const heading = document.createElement("h2");
   heading.textContent = "Play by hand";
+  heading.id = "hand-heading";
+  handPanel.setAttribute("aria-labelledby", "hand-heading");
   handGauges = document.createElement("div");
+  handGauges.setAttribute("role", "group");
+  handGauges.setAttribute("aria-label", "Live cluster gauges");
   handStage = document.createElement("div");
   handPanel.append(heading, handGauges, handStage);
   const timelinePanel = dom.timeline.closest(".panel") ?? dom.timeline;
@@ -237,9 +251,13 @@ function buildChrome(): void {
   kataPanel.hidden = true;
   const kataHeading = document.createElement("h2");
   kataHeading.textContent = "Write a kata";
+  kataHeading.id = "kata-heading";
+  kataPanel.setAttribute("aria-labelledby", "kata-heading");
   kataNotice = document.createElement("div");
   kataNotice.className = "kata-notice";
   kataNotice.hidden = true;
+  kataNotice.setAttribute("role", "status");
+  kataNotice.setAttribute("aria-live", "polite");
   kataStage = document.createElement("div");
   kataPanel.append(kataHeading, kataNotice, kataStage);
   dom.app.insertBefore(kataPanel, timelinePanel);
@@ -487,6 +505,9 @@ function renderHandReadout(): void {
   dom.readout.append(line);
 }
 
+/** A player who asked the OS to reduce motion gets no automatic timeline playback. */
+const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
 function show(index: number): void {
   const variant = variants[index];
   if (!variant) return;
@@ -499,7 +520,34 @@ function show(index: number): void {
   timeline = mountTimeline(dom.timeline, variant.run, {
     passSeconds: 18,
     horizon: levelDuration || undefined,
+    ...(reduceMotion ? { autoplay: false } : {}),
   });
+  labelTimelineRegion(dom.timeline, variant);
+}
+
+/**
+ * ARIA for the canvas timeline (its own module builds the DOM and stays behaviour-only): the canvas
+ * becomes an image with a spoken summary, and the controls that carry no visible name (the speed
+ * select, the scrub slider) get one. The numeric scorecard in `#readout` is an `aria-live` region
+ * and remains the accessible source of truth — the canvas is decoration on top of it.
+ */
+function labelTimelineRegion(host: HTMLElement, variant: Variant): void {
+  const run = variant.run;
+  const horizon = run.end_time || run.jobs.reduce((max, job) => Math.max(max, job.submit), 0);
+  const canvas = host.querySelector("canvas");
+  if (canvas) {
+    canvas.setAttribute("role", "img");
+    canvas.setAttribute(
+      "aria-label",
+      `Timeline of ${run.n_jobs} jobs across ${run.nodes.length} node lanes over ${formatTime(horizon)} `
+        + `(${variant.label}): utilization ${(run.metrics.utilization * 100).toFixed(1)}%, `
+        + `score ${run.score === undefined ? "not scored" : run.score}. Numbers are also listed in the run scorecard.`,
+    );
+  }
+  const scrub = host.querySelector("input[type=range]");
+  if (scrub) scrub.setAttribute("aria-label", "Playhead position in seconds");
+  const speed = host.querySelector("select");
+  if (speed) speed.setAttribute("aria-label", "Playback speed");
 }
 
 function renderReadout(variant: Variant): void {

@@ -4,7 +4,7 @@
   --panel: #151b24;
   --line: #232c39;
   --text: #dbe2ec;
-  --muted: #8b97a8;
+  --muted: #9aa7b8;
   --accent: #4f8ff7;
   --good: #38b17a;
   --warn: #e5a53c;
@@ -962,7 +962,7 @@ ul.kata-errors {
 
 .shop-card.locked,
 .shop-card.poor {
-  opacity: 0.72;
+  opacity: 0.85;
 }
 
 .shop-card h3 {
@@ -1181,4 +1181,74 @@ ul.kata-errors {
 
 .kata-notice[hidden] {
   display: none;
+}
+
+/* --- Stage 10: accessibility ---------------------------------------------------------------
+ * Everything below is presentation-only: a keyboard-visible focus ring, a skip link that only
+ * exists once it has focus, a screen-reader-only heading, and a reduced-motion guard.
+ */
+
+/* A visible focus ring on every interactive control. :focus-visible keeps it off mouse clicks
+   while Tab always shows it; the colour is amber, which clears AA against every surface here. */
+:where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid #ffd479;
+  outline-offset: 2px;
+}
+
+/* The CodeMirror editor (kata source) suppresses the native ring; give it its own. */
+.kata-editor-box .cm-editor.cm-focused {
+  outline: 2px solid #ffd479;
+  outline-offset: 1px;
+}
+
+/* The timeline is a skip-link target (tabindex="-1"), so it needs a *focus* ring, not just
+   focus-visible, for the jump to be visible. */
+#timeline:focus {
+  outline: 3px solid #ffd479;
+  outline-offset: 4px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 12px;
+  top: 12px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid #ffd479;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Respect the OS "reduce motion" setting: no transitions, no pulses, no animated progress fills.
+   (The timeline's playback animation is canvas-driven, so main.ts additionally turns timeline
+   autoplay off under the same media query.) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }

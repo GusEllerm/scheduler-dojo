@@ -38,16 +38,24 @@ export function mountShop(options: ShopOptions = {}): ShopHandle {
 
   const panel = document.createElement("section");
   panel.className = "shop-panel";
+  // A labelled modal dialog (Stage 10 a11y): focus moves in on open, Tab stays inside, Escape closes.
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "true");
+  panel.setAttribute("aria-labelledby", "shop-title");
   const head = document.createElement("div");
   head.className = "shop-head";
   const title = document.createElement("h2");
+  title.id = "shop-title";
   title.textContent = "Upgrade shop";
   const purse = document.createElement("span");
   purse.className = "shop-purse";
+  purse.setAttribute("role", "status");
+  purse.setAttribute("aria-live", "polite");
   const close = document.createElement("button");
   close.type = "button";
   close.className = "shop-close";
   close.textContent = "×";
+  close.setAttribute("aria-label", "Close upgrade shop");
   close.addEventListener("click", () => handle.close());
   head.append(title, purse, close);
 
@@ -62,6 +70,30 @@ export function mountShop(options: ShopOptions = {}): ShopHandle {
 
   let lastView: ProgressionView | null = null;
   let errorLine = "";
+  /** What had focus before the shop opened, so closing returns the player to their cursor. */
+  let lastFocus: HTMLElement | null = null;
+
+  /** Keyboard support for the open dialog: Escape closes, Tab stays inside the panel. */
+  panel.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      handle.close();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const items = [...panel.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input, select")];
+    if (!items.length) return;
+    const first = items[0] as HTMLElement;
+    const last = items[items.length - 1] as HTMLElement;
+    const active = document.activeElement as HTMLElement | null;
+    if (event.shiftKey && (active === first || !panel.contains(active))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 
   let credits = 0;
 
@@ -136,23 +168,36 @@ export function mountShop(options: ShopOptions = {}): ShopHandle {
 
   async function buyNow(id: string): Promise<void> {
     if (!lastView?.upgrades[id]?.buyable) return; // the engine raises otherwise — mirror buyable
+    // The repaint replaces every card; a keyboard player who just pressed Enter on a Buy button
+    // would otherwise lose focus to the body, so put it back on the same card's button.
+    const hadFocus =
+      document.activeElement instanceof HTMLElement && grid.contains(document.activeElement);
     try {
       await progression.buy(id);
       await refresh();
+      if (hadFocus) {
+        const buttons = grid.querySelectorAll<HTMLButtonElement>(".shop-buy");
+        (buttons[ORDER.indexOf(id)] ?? close).focus();
+      }
       options.onChange?.();
     } catch (error) {
       errorLine = `cannot buy: ${error instanceof Error ? error.message : String(error)}`;
       paint();
+      if (hadFocus) close.focus();
     }
   }
 
   const handle: ShopHandle = {
     open() {
+      lastFocus = document.activeElement as HTMLElement | null;
       overlay.hidden = false;
+      close.focus();
       void refresh();
     },
     close() {
       overlay.hidden = true;
+      lastFocus?.focus?.();
+      lastFocus = null;
     },
     refresh,
   };

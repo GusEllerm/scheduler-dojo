@@ -26,6 +26,13 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
+**All 11 stages (0–10) shipped.** The game is live at **https://gusellerm.github.io/scheduler-dojo/**
+(deployed from GitHub Actions via `.github/workflows/pages.yml`; `base:'./'` makes the static build work
+under the Pages subpath, verified end-to-end: engine, all 9 levels, HUD, share). Stage 10 added
+accessibility (landmarks, `aria-live` scorecard/status, labelled dialogs with focus-trap + Escape, a
+skip link, `:focus-visible` rings, `prefers-reduced-motion`), a top-level README, and this final vault
+sweep. 240 tests + a Node smoke test green; CI `test`+`smoke`, `pages` deploy.
+
 **Stage 8 (Levels 6–9 + engine) & Stage 9 (Share cards) — done.** Stage 8 shipped real **preemption**
 (epoch-guarded stale-`FINISH`, no-checkpoint requeue), multi-site **routing** (`route`/`transfer_secs`/
 site-aware `first_fit`), **trace import** (`dojo import-trace`, explicit-`jobs` levels), and four
@@ -94,7 +101,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | ✅ done |
 | 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | ✅ engine + levels done (share/PNG UI is Stage 9) |
 | 9 | Share cards: encode/decode, replay-verify, PNG card, `dojo verify-card` | ✅ done |
-| 10 | Polish, a11y, Pages deploy, README/researchers page, final vault sweep | planned |
+| 10 | Polish, a11y, Pages deploy, README/researchers page, final vault sweep | ✅ done |
 
 ## Deferred
 
