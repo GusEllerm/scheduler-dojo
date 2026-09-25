@@ -382,8 +382,18 @@ sig = "5f5dab47e77b8f73"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/bridge.py#offer_accept"
+sig = "f7f700222c71e320"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/bridge.py#offers_list"
 sig = "3147641edcd763fb"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/bridge.py#progression_grant"
+sig = "95ab336de226c943"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
@@ -404,6 +414,11 @@ sig = "e7cd7588c7bed72c"
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/progression.py#buy"
 sig = "09a11b272073d2a5"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
+target = "src/scheduler_dojo/progression.py#offer_accept"
+sig = "125a5f519d469cf1"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
@@ -1447,6 +1462,11 @@ sig = "5fe29fb4e3deccdc"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#buildings"
+sig = "38bf197b5ddf4f77"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
 target = "src/scheduler_dojo/progression.py#buy"
 sig = "09a11b272073d2a5"
 
@@ -1464,6 +1484,16 @@ sig = "c45876f198205983"
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"
 target = "src/scheduler_dojo/progression.py#next_belt"
 sig = "0e87fbee7537433c"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#offer_accept"
+sig = "125a5f519d469cf1"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-progression.md"
+target = "src/scheduler_dojo/progression.py#offers"
+sig = "d05d0c7c678135ff"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-progression.md"

@@ -21,6 +21,14 @@ credits), and `_migrate` (versioned saves).
   same system. See [[Kata]].
 - **Offline drift is gentle & safe:** `(now - last_seen)` hours, capped, non-negative, monotone
   (`last_seen` only advances) — time-travel can't farm or punish.
+- **Buildings are upgrades wearing hard hats (phase two):** `BUILDINGS` maps each upgrade id to a named
+  campus building (`name`/`blurb`/`anchor`/`tier`) — the week-end offer cards and the campus sprites
+  read the same table. `offer_accept(state, city, week, id)` is the **free** week-end grant: it
+  refuses `"not_offered"` unless that exact boundary's deterministic `offers` pair contains the id
+  (a client cannot hand-pick the tree) and `"accepted"` once `state["weeks"]["city:week"]` is set;
+  credits never move. `buildings(state)` lists what stands on the campus.
+- **Save v3:** the `weeks` ledger (`"city:week" -> upgrade_id`) defaults in on migration from v1/v2;
+  phase-one saves load unchanged.
 - Every function copies its input (`_migrate(dict(state))`), so state updates are pure and testable.
 
 ## Depends on / used by

@@ -39,6 +39,12 @@ tags: [concept, phase-two]
   booth:editor|step`), `offer_upgrade` (`reservations|sensors|fairness|preempt|route`).
 - `then`: `wait_for` (`placed_any` | `sim_secs` | `booth_staffed` | `chosen` | `week_end` | `day`,
   with an optional `timeout_secs` that auto-continues), or `end`.
+- `offer_upgrade` has two shapes: `{forced: id}` — the guided first-use FREE grant (the runner calls
+  `bridge.progression_grant`, credits never move; the city that forces a building INTRODUCES it for
+  the checker's monotonicity rule) — and `{pick_of: 2}` — the honest week-end draw from
+  `progression.offers` (accepted for free via `offer_accept`, which refuses ids that boundary never
+  offered). City scripts exist for all nine cities (`levels/tutorials/city1..9.json`); editions may
+  ADD a `pressure` block (never replace one) so city editions get real patience rings.
 - `level_patch`: a deterministic **city edition** of the canonical level — patching does not change
   the shared calibrated level or its hash (calibration and share cards still refer to `level`);
   the tutorial variant is pinned by the tutorial golden. Whitelisted fields only (`generator`
