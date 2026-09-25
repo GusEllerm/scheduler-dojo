@@ -1375,3 +1375,23 @@ ul.kata-errors {
 /* Keyboard play: the hand campus canvas is focusable, so it needs the same visible ring as every
    other control (Concepts/Accessibility rule 6). */
 .campus-canvas:focus-visible { outline: 3px solid var(--sd-gold); outline-offset: -3px; }
+
+/* ---- phase two, Art 6a: the shared offers overlay + building detail + the offers hatch ---- */
+/* The ONE offers panel (web/src/offers.ts), reused by the tutorial's `pick_of` beat and the live/
+   hand week-end freeze. It centers over the stage and shows each offer as an inspectable building
+   (name + blurb + what it unlocks). Colors are all tokens; nothing here carries meaning by hue
+   alone (Concepts/Accessibility rule 8). */
+.offers-panel { width: min(560px, calc(100% - 24px)); }
+.offers-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 4px 0 8px; }
+.offer-card { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: 10px;
+  border: 1px solid var(--sd-line); background: var(--sd-ground); }
+.offer-text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.offer-text b { font-size: 13px; }
+.offer-blurb { font-size: 12px; color: var(--sd-ink-soft); }
+.offer-unlocks { font-size: 11px; color: var(--sd-ink-soft); font-family: ui-monospace, monospace; }
+.offer-card button { align-self: center; flex: none; }
+/* The pending-offers hatch (week frozen, panel dismissed with "Later"): a persistent, focusable
+   way back to the choice, so a freeze is never a dead end. */
+.campus-controls button[hidden] { display: none; }
+/* A dimmed (unrevealed, tutorial-managed) building reads as a placeholder on the canvas; nothing
+   in the DOM chrome — the sprite itself carries the `?` (campus-render.ts). */

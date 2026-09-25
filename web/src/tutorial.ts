@@ -11,7 +11,7 @@
  */
 
 import { bridge, type Level, type StepState } from "./bridge";
-import { buy as buyUpgrade, getProgression } from "./progression";
+import { getProgression, grant as grantUpgrade } from "./progression";
 import { ruleCards, trapDialog } from "./booth";
 import type { CampusPlay } from "./campus-play";
 
@@ -98,11 +98,6 @@ const BEHIND_WAIT_SECS = 900;
 /** …and by this fraction of the horizon, however tidy, the week is nearly run: behind. */
 const BEHIND_HORIZON_FRACTION = 0.6;
 
-const OFFER_NAMES: Record<string, string> = {
-  reserve: "Reservations", sensors: "Sensors", fairness: "Fairness",
-  preempt: "Preemption", route: "Routing",
-};
-
 export interface TutorialOptions {
   onStatus?: (text: string) => void;
 }
@@ -165,6 +160,10 @@ export class TutorialRunner {
       this.prevStepOnEvent?.(name);
     };
     this.campus.onStep = (state) => this.observe(state);
+    // Art 6a: the stage is tutorial-managed — owned buildings stay dimmed + `?` until revealed,
+    // and the campus suppresses its own week-end overlay for this script's `pick_of` beat (the
+    // pending-offers hatch stays, so a freeze can never strand the run).
+    this.campus.tutorialManaged(true);
     // City 1 hides the booth until the script reveals it; from city 2 on the booth is a
     // standing part of the campus (city 2 opens with it staffed).
     if (this.campus.isHand && Number(this.script.city ?? 1) === 1) this.campus.revealBooth(false);
@@ -309,7 +308,11 @@ export class TutorialRunner {
       this.waitStart = this.now;
       const gate = await this.wait((now) => {
         void now;
-        return this.cond(step.when) ? "ok" : "wait";
+        // "Never hangs": week end releases any gate still waiting on mid-week facts. A hand
+        // campus's clock stops at its last arrival (which can be well before the horizon), so a
+        // gate waiting on an event that can no longer arrive would strand the script forever;
+        // the week-end beat's own `when` (`on_event: week_end`) then resolves normally.
+        return this.cond(step.when) || this.events.has("week_end") ? "ok" : "wait";
       });
       if (this.abort || gate === "skip") return;
       for (const action of step.do ?? []) {
@@ -330,7 +333,10 @@ export class TutorialRunner {
           const main = Object.entries(spec)
             .every(([kind, value]) => kind === "timeout_secs" || kind === "or_then"
               ? true : this.atom(kind, value, this.waitStart, startPlaced));
-          if (main) return "ok";
+          // Week end also releases a still-open `wait_for` (same "clock stops at the last
+          // arrival" reason as the gate above): the script leaps to its week-end beat, where
+          // `wait_for {week_end}` / `when {on_event: week_end}` resolve normally.
+          if (main || this.events.has("week_end")) return "ok";
           if (spec.timeout_secs !== undefined && now >= this.waitStart + Number(spec.timeout_secs)) {
             console.info(`tutorial: wait_for ${JSON.stringify(spec)} timed out — continuing`);
             return "ok";
@@ -399,7 +405,13 @@ export class TutorialRunner {
       return;
     }
     if (action.offer_upgrade) {
-      await this.offers();
+      // Art 6a: two shapes, one beat. `{forced: id}` is the guided first-use FREE grant (the
+      // tutorial IS the campaign economy — credits never move); `{pick_of: 2}` opens the honest
+      // week-end pair, accepted for free through the SAME offers overlay the campus uses.
+      const spec = (typeof action.offer_upgrade === "object" && action.offer_upgrade !== null
+        ? action.offer_upgrade : {}) as Record<string, unknown>;
+      if (typeof spec.forced === "string") await this.forcedGrant(spec.forced);
+      else await this.offers();
       return;
     }
     if ("highlight" in action) {
@@ -469,82 +481,33 @@ export class TutorialRunner {
     });
   }
 
-  /** `offer_upgrade`: the deterministic weekly pair from `offers_list`, take-one. */
-  private async offers(): Promise<void> {
-    let ids: string[] = [];
+  /**
+   * `offer_upgrade {forced: id}` — the guided first-use grant (Art 6a). Goes through the engine's
+   * `progression_grant` (NOT the credit purchase — an id a city forces is introduced there by
+   * definition); taking it fires `upgrade_placed:<id>`, which is what the reveal beat waits on.
+   */
+  private async forcedGrant(id: string): Promise<void> {
     try {
-      const res = await bridge.offersList(getProgression(), this.script.city ?? 1, this.week);
-      ids = res.offers ?? [];
-    } catch (error) {
-      console.warn("tutorial: offers_list failed", error);
-      return;
-    }
-    await new Promise<void>((resolve) => {
-      const overlay = document.createElement("div");
-      overlay.className = "callout-overlay";
-      const panel = document.createElement("section");
-      panel.className = "callout-panel offers-panel";
-      panel.setAttribute("role", "dialog");
-      panel.setAttribute("aria-modal", "true");
-      panel.setAttribute("aria-labelledby", "tutorial-offers-title");
-      const title = document.createElement("h3");
-      title.id = "tutorial-offers-title";
-      title.textContent = "End of week one — take one upgrade";
-      const list = document.createElement("div");
-      list.className = "offers-list";
-      const note = document.createElement("div");
-      note.className = "offers-note";
-      note.setAttribute("role", "status");
-      panel.append(title, list, note);
-      overlay.append(panel);
-      this.campus.stage.append(overlay);
-      for (const id of ids.length ? ids : ["reserve", "sensors"]) {
-        const card = document.createElement("div");
-        card.className = "offer-card";
-        const name = document.createElement("b");
-        name.textContent = OFFER_NAMES[id] ?? id;
-        const take = document.createElement("button");
-        take.type = "button";
-        take.textContent = "Take";
-        take.addEventListener("click", () => {
-          void this.takeUpgrade(id).then((message) => {
-            note.textContent = message;
-          });
-        });
-        card.append(name, take);
-        list.append(card);
+      const res = await grantUpgrade(id);
+      if (!res.ok) {
+        console.warn(`tutorial: grant ${id} refused (${res.reason}) — the beat watchdog continues`);
+        return;
       }
-      const close = document.createElement("button");
-      close.type = "button";
-      close.textContent = "Done";
-      close.addEventListener("click", () => dismiss());
-      list.append(close);
-      const previously = document.activeElement as HTMLElement | null;
-      close.focus();
-      trapDialog(panel, () => dismiss());
-      const dismiss = (): void => {
-        if (!overlay.isConnected) return;
-        overlay.remove();
-        this.openUi = null;
-        this.uiResolve = null;
-        previously?.focus?.();
-        resolve();
-      };
-      this.openUi = { close: dismiss };
-      this.uiResolve = () => dismiss();
-    });
+      this.event(`upgrade_placed:${id}`);
+      void this.campus.refreshBuildings();   // the sprite lands (dimmed until the reveal beat)
+    } catch (error) {
+      console.warn("tutorial: progression_grant failed", error);
+    }
   }
 
-  private async takeUpgrade(id: string): Promise<string> {
-    try {
-      await buyUpgrade(id);
-      // Art 5b: taking the upgrade PLACES the building on the campus — the script's next beat
-      // (`when: {on_event: "upgrade_placed:reserve"}`) waits on exactly that, not on the save file.
-      this.event(`upgrade_placed:${id}`);
-      return `${OFFER_NAMES[id] ?? id} taken.`;
-    } catch {
-      return `${OFFER_NAMES[id] ?? id} is not buyable yet — earn credits; this week passes.`;
-    }
+  /**
+   * `offer_upgrade {pick_of: 2}` — the week-end pair from `offers_list`, take-one, on the ONE
+   * offers overlay component (`offers.ts`), opened through the campus so the take is the free
+   * `offer_accept` at the BOUNDARY week and the traffic unfreezes through `resolveWeek`. Taking
+   * fires `upgrade_placed:<id>`; "Later" closes it unresolved (the pair is recomputable).
+   */
+  private async offers(): Promise<void> {
+    await this.campus.openWeekOffers(this.week, (id) => this.event(`upgrade_placed:${id}`));
   }
 
   // --- the escape hatch ---------------------------------------------------------------------
@@ -582,6 +545,7 @@ export class TutorialRunner {
     this.campus.revealBooth(true);
     this.campus.setLock("none");
     this.campus.setModeChip("");
+    this.campus.tutorialManaged(false);   // Art 6a: hand the reveals + week panel back to the campus
     this.skipButton.remove();
     this.campus.onStep = undefined;
     this.campus.onEvent = this.prevStepOnEvent;

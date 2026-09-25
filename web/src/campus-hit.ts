@@ -5,13 +5,15 @@
  * here — hit boxes are layout, not animation.
  */
 
-import type { Bay, CampusScene, Lot, Neighbourhood, Vehicle } from "./campus";
+import type { Bay, BuildingSprite, CampusScene, Lot, Neighbourhood, Vehicle } from "./campus";
+import { buildingHint } from "./campus";
 
 export type Hit =
   | { kind: "vehicle"; id: string; label: string; detail: string; x: number; y: number }
   | { kind: "bay"; id: string; label: string; detail: string; x: number; y: number }
   | { kind: "neighbourhood"; user: string; label: string; detail: string; x: number; y: number }
   | { kind: "booth"; label: string; detail: string; x: number; y: number }
+  | { kind: "building"; id: string; label: string; detail: string; x: number; y: number }
   | { kind: "lot"; id: string; label: string; detail: string; x: number; y: number }
   | null;
 
@@ -85,6 +87,15 @@ export function hitTest(scene: CampusScene, p: { x: number; y: number }): Hit {
              detail: scene.booth.staffed ? "staffed — running your rules" : "empty — traffic by hand",
              x: scene.booth.x, y: scene.booth.y };
   }
+  // buildings (Art 6): detail card = what it is + how it shows up
+  for (const b of scene.buildings) {
+    if (inBox(p, b)) {
+      return { kind: "building", id: b.id, label: b.name,
+               detail: b.revealed ? `${b.blurb} ${buildingHint(b.id)}`
+                 : "not on campus yet — you will meet it when the week needs it",
+               x: b.x + b.w / 2, y: b.y };
+    }
+  }
   // lots (background of bays)
   for (const lot of scene.lots) {
     if (inBox(p, lot)) return { kind: "lot", id: lot.id, label: `${lot.id} lot`, detail: lot.material, x: p.x, y: p.y };
@@ -93,8 +104,8 @@ export function hitTest(scene: CampusScene, p: { x: number; y: number }): Hit {
 }
 
 /** Keyboard focus walk: stable order of all focusable entities (a11y path for the canvas). */
-export function focusOrder(scene: CampusScene): Neighbourhood[] {
-  return [...scene.neighbourhoods];
+export function focusOrder(scene: CampusScene): (Neighbourhood | BuildingSprite)[] {
+  return [...scene.neighbourhoods, ...scene.buildings];
 }
 
 function fmt(t: number): string {

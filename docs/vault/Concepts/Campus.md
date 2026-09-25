@@ -64,12 +64,46 @@ upgrades sorted by id, seeded draw of two — **in the engine/progression module
 replays the upgrade path (§5.8). Credits/belts stay lifetime record, not currency
 ([[Progression]], [[Decision Log]]).
 
+## Week end and buildings on the campus (Art 6a)
+
+**The freeze is the campus's, not a timer's.** `CampusPlay` asks `calendar_at` once at run start
+(where week 1 ends) and watches every snapshot's `week`/`now` (`weekTick`): at the boundary
+traffic freezes (live: the rAF loop parks; hand: `Time \u25b6` disables, and pressing it re-opens the
+choice), the two offers open via the ONE offers overlay component (`web/src/offers.ts`, reused
+verbatim by the tutorial's `pick_of` beats), and taking one is the FREE `offer_accept` — the
+engine refuses an id that boundary never offered (`not_offered`) or a week that already chose
+(`accepted`). Credits never move. "Later" closes the panel but leaves the week unresolved — the
+pair is recomputable — and a focusable **pending-offers hatch** button stays in the campus
+controls so a freeze can never trap the player (it also reopens the panel if the tutorial is
+skipped across a frozen week: `tutorialManaged(false)`). Resolving moves the cursor to
+`frozenWeek + 1` and asks `calendar_at` where the NEXT boundary is; a run that finished while the
+choice was pending lands its result then (`pendingFinish`), so no turn ends broken. The freeze
+itself also fires the `week_end` tutorial event: hand snapshots pin `week: 1` (hand sessions
+register no level for the snapshot calendar), so a runner watching snapshots alone could miss the
+boundary its beats gate on. The whole feature is inert in the manual visual harness
+(`manual: true`), which is why the Art 3 baselines are byte-identical after Art 6a.
+
+**Buildings are sprites, not a shop.** `progression_view.buildings` (owned upgrades, one table
+with the offer cards — `BUILDINGS`) feeds `LayoutInput.buildings`; `campus.ts` resolves each
+engine `anchor` (`lot`/`road`/`neighbourhood`/`edge`) to a deterministic box and
+`campus-render.ts` paints a flat token sprite per id (cone locker rack, weigh-station scale hut,
+community board, tow truck on its pad, motorway gate), dimmed + `?` while a tutorial has not
+revealed it (non-tutorial owns \u21d2 revealed). A new sprite lands with a caller-side pop
+(`pulseAnchor("building:<id>")`, CSS \u21d2 reduced-motion is static), and hit-testing a building
+shows its name + blurb + `buildingHint` ("how it shows up"). **First-use guidance** is one-shot:
+when a revealed building's mechanic first appears in the scene (a cone, a timeout vehicle, a moved
+ring, a transferring vehicle — never a timer), its callout shows once and the
+`buildingSeen:<id>` pref suppresses it forever. Accepted weeks live in the save's `weeks` ledger
+(v3); `persistence.save`'s merge is additive, so the ledger survives every UI write (verified
+round-trip; see `Sessions/2026-10-02 Phase 2 Art 6.md`).
+
 ## Scene vocabulary (renderer contract)
 
 The TS scene layer owns *sprites and layout only*: `vehicle` (job + state: queued/chosen/reserved/
 running/done/timeout/preempted/transferring), `bay`, `lot`, `neighbourhood`, `ring`, `booth`,
-`building`, `road`, `motorway`. It builds from bridge snapshots, **interpolates** between ticks, and
-derives no judgement. Hit-test targets: vehicle, bay, building, ring → detail cards. If the snapshot
+`building`, `road`, `motorway`. `buildings` (Art 6a) is `{id, name, blurb, anchor, revealed,
+box}[]` — empty by default, so the visual harness never sprouts sprites. It builds from bridge
+snapshots, **interpolates** between ticks, and derives no judgement. Hit-test targets: vehicle, bay, building, ring → detail cards. If the snapshot
 lacks a fact (e.g. true placements), that is an engine bug to fix in [[scheduler_dojo-bridge]], not
 a renderer workaround — the phase-one lane repack is the cautionary tale.
 

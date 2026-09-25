@@ -9,12 +9,16 @@
  * Nothing here decides: placement truth, order, rings, and the calendar all come from the engine.
  */
 
-import { bridge, BridgeError, type HandSuggestions, type Level, type RunResult, type StepState, type TraceRecord } from "./bridge";
-import { buildScene, type CampusScene, type Cone, type SnapshotLike } from "./campus";
+import { bridge, BridgeError, type BuildingInfo, type HandSuggestions, type Level, type RunResult,
+  type StepState, type TraceRecord, type UpgradeInfo } from "./bridge";
+import { buildScene, buildingHint, type CampusScene, type Cone, type SnapshotLike } from "./campus";
 import { bayBox, hitTest, vehicleBox } from "./campus-hit";
 import { misfitReason, whyRows, WHY_EMPTY, type JobFacts } from "./campus-why";
 import { boothCards, openBoothDialog, saveBoothChoice, type BoothDialogHandle } from "./booth";
 import { readTokens } from "./tokens";
+import { acceptOffer, getProgression } from "./progression";
+import { load, save } from "./persistence";
+import { openOffersPanel, type OfferCard, type OfferVerdict, type OffersPanelHandle } from "./offers";
 
 /**
  * Art 5b: how many decision records the engine keeps for the why-panel (`start(trace=N)` — a ring
@@ -116,6 +120,29 @@ export class CampusPlay {
   /** keyboard cursor (Art 5b §7): the vehicle index, then the bay-window offset */
   private kbVehicle = -1;
   private kbBayOffset = 0;
+  /* --- Art 6a: week end, offers as buildings, building sprites (inert in the manual harness, so
+   *     every Art 3 baseline is byte-identical) --------------------------------------------- */
+  /** the visual harness (`manual: true`) drives its own frames: no freeze, no buildings */
+  private harnessMode = false;
+  /** sim time the CURRENT week ends (engine `calendar_at`, §5.6) — never a wall clock */
+  private weekEndAt = Number.POSITIVE_INFINITY;
+  private weekNum = 1;
+  private weekFrozen = false;
+  /** the week that ended (its offers/accept are keyed `city:week` by the engine) */
+  private frozenWeek = 1;
+  private pendingFinish = false;
+  private weekPanel: OffersPanelHandle | null = null;
+  private weekPanelPromise: Promise<void> | null = null;
+  private offersBtn: HTMLButtonElement | null = null;
+  /** building names of the last offers fetch (for the take message) */
+  private readonly offerNames = new Map<string, string>();
+  /** owned buildings (`progression_view.buildings`); ∩ `revealedBuildings` reaches the scene */
+  private buildingDefs: BuildingInfo[] = [];
+  /** tutorial-managed: owned-but-unrevealed buildings draw dimmed + `?`; null = all revealed */
+  private revealedBuildings: Set<string> | null = null;
+  private managedByTutorial = false;
+  private readonly paintedBuildings = new Set<string>();
+  private scenePaintedOnce = false;
 
   private constructor(opts: CampusPlayOptions) {
     this.opts = opts;
@@ -180,6 +207,10 @@ export class CampusPlay {
 
   private async start(): Promise<void> {
     this.plan = await bridge.watchPlan(this.opts.level);
+    // Art 6a: the calendar boundary, the owned buildings, and the pending-offers hatch — all
+    // skipped in the deterministic visual harness (`manual: true`), so Art 3 baselines hold.
+    this.harnessMode = this.opts.manual ?? false;
+    await this.setupArt6();
     if (this.handMode) {
       // Nothing auto-places: the engine validates every hand_place and the scene is built from
       // the same step snapshots the live campus uses (`hand_tick` returns a full `_snapshot`).
@@ -275,6 +306,11 @@ export class CampusPlay {
     pauseBtn.textContent = "Pause";
     pauseBtn.setAttribute("aria-pressed", "false");
     pauseBtn.addEventListener("click", () => {
+      if (this.weekFrozen && !this.paused) {
+        this.showToast("Traffic waits: take one of the week's two offers first.", false);
+        void this.openWeekOffers(this.frozenWeek);
+        return;
+      }
       this.paused = !this.paused;
       if (!this.paused) this.stepMode = false;   // wall-clock pacing is back; stepping is not
       this.syncStepButton();
@@ -310,6 +346,236 @@ export class CampusPlay {
     });
     this.controls.append(pauseBtn, stepBtn, speed);
   }
+
+  /* ------------------------------------------- Art 6a: week end + buildings -- */
+
+  /**
+   * The city this campus is (offers are keyed `city:week`): the digits at the end of the level
+   * id (`level4` → 4 — city editions keep the canonical id, §5.6/city patches). 1 otherwise.
+   */
+  get cityNumber(): number {
+    const m = String(this.opts.level.id ?? "").match(/(\d+)\s*$/);
+    return m ? Number(m[1]) || 1 : 1;
+  }
+
+  /** Engine calendar boundary + owned buildings + the pending-offers hatch (harness: nothing). */
+  private async setupArt6(): Promise<void> {
+    if (this.harnessMode) return;
+    try {
+      const cal = await bridge.calendarAt(0, this.opts.level);
+      this.weekEndAt = cal.week_end;
+      this.weekNum = Math.max(1, cal.week);
+    } catch { /* week detection falls back to the snapshot `week` field in weekTick */ }
+    await this.refreshBuildings();
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = "Week end — offers";
+    btn.title = "traffic is frozen until you take one of the week's two offers";
+    btn.addEventListener("click", () => { void this.openWeekOffers(this.frozenWeek); });
+    btn.hidden = true;
+    this.controls.append(btn);
+    this.offersBtn = btn;
+  }
+
+  /** Re-read the owned buildings (`progression_view.buildings`) and repaint the sprites in. */
+  async refreshBuildings(): Promise<void> {
+    if (this.harnessMode) return;
+    try {
+      const view = await bridge.progressionView(getProgression());
+      this.buildingDefs = view.buildings ?? [];
+    } catch { /* keep the last known set — a failed read must not empty the campus */ }
+    this.repaint();
+  }
+
+  /** The scene list: owned buildings, revealed unless a tutorial is managing reveals. */
+  private sceneBuildings(): NonNullable<Parameters<typeof buildScene>[0]["buildings"]> {
+    return this.buildingDefs.map((b) => ({
+      id: b.id, name: b.name, blurb: b.blurb, anchor: b.anchor,
+      revealed: this.revealedBuildings ? this.revealedBuildings.has(b.id) : true,
+    }));
+  }
+
+  /** Snapshots in: has the engine clock reached the week boundary? (sim time only, §Determinism) */
+  private weekTick(state: StepState): void {
+    if (this.weekFrozen) return;
+    const wk = state.week ?? this.weekNum;
+    if (wk > this.weekNum || (Number.isFinite(this.weekEndAt) && state.now >= this.weekEndAt)) {
+      this.frozenWeek = this.weekNum;          // the week that ENDED is the one that offers
+      this.weekFrozen = true;
+      if (this.handMode) this.paintHandControls();
+      else { this.paused = true; this.syncPauseButton(); }
+      this.setOffersButton(true);
+      this.opts.onStatus?.(`week ${this.frozenWeek} ended — traffic frozen until you take one of the offers`);
+      // The freeze is the engine's week boundary (§5.6) — it IS the `week_end` event. Hand
+      // snapshots pin `week: 1` (hand sessions register no level for the snapshot calendar), so
+      // a runner watching snapshots alone could miss the boundary its waits gate on. Dedup-safe:
+      // TutorialRunner.event() ignores repeats.
+      this.onEvent?.("week_end");
+      if (!this.managedByTutorial) void this.openWeekOffers(this.frozenWeek);
+    }
+  }
+
+  /**
+   * The choice was made (own overlay or the tutorial's beat): unfreeze, move past the boundary,
+   * and ask the engine where the NEXT boundary is. A finished run held by the freeze now lands.
+   */
+  private resolveWeek(): void {
+    if (!this.weekFrozen) return;
+    this.weekFrozen = false;
+    this.weekNum = this.frozenWeek + 1;        // we are in the next week
+    this.weekEndAt = Number.POSITIVE_INFINITY; // until the engine recomputes
+    this.setOffersButton(false);
+    if (!this.finished) {
+      if (this.handMode) this.paintHandControls();
+      else if (!this.stepMode) {
+        this.paused = false;
+        this.syncPauseButton();
+        this.rebase();
+        this.request();
+      }
+      if (this.pendingFinish) { this.pendingFinish = false; void this.finish(); }
+    }
+    void bridge.calendarAt(this.pair?.simAt ?? 0, this.opts.level).then((cal) => {
+      this.weekNum = Math.max(this.weekNum, cal.week);
+      this.weekEndAt = cal.week_end;
+    }).catch(() => undefined);
+  }
+
+  /**
+   * Open the week's two offers (the ONE offers overlay — `offers.ts` — shared with the tutorial's
+   * `pick_of` beat). Resolves when the panel is dismissed. While frozen the panel takes the
+   * BOUNDARY week (the week that ended), not the caller's possibly-post-boundary guess; "Later"
+   * closes it unresolved and the hatch button stays, so the freeze can never trap the player.
+   */
+  openWeekOffers(preferredWeek: number, onTaken?: (id: string) => void): Promise<void> {
+    if (this.weekPanel?.isOpen() && this.weekPanelPromise) return this.weekPanelPromise;
+    const week = this.weekFrozen ? this.frozenWeek : preferredWeek;
+    const promise = (async (): Promise<void> => {
+      const cards = await this.offerCards(week);
+      if (cards === null) {                       // bridge hiccup: keep the hatch, allow a retry
+        this.setOffersButton(this.weekFrozen);
+        this.weekPanelPromise = null;
+        return;
+      }
+      if (!cards.length && this.weekFrozen) {     // genuinely nothing eligible: do not trap anyone
+        this.resolveWeek();
+        this.weekPanelPromise = null;
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        this.weekPanel = openOffersPanel({
+          host: this.opts.container,
+          title: `End of week ${week} — take one building`,
+          cards,
+          later: true,
+          onTake: (id) => this.takeOffer(week, id, onTaken),
+          onDismiss: () => {
+            this.weekPanel = null;
+            this.weekPanelPromise = null;
+            this.setOffersButton(this.weekFrozen);
+            resolve();
+          },
+        });
+        this.setOffersButton(false);
+      });
+    })();
+    this.weekPanelPromise = promise;
+    return promise;
+  }
+
+  /** The two offered buildings, as inspectable cards (`progression_view` metadata — BUILDINGS). */
+  private async offerCards(week: number): Promise<OfferCard[] | null> {
+    let ids: string[] | null;
+    try {
+      ids = (await bridge.offersList(getProgression(), this.cityNumber, week)).offers ?? [];
+    } catch (error) {
+      console.warn("campus: offers_list failed", error);
+      return null;
+    }
+    let upgrades: Record<string, UpgradeInfo> = {};
+    try {
+      upgrades = (await bridge.progressionView(getProgression())).upgrades ?? {};
+    } catch { /* names fall back to ids; the offer pair itself is already engine truth */ }
+    this.offerNames.clear();
+    return ids.map((id) => {
+      const u = upgrades[id];
+      const name = u?.name ?? id;
+      this.offerNames.set(id, name);
+      const tier = u?.unlocks?.[0] ?? id;
+      return { id, name, blurb: u?.blurb ?? "", unlocks: `Unlocks the \`${tier}\` tier of Kata.` };
+    });
+  }
+
+  /** Take an offer: the FREE `offer_accept` grant (credits never move); the state is persisted. */
+  private async takeOffer(week: number, id: string,
+                          onTaken?: (id: string) => void): Promise<OfferVerdict> {
+    const name = this.offerNames.get(id) ?? id;
+    try {
+      const res = await acceptOffer(this.cityNumber, week, id);
+      if (res.ok) {
+        this.onEvent?.(`upgrade_placed:${id}`);
+        onTaken?.(id);
+        this.resolveWeek();
+        await this.refreshBuildings();
+        return { ok: true, message: `${name} stands on the campus — a week-end offer is free; credits never moved.` };
+      }
+      return { ok: false, message: res.reason === "accepted"
+        ? "That week already chose its building — this one stays on the board."
+        : res.reason === "not_offered"
+          ? "The week never offered that one — take one of the two cards, or Later."
+          : `Could not place ${name} (${res.reason}).` };
+    } catch (error) {
+      return { ok: false, message: this.errorText(error) };
+    }
+  }
+
+  private setOffersButton(on: boolean): void {
+    if (this.offersBtn) this.offersBtn.hidden = !on;
+  }
+
+  /** After every scene (re)build: land the pops, run the first-use guidance. Never in harness. */
+  private postScene(scene: CampusScene): void {
+    if (this.harnessMode) return;
+    for (const b of scene.buildings) {
+      if (this.paintedBuildings.has(b.id)) continue;
+      this.paintedBuildings.add(b.id);
+      // The pop: a caller-side ring pulse (CSS, so `prefers-reduced-motion` makes it static).
+      // The first scene of the session just loads — existing buildings do not pop on boot.
+      if (this.scenePaintedOnce && b.revealed) this.pulseAnchor(`building:${b.id}`);
+    }
+    this.scenePaintedOnce = true;
+    this.guideFirstUse(scene);
+  }
+
+  /**
+   * First-use guidance (deliverable 4): a revealed, owned building whose mechanic has appeared
+   * for the first time gets ONE callout, gated by the `buildingSeen:<id>` pref (permanence, not
+   * repetition). The mechanic facts are read off the scene — a cone on the map, a timeout vehicle,
+   * a ring that moved, a transferring vehicle — never off a timer.
+   */
+  private guideFirstUse(scene: CampusScene): void {
+    let seen: Record<string, unknown>;
+    try { seen = load().prefs; } catch { return }
+    for (const b of scene.buildings) {
+      if (!b.revealed || seen[`buildingSeen:${b.id}`] !== undefined) continue;
+      if (!this.mechanicAppeared(b.id, scene)) continue;
+      save({ prefs: { [`buildingSeen:${b.id}`]: true } });
+      this.showToast(`${b.name}: ${buildingHint(b.id)}`, false);
+    }
+  }
+
+  /** Has this building's mechanic shown itself yet? (cheap scene scans, engine facts only) */
+  private mechanicAppeared(id: string, scene: CampusScene): boolean {
+    switch (id) {
+      case "reserve": return scene.cones.length > 0;
+      case "sensors":
+      case "preempt": return scene.vehicles.some((v) => v.state === "timeout");
+      case "fairness": return scene.neighbourhoods.some((n) => n.ring > 0.05);
+      case "route": return scene.vehicles.some((v) => v.state === "transferring");
+      default: return true;
+    }
+  }
+
 
   /* ------------------------------------------------------------------ loop -- */
 
@@ -425,9 +691,19 @@ export class CampusPlay {
         `day ${scene.day} · t=${fmt(state.now)} · ${running} on campus · ${done}/${v.length} done`;
     }
     if (this.handMode) this.paintHandControls();
+    // Art 6a: the week boundary (engine clock), building pops, and the first-use guidance — all
+    // before `onStep` so a tutorial beat sees the freeze already in place. The run's final
+    // result waits for an unresolved week: traffic must not finish around a choice it never made.
+    if (!this.harnessMode) {
+      this.weekTick(state);
+      this.postScene(scene);
+    }
     // The tutorial runner's eyes: one call per engine snapshot, after the scene exists.
     try { this.onStep?.(state); } catch { /* a broken observer must never kill the campus */ }
-    if (state.done) void this.finish();
+    if (state.done) {
+      if (this.weekFrozen) this.pendingFinish = true;
+      else void this.finish();
+    }
   }
 
   /** Pure projection of the last snapshot + the current hand-selection into a scene. */
@@ -438,7 +714,7 @@ export class CampusPlay {
     return buildScene({
       width: this.cssWidth(), height: this.cssHeight(),
       nodes: this.nodes, jobs: snap.jobs, snap,
-      clock: { week: 1, day: Math.floor(snap.now / Math.max(1, this.plan.stride)) + 1,
+      clock: { week: this.weekNum, day: Math.floor(snap.now / Math.max(1, this.plan.stride)) + 1,
                sun: ((snap.now % (this.plan.stride * 7)) / (this.plan.stride * 7)) || 0 },
       staffed: this.boothStaffed,
       selected: this.selected,
@@ -447,6 +723,7 @@ export class CampusPlay {
         : null,
       boothRevealed: this.boothRevealed,
       handCones: this.handCones,
+      buildings: this.harnessMode ? [] : this.sceneBuildings(),
     });
   }
 
@@ -577,6 +854,12 @@ export class CampusPlay {
   /** Advance the manual clock one arrival/finish batch — the hand campus has no rAF clock. */
   private async tick(): Promise<void> {
     if (this.handBusy || this.finished) return;
+    if (this.weekFrozen) {
+      // The week is not over until a building is chosen — Time waits with the traffic.
+      this.showToast("Traffic waits: the week is frozen until you take one of the two offers.", false);
+      void this.openWeekOffers(this.frozenWeek);
+      return;
+    }
     this.handBusy = true;
     try {
       const res = await bridge.handTick(this.handle);
@@ -706,6 +989,7 @@ export class CampusPlay {
     this.pair = { prev: null, cur: scene, at: performance.now(), simAt: this.snap.now };
     this.paintFrame(1);
     this.paintHandControls();
+    if (!this.harnessMode) this.postScene(scene);   // a building granted mid-pause still lands
   }
 
   private paintHandControls(): void {
@@ -719,7 +1003,8 @@ export class CampusPlay {
       this.finished || (!this.selected && !this.staged.length));
     // Time is the suggested action whenever nothing is selectable — an empty road says "advance".
     const roadEmpty = (this.snap?.queued.length ?? 0) === 0;
-    this.timeBtn?.classList.toggle("suggest", !this.finished && roadEmpty);
+    this.timeBtn?.toggleAttribute("disabled", this.finished || this.weekFrozen);
+    this.timeBtn?.classList.toggle("suggest", !this.finished && roadEmpty && !this.weekFrozen);
     this.coneBtn?.toggleAttribute("disabled",
       this.finished || !this.selected || locked === "hand" || locked === "place");
   }
@@ -810,6 +1095,11 @@ export class CampusPlay {
    *  why-panel gains exactly the rows this press decided. The rAF clock stays paused. */
   private async stepOne(): Promise<void> {
     if (this.stepBusy || this.finished) return;
+    if (this.weekFrozen) {
+      this.showToast("Traffic waits: take one of the week's two offers first.", false);
+      void this.openWeekOffers(this.frozenWeek);
+      return;
+    }
     this.stepBusy = true;
     this.stepMode = true;
     if (!this.paused) { this.paused = true; this.syncPauseButton(); }
@@ -1039,19 +1329,47 @@ export class CampusPlay {
   }
 
   /**
-   * Tutorial `reveal {building: NAME}` (Art 5b): the tool's guided first appearance. Art 5b has one
-   * such tool to give out (cones); real building sprites land with Art 6, so this announces and
-   * nudges rather than drawing a building the scene model does not have.
+   * Tutorial `reveal {building: NAME}` (Art 6a): the building is already owned (the beat forced a
+   * grant or a week-end took it) — revealing it flips its sprite from the dim `?` placeholder to
+   * its real token, lands it with a pop, and repeats what it is. `revealedBuildings` only exists
+   * while a tutorial manages the stage; elsewhere everything owned is revealed by default.
    */
   revealBuilding(name: string): void {
-    if (name !== "reserve") {
+    this.revealedBuildings?.add(name);
+    this.repaint();
+    const def = this.buildingDefs.find((b) => b.id === name);
+    if (!def) {
       this.setModeChip(`${name}: not on this campus yet`);
       return;
     }
-    this.setModeChip("cones: place one");
-    this.pulseAnchor("bays");
-    this.showToast("Reservations: a cone books bays for a future vehicle without occupying them. "
-      + "Choose a vehicle, then press Cone it.", false);
+    if (name === "reserve") {
+      this.setModeChip("cones: place one");
+      this.pulseAnchor("bays");
+      this.showToast("Reservations: a cone books bays for a future vehicle without occupying them. "
+        + "Choose a vehicle, then press Cone it.", false);
+    } else {
+      this.setModeChip(`${def.name}: on the campus`);
+      this.showToast(`${def.name} — ${def.blurb}`, false);
+    }
+    this.pulseAnchor(`building:${name}`);
+  }
+
+  /**
+   * The tutorial runner attached/detached (Art 6a). While managed, owned-but-unrevealed buildings
+   * draw dimmed + `?` and the runner's `pick_of` beat opens the shared offers panel itself — the
+   * campus suppresses its own auto-overlay (ONE panel, never two). On detach any unresolved frozen
+   * week re-surfaces through the campus panel/hatch, so skipping a script cannot strand a freeze.
+   */
+  tutorialManaged(on: boolean): void {
+    this.managedByTutorial = on;
+    if (on) {
+      if (!this.revealedBuildings) this.revealedBuildings = new Set();
+      this.repaint();
+      return;
+    }
+    this.revealedBuildings = null;
+    this.repaint();
+    if (this.weekFrozen && !this.weekPanel?.isOpen()) void this.openWeekOffers(this.frozenWeek);
   }
 
   /** The viewer-side cones on the map now (Art 5b hand hints; the engine has never seen them). */
@@ -1106,6 +1424,11 @@ export class CampusPlay {
     }
     if (name === "booth") return { x: s.booth.x + s.booth.w / 2, y: s.booth.y };
     if (name === "offers") return { x: this.cssWidth() / 2, y: this.cssHeight() * 0.4 };
+    if (name.startsWith("building:")) {
+      // Art 6a: the sprite's own box (the sprite ∩ reveals list the scene already carries).
+      const b = s.buildings.find((x) => x.id === name.slice(9));
+      return b ? { x: b.x + b.w / 2, y: b.y + b.h / 2 } : null;
+    }
     if (name === "vehicle:last_placed") {
       if (lastPlacedId) {
         const bay = s.bays.find((b) => b.occupiedBy === lastPlacedId);
@@ -1140,6 +1463,7 @@ export class CampusPlay {
     this.resizeObserver?.disconnect();
     window.clearTimeout(this.toastTimer);
     this.boothDialog?.close();
+    this.weekPanel?.close();
     this.opts.container.textContent = "";
   }
 }

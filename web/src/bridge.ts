@@ -93,6 +93,8 @@ export interface ProgressionState {
   levels: Record<string, { best: number; gold: boolean; passes: number[] }>;
   upgrades: string[];
   last_seen: number;
+  /** Art 6: week-end offers accepted, keyed `"city:week" -> upgrade_id` (save v3). */
+  weeks?: Record<string, string>;
   /** Transient per-call extras the engine attaches (awards); not part of the saved contract. */
   _last_award?: number;
   _drift_award?: number;
@@ -104,6 +106,18 @@ export interface UpgradeInfo {
   unlocks: string[];
   owned: boolean;
   buyable: boolean;
+  /** Art 6: the building this upgrade IS (same table `BUILDINGS`, one fact one place). */
+  name?: string;
+  blurb?: string;
+}
+
+/** One entry of `progression_view.buildings` — a building standing on the campus (§2.4). */
+export interface BuildingInfo {
+  id: string;
+  name: string;
+  blurb: string;
+  anchor: "lot" | "road" | "neighbourhood" | "edge" | string;
+  tier: string;
 }
 
 /** What `progression_view` returns — a read-only HUD snapshot. */
@@ -114,6 +128,8 @@ export interface ProgressionView {
   lifetime: number;
   unlocked: string[];
   upgrades: Record<string, UpgradeInfo>;
+  /** Art 6: owned upgrades as campus buildings (`[{id,name,blurb,anchor,tier}]`). */
+  buildings?: BuildingInfo[];
 }
 
 /** A level document (the JSON in levels/*.json); kept loose — Python validates it. */
@@ -286,6 +302,18 @@ export class DojoBridge {
     return this.call("offers_list", { state, city, week });
   }
 
+  /** Take a week-end offer (FREE — §5.8): the NEW state + an ok/reason verdict; persist the state. */
+  offerAccept(state: ProgressionState | null, city: number, week: number,
+              upgradeId: string): Promise<{ state: ProgressionState; ok: boolean; reason: string }> {
+    return this.call("offer_accept", { state, city, week, upgrade_id: upgradeId });
+  }
+
+  /** FREE guided-first-use grant (the tutorial's `offer_upgrade {forced: id}`); credits never move. */
+  progressionGrant(state: ProgressionState | null,
+                   upgradeId: string): Promise<{ state: ProgressionState; ok: boolean; reason: string }> {
+    return this.call("progression_grant", { state, upgrade_id: upgradeId });
+  }
+
   // --- hand placement (Stage 5; bridge.py hand_*) -------------------------------------
 
   /** Start a manual run: nothing auto-places; the player drives `handPlace` / `handTick`. */
@@ -420,6 +448,9 @@ export interface HandResultPayload {
 export interface StepState {
   now: number;
   events_processed: number;
+  /** engine calendar (§5.6), present on step snapshots: 1-indexed week + placements-so-far */
+  week?: number;
+  placed_total?: number;
   queued: string[];
   running: { id: string; nodes: string[]; start: number | null; end?: number }[];
   /** reserve() intents (job id -> intended start) — cones on the campus */

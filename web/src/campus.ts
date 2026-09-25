@@ -57,6 +57,39 @@ export interface Neighbourhood {
   overflow: boolean;
 }
 
+/**
+ * Art 6: a building standing on the campus (§2.4). Layout derives a deterministic box from the
+ * building's engine `anchor` (`lot`/`road`/`neighbourhood`/`edge`); the painter picks a geometric
+ * sprite per id. `revealed:false` (tutorial mode, not yet handed out) draws dimmed with a `?`.
+ * Facts are the engine's (`progression.BUILDINGS` via `progression_view.buildings`); the
+ * “how it shows up” line is `buildingHint(id)` — presentation text, never a decision.
+ */
+export interface BuildingSprite {
+  id: string;
+  name: string;
+  blurb: string;
+  anchor: string;
+  x: number; y: number; w: number; h: number;
+  revealed: boolean;
+}
+
+/** Per-building “how it shows up on the campus” (the §2.4 table, in the player's words). */
+export function buildingHint(id: string): string {
+  switch (id) {
+    case "reserve": return "How it shows up: cones with countdowns on bays — and a short vehicle \
+slipping into a coned bay before the convoy arrives (backfill).";
+    case "sensors": return "How it shows up: the weigh station on the road — a vehicle's true \
+length beside the length it claimed.";
+    case "fairness": return "How it shows up: rings read as share meters against entitlement, so \
+starvation is visible per neighbourhood.";
+    case "preempt": return "How it shows up: a tow truck pulls a running vehicle back to the road; \
+the work it lost spills.";
+    case "route": return "How it shows up: a motorway to a second campus; routed vehicles pay the \
+transfer delay.";
+    default: return "";
+  }
+}
+
 export interface RoadSpec {
   x: number; y: number; w: number; h: number;
   laneH: number;
@@ -101,6 +134,8 @@ export interface CampusScene {
   /** hand mode: bays staged for the selected vehicle + a client-side fit hint (the engine still
    *  validates on place — this is a ghost preview, not a decision) */
   staged?: { bays: string[]; fits: boolean; user: string } | null;
+  /** Art 6: owned buildings on the campus (empty in harness/baseline mode), id-sorted */
+  buildings: BuildingSprite[];
   overflowUser: string | null;
   done: boolean;
 }
@@ -133,6 +168,8 @@ export interface LayoutInput {
   boothRevealed?: boolean;
   /** Art 5 hand mode: viewer-side cones (decided by sim time, never wall clock). */
   handCones?: Cone[];
+  /** Art 6: owned buildings (`progression_view.buildings`); absent (harness) draws none. */
+  buildings?: { id: string; name: string; blurb: string; anchor: string; revealed?: boolean }[];
 }
 
 /** Pure layout + projection. Deterministic: no Date, no Math.random, no iter over object sets
@@ -257,9 +294,51 @@ function layoutScene(inp: LayoutInput): CampusScene {
     selectedId: inp.selected ?? null,
     staged: inp.staged ?? null,
     cones,
+    buildings: layoutBuildings(inp.buildings, lots, road, width),
     overflowUser: snap.overflow ?? null,
     done: !!snap.done,
   };
+}
+
+/* --------------------------------------------------------------- buildings -- */
+
+const BLD_W = 46;
+const BLD_H = 34;
+
+/**
+ * Deterministic anchor resolution (same inputs ⇒ same boxes; no clocks, no randomness):
+ * `lot` sits by the lots' road-side corner, `road` along the road's kerb (slot-indexed so two
+ * road buildings never overlap), `neighbourhood` near the quiet side of the neighbourhood band,
+ * `edge` at the map edge (a gate). Order is by id — stable for any insertion order.
+ */
+function layoutBuildings(
+  inp: LayoutInput["buildings"], lots: Lot[], road: RoadSpec, width: number,
+): BuildingSprite[] {
+  if (!inp || !inp.length) return [];
+  const byAnchor = new Map<string, number>();
+  return [...inp]
+    .sort((a, b) => (a.id < b.id ? -1 : 1))
+    .map((b) => {
+      const n = byAnchor.get(b.anchor) ?? 0;
+      byAnchor.set(b.anchor, n + 1);
+      let x = PAD + 16 + n * (BLD_W + 14);
+      let y = road.y - BLD_H - 8;
+      if (b.anchor === "lot" && lots.length) {
+        const lot = lots[0]!;
+        x = lot.x - BLD_W - 12;
+        y = lot.y + lot.h - BLD_H;
+      } else if (b.anchor === "neighbourhood") {
+        x = PAD + 10 + n * (BLD_W + 14);
+        y = road.y / 2 + 46;
+      } else if (b.anchor === "edge") {
+        x = width - PAD - BLD_W;
+        y = road.y - BLD_H - 8 + n * (BLD_H + 8);
+      } else if (b.anchor !== "road") {
+        x = PAD + 16 + n * (BLD_W + 14);   // unknown anchor: a stable row above the road
+      }
+      return { id: b.id, name: b.name, blurb: b.blurb, anchor: b.anchor,
+               x, y, w: BLD_W, h: BLD_H, revealed: b.revealed ?? true };
+    });
 }
 
 function ringPlaces(n: number, width: number, height: number) {

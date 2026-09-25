@@ -92,14 +92,17 @@ enforces — the merge feeds data to Python, which still validates and decides e
   booth before week end even against perfect play. No wall clock enters any predicate.
 - **`do`**: `lock` (disable the named control), `callout` (focus-trapped popover anchored via
   `CampusPlay.anchorPoint`: `road` / `bays` / `booth` / `offers` / `ring:USER` / `bay:ID` /
-  `vehicle:ID` / `vehicle:last_placed`), `reveal {booth}` (`revealBooth`, which also unlocks the
-  booth card dialog) and `reveal {building}` (`revealBuilding` — Art 5b: `reserve` announces the cone
-  control and nudges the lots; sprites for the other four buildings land with Art 6), `set_mode` (a
+  `vehicle:ID` / `vehicle:last_placed` / `building:ID` (Art 6a: the sprite's own box), `reveal {booth}` (`revealBooth`, which also unlocks the
+  booth card dialog) and `reveal {building}` (`revealBuilding` — since Art 6a every owned building
+  has a real sprite: revealing flips it from the dim `?` placeholder to its token, pops it, and
+  repeats its blurb; `reserve` keeps its cone-control announce + lot nudge), `set_mode` (a
   chip; `booth:cards`/`booth:line` open the panel, and Art 5b's `step` hands the clock to the campus
-  Step button via `setStepMode`), `offer_upgrade`
-  (the deterministic pair from `offers_list`, take-one).
+  Step button via `setStepMode`), `offer_upgrade` — two shapes, one beat: `{forced: id}` calls the
+  FREE `progression_grant` (credits never move; the "not buyable" purchase path is gone), and
+  `{pick_of: 2}` awaits `CampusPlay.openWeekOffers` — the same offers overlay the campus uses for
+  its own week-end freeze, taken via the free `offer_accept` at the BOUNDARY week.
 - **Art 5b predicates, all read off facts, never off the script**: `owned` (the save's `upgrades`,
-  which only `progression.buy` writes), `cone_placed` (a viewer cone exists — `viewerCones`), and
+  which `progression.buy`, the `grant`, and `acceptOffer` write), `cone_placed` (a viewer cone exists — `viewerCones`), and
   `backfill_placed` (a vehicle actually parked into coned bays, from the snapshot's `running.nodes`).
   Taking an offer fires `upgrade_placed:<id>`, which is what city 3's cone beat waits on — so the
   beat cannot be satisfied by the save file alone, and the cone beat itself cannot complete without
@@ -121,6 +124,31 @@ enforces — the merge feeds data to Python, which still validates and decides e
   satisfied/skipped; every wait carries a sim-time stall watchdog of `max(2 x stride, 3600)` s;
   `or_then` accepts the next step's `when` as an alternative; `timeout_secs` auto-continues; and a
   permanent focusable "Skip tutorial" button ends the script and unlocks the campus.
+
+## Week end routing and free grants (Art 6a)
+
+`TutorialRunner.attach()` puts the stage in **tutorial-managed mode**
+(`CampusPlay.tutorialManaged(true)`): owned buildings draw dimmed + `?` until a `reveal` beat,
+and the campus suppresses its own week-end overlay (the script's `pick_of` beat opens the SAME
+`web/src/offers.ts` panel — one component, never two). `finish()` hands it back; if a week is
+frozen and unresolved at that moment, the campus panel/hatch re-surfaces, so skipping a script
+cannot strand a freeze. Traffic still FREEZES at the boundary in tutorial mode (the freeze is a
+campus behavior, §Campus) — the script merely owns the panel. `[agent decision]` — alternatives:
+runner-owned freeze (a second clock owner, rejected) or no freeze during scripts (breaks §7 of
+the brief).
+
+**Week end releases pending waits.** A gate's `when` and a `wait_for` that are still unsatisfied
+when the `week_end` event exists resolve as satisfied. The reason is the hand-campus clock: it
+stops at its LAST ARRIVAL (the arrival stream can end well before the scoring horizon, which is
+also why the stall watchdog — sim seconds — can never elapse), so a beat gated on a mid-week fact
+that can no longer arrive would strand the script forever; releasing leaps to the week-end beat,
+whose `when`/`wait_for` (`week_end`) resolve normally. Beats a fast run skipped are beats the
+week was always going to end without. Determinism unaffected: the release reads the event set,
+which reads the sim clock.
+
+**Verification (headless, cities 1–6).** `__tutorial.debugState()` sequences per city, week-end
+screenshots and the per-city `weeks` ledger after taking an offer: see
+`Sessions/2026-10-02 Phase 2 Art 6.md`.
 
 ## Help drawer
 

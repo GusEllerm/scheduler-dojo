@@ -23,7 +23,7 @@ sig = "d1f4f91cd3e5cb6f"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/campus-play.ts"
-sig = "f89f681a18f709a3"
+sig = "af8c00a0733fe1f9"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -47,18 +47,23 @@ sig = "b7c8d28215d44b31"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/offers.ts"
+sig = "e1855274fae72a4b"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/share.ts"
 sig = "b581ee11e56b2792"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/style.css"
-sig = "7273ea5deb475779"
+sig = "ecfe7ff8ba9851a1"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/tutorial.ts"
-sig = "558a26969a8a3437"
+sig = "3b25bc943961fd2a"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Art Direction.md"
@@ -102,6 +107,11 @@ sig = "03784a0332e79441"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#calendar_at"
+sig = "534a9f381bade989"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/bridge.py#hand_place"
 sig = "fadbe1c42d07df62"
 
@@ -119,6 +129,11 @@ sig = "5f5dab47e77b8f73"
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/bridge.py#hand_tick"
 sig = "183182d2dbac85db"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#offer_accept"
+sig = "f7f700222c71e320"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -142,6 +157,11 @@ sig = "cb03585053f97f18"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/kata/builtins.py#Env"
+sig = "e7cd7588c7bed72c"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/kata/check.py#Report"
 sig = "db45b4171523b623"
 
@@ -149,6 +169,21 @@ sig = "db45b4171523b623"
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/kata/policy.py#KataPolicy"
 sig = "9165f28d1c42be53"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/progression.py"
+sig = "207c1f50686ff9e7"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/progression.py#buildings"
+sig = "38bf197b5ddf4f77"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/progression.py#offer_accept"
+sig = "125a5f519d469cf1"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -188,12 +223,17 @@ sig = "582ef806afb7f540"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/campus-play.ts"
-sig = "f89f681a18f709a3"
+sig = "af8c00a0733fe1f9"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/campus-why.ts"
 sig = "ffa1de33c4fa0aca"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "web/src/offers.ts"
+sig = "e1855274fae72a4b"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Determinism.md"
@@ -457,8 +497,13 @@ sig = "d1f4f91cd3e5cb6f"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
+target = "web/src/offers.ts"
+sig = "e1855274fae72a4b"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Tutorial.md"
 target = "web/src/tutorial.ts"
-sig = "558a26969a8a3437"
+sig = "3b25bc943961fd2a"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"

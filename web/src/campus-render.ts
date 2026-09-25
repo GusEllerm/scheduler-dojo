@@ -20,7 +20,7 @@
 // (index, radius). No per-frame gradient creation.
 
 import { readTokens } from "./tokens";
-import type { CampusScene, Lot } from "./campus";
+import type { BuildingSprite, CampusScene, Lot } from "./campus";
 
 /* ------------------------------------------------------------------ config -- */
 
@@ -252,6 +252,7 @@ export class CampusRenderer {
     this.drawCones(ctx, scene);
     this.drawNeighbourhoods(ctx, scene, base, p);
     this.drawBooth(ctx, scene);
+    this.drawBuildings(ctx, scene);
     this.drawOverflowPulse(ctx, scene, base, p);
     ctx.restore();
   }
@@ -702,6 +703,138 @@ export class CampusRenderer {
     ctx.closePath();
     ctx.fill();
     if (b.revealed === false) ctx.restore();
+  }
+
+  /**
+   * Art 6: buildings on the campus (§2.4) — one flat geometric token sprite per id, drawn at its
+   * engine-anchored box. An unrevealed building (tutorial mode, not yet handed out) is dimmed and
+   * marked `?` instead of detail. The appearance pop is caller-side (`pulseAnchor`), never a
+   * timer here; empty `scene.buildings` (harness/baselines) paints nothing.
+   */
+  private drawBuildings(ctx: CanvasRenderingContext2D, scene: CampusScene): void {
+    for (const b of scene.buildings) {
+      ctx.save();
+      if (!b.revealed) ctx.globalAlpha = 0.35;
+      this.drawBuildingSprite(ctx, b);
+      if (!b.revealed) {
+        ctx.globalAlpha = 0.6;
+        ctx.fillStyle = this.c("ink");
+        ctx.font = FONT_LABEL;
+        ctx.textAlign = "center";
+        ctx.fillText("?", b.x + b.w / 2, b.y + b.h / 2 + 4);
+      }
+      ctx.restore();
+    }
+  }
+
+  /** Static token-fill sprites (~46x34 boxes). Panel/ink-soft/line colors only. */
+  private drawBuildingSprite(ctx: CanvasRenderingContext2D, b: BuildingSprite): void {
+    const { x, y, w, h } = b;
+    const panel = this.c("panel");
+    const ink = withAlpha(this.c("ink-soft"), 0.8);
+    ctx.strokeStyle = ink;
+    ctx.lineWidth = 1.5;
+    switch (b.id) {
+      case "reserve": {                      // cone locker: a rack of tiny cones beside the lot
+        ctx.fillStyle = panel;
+        const rack = new Path2D();
+        roundRectPath(rack, x + 2, y + h * 0.62, w - 4, h * 0.3, 3);
+        ctx.fill(rack);
+        ctx.stroke(rack);
+        ctx.fillStyle = this.c("veh-reserved");
+        for (let i = 0; i < 3; i++) {
+          const cx = x + 10 + i * ((w - 20) / 2);
+          ctx.beginPath();
+          ctx.moveTo(cx - 5, y + h * 0.58);
+          ctx.lineTo(cx + 5, y + h * 0.58);
+          ctx.lineTo(cx, y + h * 0.2);
+          ctx.closePath();
+          ctx.fill();
+        }
+        break;
+      }
+      case "sensors": {                      // weigh station: a scale hut beside the road
+        ctx.fillStyle = panel;
+        const hut = new Path2D();
+        roundRectPath(hut, x + 2, y + h * 0.42, w - 4, h * 0.5, 3);
+        ctx.fill(hut);
+        ctx.stroke(hut);
+        ctx.beginPath();                          // the beam: an unbalanced bar on a post
+        ctx.moveTo(x + w / 2, y + h * 0.42);
+        ctx.lineTo(x + w / 2, y + 6);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y + 12);
+        ctx.lineTo(x + w - 8, y + 4);
+        ctx.stroke();
+        break;
+      }
+      case "fairness": {                     // community board: notice board near the neighbourhoods
+        ctx.beginPath();                          // legs
+        ctx.moveTo(x + 10, y + h); ctx.lineTo(x + 12, y + h * 0.7);
+        ctx.moveTo(x + w - 10, y + h); ctx.lineTo(x + w - 12, y + h * 0.7);
+        ctx.stroke();
+        ctx.fillStyle = panel;
+        const board = new Path2D();
+        roundRectPath(board, x + 4, y + 2, w - 8, h * 0.66, 3);
+        ctx.fill(board);
+        ctx.stroke(board);
+        ctx.fillStyle = this.c("week");            // two pinned notices
+        ctx.fillRect(x + 9, y + 8, 9, 7);
+        ctx.fillRect(x + w - 18, y + 8, 9, 7);
+        break;
+      }
+      case "preempt": {                      // tow truck: a truck pad beside the road
+        ctx.fillStyle = withAlpha(panel, 0.7);
+        const pad = new Path2D();
+        roundRectPath(pad, x + 1, y + h - 10, w - 2, 8, 3);
+        ctx.fill(pad);
+        ctx.stroke(pad);
+        ctx.fillStyle = panel;
+        const truck = new Path2D();
+        roundRectPath(truck, x + 8, y + h * 0.35, w - 16, h * 0.34, 3);
+        ctx.fill(truck);
+        ctx.stroke(truck);
+        ctx.beginPath();                          // a hook arm
+        ctx.moveTo(x + w - 8, y + h * 0.35);
+        ctx.lineTo(x + w - 8, y + 5);
+        ctx.lineTo(x + w - 14, y + 5);
+        ctx.stroke();
+        ctx.fillStyle = ink;
+        for (const wx of [x + 13, x + w - 13]) {
+          ctx.beginPath();
+          ctx.arc(wx, y + h * 0.72, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+      case "route": {                        // motorway gate: posts + barrier at the map edge
+        ctx.fillStyle = panel;
+        for (const px of [x + 4, x + w - 10]) {
+          const post = new Path2D();
+          roundRectPath(post, px, y + 4, 6, h - 8, 2);
+          ctx.fill(post);
+          ctx.stroke(post);
+        }
+        ctx.strokeStyle = this.c("week");
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x + 10, y + h * 0.45);
+        ctx.lineTo(x + w - 10, y + h * 0.45);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        break;
+      }
+      default: {                             // unknown id: a plain hut (never a blank spot)
+        ctx.fillStyle = panel;
+        const shed = new Path2D();
+        roundRectPath(shed, x + 4, y + h * 0.4, w - 8, h * 0.52, 3);
+        ctx.fill(shed);
+        ctx.stroke(shed);
+        break;
+      }
+    }
   }
 
   /** Overflow pulse: first appearance of `scene.overflow` paints an expanding ring on that

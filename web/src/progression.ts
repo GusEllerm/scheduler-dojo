@@ -58,6 +58,30 @@ export async function buy(upgradeId: string): Promise<ProgressionState> {
 }
 
 /**
+ * Art 6: the tutorial's FREE guided-first-use grant (`offer_upgrade {forced: id}`). Ownership
+ * moves, credits never do — the engine's `progression_grant` is the rule; we persist its result.
+ */
+export async function grant(
+  upgradeId: string,
+): Promise<{ state: ProgressionState; ok: boolean; reason: string }> {
+  const res = await bridge.progressionGrant(getProgression(), upgradeId);
+  setProgression(res.state);
+  return res;
+}
+
+/**
+ * Art 6: take a week-end OFFER (free — §5.8). The engine refuses ids that boundary never offered
+ * (`not_offered`) or a week that already accepted (`accepted`); the returned state persists.
+ */
+export async function acceptOffer(
+  city: number, week: number, upgradeId: string,
+): Promise<{ state: ProgressionState; ok: boolean; reason: string }> {
+  const res = await bridge.offerAccept(getProgression(), city, week, upgradeId);
+  setProgression(res.state);
+  return res;
+}
+
+/**
  * Offline "welcome back" credits since `last_seen` (capped at 12h by the engine). On the very
  * first boot there is no state: stamp `last_seen = now` so a new player gets no free drift.
  */
