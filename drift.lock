@@ -383,7 +383,7 @@ sig = "fab47af691e88089"
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "582ef806afb7f540"
+sig = "dc7177e0d6ee5d1d"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
@@ -1038,7 +1038,7 @@ sig = "9708b56589b17bff"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
 target = "src/scheduler_dojo/sim/level.py#run_level"
-sig = "3d20f050a688e30e"
+sig = "741d2f116a61d63a"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
