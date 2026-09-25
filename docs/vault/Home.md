@@ -26,7 +26,14 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
-**All 11 stages (0–10) shipped.** The game is live at **https://gusellerm.github.io/scheduler-dojo/**
+**Phase two (the campus, `PROMPT-ART.md`) — in progress.** Art 0 (audit + housekeeping) done: full
+visual audit at `docs/screenshots/audit/` + `Sessions/2026-10-01 Phase 2 audit.md` (ranked top-10
+changes; confirmed the timeline repacks lanes by first-fit and `_jobs_json` ships node *counts*),
+curated phase-one shots at `docs/screenshots/phase-one/`, `screenshots/` gitignored. Phase two
+replaces presentation/onboarding/rhythm with the campus while the engine, Kata, scoring and share
+cards stay fixed; trajectory hashes may change where ring-overflow ends runs (regenerate by script).
+
+**Phase one: all 11 stages (0–10) shipped.** The game is live at **https://gusellerm.github.io/scheduler-dojo/**
 (deployed from GitHub Actions via `.github/workflows/pages.yml`; `base:'./'` makes the static build work
 under the Pages subpath, verified end-to-end: engine, all 9 levels, HUD, share). Stage 10 added
 accessibility (landmarks, `aria-live` scorecard/status, labelled dialogs with focus-trap + Escape, a
@@ -103,7 +110,27 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 9 | Share cards: encode/decode, replay-verify, PNG card, `dojo verify-card` | ✅ done |
 | 10 | Polish, a11y, Pages deploy, README/researchers page, final vault sweep | ✅ done |
 
+## The phase-two ladder (`PROMPT-ART.md`)
+
+| Stage | Deliverable | State |
+|---|---|---|
+| Art 0 | Audit, screenshots curated, ranked change list | ✅ done |
+| Art 1 | Direction: 2 mockups + decision, Art Direction + Campus notes, tutorial-script schema | ⬜ next |
+| Art 2 | Engine additions §5.1–8 + visual harness (hashes reviewed, not silently changed) | ⬜ |
+| Art 3 | Campus renderer (Watch for 9 cities, 60 fps, reduced-motion) | ⬜ |
+| Art 4 | Hand play + city-1 tutorial + first booth reveal | ⬜ |
+| Art 5 | Booth: cards→editor, why-panel, step mode, cones | ⬜ |
+| Art 6 | Weeks/offers/buildings, cities 4–9, save migration | ⬜ |
+| Art 7 | Endless, city board, strip review, share redraw | ⬜ |
+| Art 8 | Onboarding polish, a11y audit, help drawer, sound | ⬜ |
+| Art 9 | Ship: README/GIF, vault sweep, final playtest, Final Report | ⬜ |
+
 ## Deferred
+
+- **Phase two, deliberate non-fixes** (from the Art 0 audit): the hand-mode gauge's
+  `Utilization 100% · 0 busy now` is arithmetically right but reads contradictory, and the kata
+  editor's horizontal overflow / below-the-fold timeline — both live in screens the campus rebuild
+  supersedes (Art 7 review, Art 5 booth), so they are not patched on the phase-one UI.
 
 - **Browser-interactive stages (5–10) need live verification.** Stages 0–4 are verified headlessly (the
   Node smoke test drives real Pyodide and matches the golden). From Stage 5 on, the deliverables are
