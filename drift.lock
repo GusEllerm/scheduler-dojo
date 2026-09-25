@@ -78,7 +78,7 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/sim/jobs.py#JobResult"
-sig = "8f5314889d2d768f"
+sig = "9708b56589b17bff"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -88,7 +88,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Determinism.md"
@@ -128,7 +128,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Kata.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -147,6 +147,11 @@ sig = "64aa2e55be19d06c"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
+target = "src/scheduler_dojo/sim/jobs.py#JobResult"
+sig = "9708b56589b17bff"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Levels.md"
 target = "src/scheduler_dojo/sim/level.py#validate_level"
 sig = "8bde596e09df8942"
 
@@ -158,7 +163,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -263,7 +268,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -498,7 +503,7 @@ sig = "8e781e03d7ff75e3"
 [[bindings]]
 doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/bridge.py#_jobs_json"
-sig = "1b6688ee7c85d062"
+sig = "feeefa415b28de81"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
@@ -543,7 +548,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Home.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Home.md"
@@ -563,7 +568,12 @@ sig = "8e781e03d7ff75e3"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/bridge.py"
-sig = "69e234fa8d0baddd"
+sig = "969885b8471c04fc"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
+target = "src/scheduler_dojo/bridge.py#_snapshot"
+sig = "e2bac3d3ee34e4c1"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -648,7 +658,7 @@ sig = "8ebcd406eb2b54eb"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/bridge.py#start"
-sig = "b95d4145162040ca"
+sig = "228bb9f0594d5386"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -658,7 +668,7 @@ sig = "3aeb91d9343acbdb"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/bridge.py#step_result"
-sig = "26db42c243ca5642"
+sig = "90a88352ad7151cd"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -703,12 +713,12 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/sim/jobs.py#JobResult"
-sig = "8f5314889d2d768f"
+sig = "9708b56589b17bff"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/sim/scheduler.py"
-sig = "a505648497964a69"
+sig = "819785bd10db7d1e"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -718,7 +728,7 @@ sig = "71234d3e76362c30"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
@@ -738,7 +748,7 @@ sig = "eed83d90ab35c971"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-bridge.md"
 target = "web/src/worker.ts"
-sig = "78890d5bc9a2c52c"
+sig = "06defff2b6416ac6"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
@@ -773,7 +783,7 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
 target = "src/scheduler_dojo/sim/jobs.py#JobResult"
-sig = "8f5314889d2d768f"
+sig = "9708b56589b17bff"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
@@ -1018,7 +1028,7 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-builtins.md"
 target = "src/scheduler_dojo/sim/jobs.py#JobResult"
-sig = "8f5314889d2d768f"
+sig = "9708b56589b17bff"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-builtins.md"
@@ -1033,7 +1043,7 @@ sig = "71234d3e76362c30"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-builtins.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-check.md"
@@ -1378,7 +1388,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-errors.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-events.md"
@@ -1558,12 +1568,12 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
 target = "src/scheduler_dojo/sim/jobs.py#JobResult"
-sig = "8f5314889d2d768f"
+sig = "9708b56589b17bff"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
 target = "src/scheduler_dojo/sim/scheduler.py"
-sig = "a505648497964a69"
+sig = "819785bd10db7d1e"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
@@ -1578,7 +1588,7 @@ sig = "71234d3e76362c30"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "888ce32c7f256030"
+sig = "2ccc7c1a68661664"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scheduler.md"
@@ -1613,7 +1623,7 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scoring.md"
 target = "src/scheduler_dojo/sim/jobs.py#JobResult"
-sig = "8f5314889d2d768f"
+sig = "9708b56589b17bff"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-scoring.md"
@@ -1673,7 +1683,7 @@ sig = "64aa2e55be19d06c"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-trace.md"
 target = "src/scheduler_dojo/sim/jobs.py#JobResult"
-sig = "8f5314889d2d768f"
+sig = "9708b56589b17bff"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-trace.md"

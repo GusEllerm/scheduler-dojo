@@ -61,3 +61,11 @@ def test_endless_run_is_seeded_and_overflows_eventually():
     assert a["overflow"] != ""                     # idle must pop a ring eventually
     users = {j["user"] for j in a["jobs"]}
     assert len(users) > 2                          # neighbourhoods moved in over days
+
+
+def test_watch_plan_advises_the_renderer():
+    plan = bridge.watch_plan(_LVL)
+    assert plan["step"] == max(1, 700 // 2400) and plan["duration"] == 700
+    assert plan["stride"] == 100  # 700 // 7 seconds per (cosmetic) day
+    lvl = dict(_LVL, pressure={"cap": 2})
+    assert bridge.watch_plan(lvl)["tick"] == bridge._tick_for(lvl)

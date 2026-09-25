@@ -34,5 +34,10 @@ export default defineConfig({
   publicDir: "public",
   plugins: [serveLevels()],
   server: { host: "127.0.0.1", port: 5173 },
-  build: { target: "es2022" },
+  build: {
+    target: "es2022",
+    // The screenshot/perf harness is a second page of the SAME app (shared worker/bridge code);
+    // it is not linked from index, so it must be an explicit rollup input to be built.
+    rollupOptions: { input: { main: "index.html", harness: "campus-harness.html" } },
+  },
 });

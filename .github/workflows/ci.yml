@@ -69,3 +69,60 @@ jobs:
 
       - name: Node-side Pyodide smoke test
         run: node scripts/node_smoke.mjs
+
+  visual:
+    # Art 3 acceptance: the campus renders all nine cities in headless Chromium — every canvas is
+    # non-flat and the render loop sustains >=45 fps (measured by the loop's own frame clock).
+    # Screenshots upload as an artifact for human review; determinism is asserted, pixels are not diffed.
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv + build the wheel
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Stage the wheel
+        run: bash scripts/build_wheel.sh
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web deps
+        working-directory: web
+        run: npm ci
+
+      - name: Install web deps
+        working-directory: web
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+
+      - name: Build the app
+        working-directory: web
+        run: npm run build
+
+      - name: Preview server
+        working-directory: web
+        run: |
+          npx vite preview --port 4173 --host 127.0.0.1 &
+          timeout 30 bash -c 'until curl -sf http://127.0.0.1:4173/campus-harness.html >/dev/null; do sleep 1; done'
+
+      - name: Nine-city render + fps check
+        working-directory: web
+        run: node scripts/campus_visual.mjs
+
+      - name: Upload campus screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: campus-screenshots
+          path: docs/screenshots/campus/

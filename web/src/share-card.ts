@@ -169,7 +169,7 @@ function drawJobStrip(
   const laneH = Math.max(3, Math.floor(h / MAX_LANES) - LANE_GAP);
   for (const job of sorted) {
     const start = job.start as number;
-    const end = job.end ?? job.runtime + start;
+    const end = job.end ?? (job.runtime ?? job.est ?? 0) + start;
     let lane = laneEnds.findIndex((free) => free <= start);
     if (lane === -1) {
       lane = laneEnds.length;

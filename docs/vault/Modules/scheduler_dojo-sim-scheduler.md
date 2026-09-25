@@ -14,7 +14,8 @@ each decision point calls `policy(ctx)`. `PolicyContext` exposes `now`, `queued`
 home_site`) — the same restriction `place` enforces — so a site-pinned job never "fits" somewhere
 it can never run (a default policy would otherwise attempt a placement that raises). `run(until=None)` returns a `RunResult`; `step_events(n)`/`run_until(t)` drive
 the *same* event-loop body (`_advance`) so a stepped run is bit-for-bit a full run (the stepping API
-for animated playback in the browser). `fifo`, `shortest_first`, and `idle`
+for animated playback in the browser) — between events `_advance_clock_to` still lands the observed
+clock on the step horizon. `fifo`, `shortest_first`, and `idle`
 (place-nothing, the calibration/hand baseline) are plain-Python policies registered in `POLICIES`.
 
 ## How it works
@@ -47,6 +48,12 @@ for animated playback in the browser). `fifo`, `shortest_first`, and `idle`
 - **Accounting:** `_node_seconds_busy` and `_max_end` accrue incrementally at `place`; finished
   allocations are pruned via `Node.release`, so `_result` is O(1). `_t0` anchors the utilization
   window; duplicate job ids raise `DeterminismError`.
+- **Observed clock:** between events the clock would otherwise freeze at the last event time, which
+  stalls animated playback — `_advance_clock_to` lifts `now` to a step's `until` horizon (never past
+  an event, never backwards; `_finished` is only set on an empty heap when `until` cannot hide future
+  events, so `run_until(t)` mid-horizon never ends a run early). Nothing between events reads `now`,
+  so trajectories are unaffected. `run_until` clamps a float `t` to int — the integer clock is an
+  invariant and the browser clock is a float wall mapping.
 - **Determinism:** `queued`/`running` are exposed sorted by id; ties broken by `(submit_time, id)`
   and `(walltime_req, submit_time, id)`.
 - **Patience rings (phase two):** constructed with `pressure={"cap", "end_on_overflow"}` (levels

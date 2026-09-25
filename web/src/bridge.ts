@@ -16,6 +16,7 @@ export interface NodeInfo {
   cpus: number;
   gpus: number;
   partition: string;
+  site?: string;
 }
 
 export interface JobInfo {
@@ -25,7 +26,13 @@ export interface JobInfo {
   submit: number;
   start: number | null;
   end: number | null;
-  runtime: number;
+  runtime?: number;  // absent when the level hides actuals (sensor rule)
+  /** claimed walltime — always visible (vehicle length) */
+  est?: number;
+  /** real node ids this job ran on */
+  placed?: string[];
+  site?: string;
+  home?: string;
   state: JobState;
 }
 
@@ -220,7 +227,7 @@ export class DojoBridge {
   }
 
   /** Start an interactive run; returns a handle for step_n / step_until. */
-  startRun(level: Level | string, options: RunOptions = {}): Promise<{ handle: number; state: StepState }> {
+  startRun(level: Level | string, options: RunOptions = {}): Promise<{ handle: number; state: StepState; nodes?: NodeInfo[] }> {
     const args: Record<string, unknown> = { level, policy: options.policy ?? "fifo" };
     if (options.seed !== undefined && options.seed !== null) args.seed = options.seed;
     if (options.kata !== undefined && options.kata !== null) args.kata = options.kata;
@@ -235,8 +242,18 @@ export class DojoBridge {
     return this.call("step_n", { handle, n });
   }
 
-  stepResult(handle: number): Promise<Pick<RunResult, "metrics" | "trajectory_hash" | "jobs" | "end_time">> {
+  stepResult(handle: number): Promise<Partial<RunResult> & { metrics: Metrics; trajectory_hash: string; jobs: JobInfo[]; end_time: number }> {
     return this.call("step_result", { handle });
+  }
+
+  /** Renderer pacing facts (sim-step between snapshots, sun stride) — engine-owned (§5.6). */
+  watchPlan(level: Level | string): Promise<WatchPlan> {
+    return this.call("watch_plan", { level });
+  }
+
+  /** Day/week/sun position of a sim time, computed by the engine. */
+  calendarAt(t: number, level: Level | string): Promise<{ day: number; week: number; sun: number; week_end: number }> {
+    return this.call("calendar_at", { t, level });
   }
 
   // --- hand placement (Stage 5; bridge.py hand_*) -------------------------------------
@@ -374,9 +391,22 @@ export interface StepState {
   now: number;
   events_processed: number;
   queued: string[];
-  running: { id: string; nodes: string[]; start: number | null }[];
+  running: { id: string; nodes: string[]; start: number | null; end?: number }[];
+  /** reserve() intents (job id -> intended start) — cones on the campus */
+  reserved?: Record<string, number>;
+  /** per-user patience rings (0..1); present on levels with `pressure` */
+  pressure?: Record<string, number>;
+  /** user whose ring overflowed ('' when none) */
+  overflow?: string;
   finished: number;
   done: boolean;
+}
+
+export interface WatchPlan {
+  step: number;
+  tick: number | null;
+  stride: number;
+  duration: number;
 }
 
 /** Convenience default instance (a page holds exactly one worker). */

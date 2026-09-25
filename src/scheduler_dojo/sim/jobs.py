@@ -94,6 +94,7 @@ class JobResult:
     # the site it ran at. Properties (not fields) so the canonical trajectory is unchanged.
     placed_nodes: tuple[str, ...] = ()
     run_site: str | None = None
+    home_site: str | None = None
 
     @property
     def wait(self) -> int | None:
@@ -123,4 +124,5 @@ class JobResult:
             completed=job.state in (JobState.COMPLETED, JobState.TIMEOUT),
             placed_nodes=tuple(job.placed_nodes),
             run_site=job.run_site or job.home_site,
+            home_site=job.home_site,
         )

@@ -385,9 +385,17 @@ class Scheduler:
         while True:
             t = self._events.peek_time()
             if t is None:
-                self._finished = True
-                return True
+                # Empty heap only means FINISHED when the step horizon cannot hide future events
+                # (else a `run_until(t)` with nothing scheduled before t would end the run early).
+                if until is None or until >= self._t0 + (self.horizon or 0):
+                    self._finished = True
+                    return True
+                self._advance_clock_to(until)
+                return False
             if until is not None and t > until:
+                # The clock lands exactly at the step horizon — `now` is an *observed* time, not a
+                # decision time; no state reads it between events, so trajectories are unaffected.
+                self._advance_clock_to(until)
                 return False
             self.now = t
             for ev in self._events.pop_batch():
@@ -415,7 +423,14 @@ class Scheduler:
         """Advance until the clock would exceed `t`, then stop (returns True iff the run finished).
         The stepping API's time-sliced mode; identical event ordering to a full `run`."""
         self._require_unfinished()
+        if isinstance(t, float):  # the clock is integer-seconds by invariant; clamp, never crash
+            t = int(t)
         return self._advance(until=t)
+
+    def _advance_clock_to(self, until: int | None) -> None:
+        """Move the observed clock up to a step horizon (never past an event, never backwards)."""
+        if until is not None and until > self.now and (self.horizon is None or until <= self._t0 + self.horizon):
+            self.now = until
 
     def is_stopped(self) -> bool:
         """True when the run is over: heap drained, or patience ran out (phase-two overflow)."""

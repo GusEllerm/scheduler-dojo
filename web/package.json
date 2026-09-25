@@ -9,16 +9,18 @@
     "build": "vite build",
     "preview": "vite preview",
     "smoke": "node ../scripts/node_smoke.mjs",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "visual": "node scripts/campus_visual.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.9.0",
+    "playwright": "^1.49.1",
     "pyodide": "0.29.5",
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
   },
   "dependencies": {
-    "codemirror": "^6.0.2",
-    "@lezer/highlight": "^1.2.1"
+    "@lezer/highlight": "^1.2.1",
+    "codemirror": "^6.0.2"
   }
 }

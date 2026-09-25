@@ -122,7 +122,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | Art 0 | Audit, screenshots curated, ranked change list | ✅ done |
 | Art 1 | Direction: 2 mockups + decision, Art Direction + Campus notes, tutorial-script schema | ✅ done |
 | Art 2 | Engine additions §5.1–8 + visual harness (hashes reviewed, not silently changed) | ✅ done |
-| Art 3 | Campus renderer (Watch for 9 cities, 60 fps, reduced-motion) | ⬜ next |
+| Art 3 | Campus renderer (Watch for 9 cities, 60 fps, reduced-motion) | ✅ done — live view shipped; `CampusPlay.fps()` is the acceptance meter |
 | Art 4 | Hand play + city-1 tutorial + first booth reveal | ⬜ |
 | Art 5 | Booth: cards→editor, why-panel, step mode, cones | ⬜ |
 | Art 6 | Weeks/offers/buildings, cities 4–9, save migration | ⬜ |

@@ -7,6 +7,7 @@
 import "./style.css";
 import { bridge, BridgeError, formatKataErrors, type Level, type RunResult } from "./bridge";
 import { HandGame } from "./hand";
+import { CampusPlay } from "./campus-play";
 import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
 import * as progression from "./progression";
@@ -95,7 +96,7 @@ bridge.onEvent((event: WorkerEvent) => {
 // --- boot the app ----------------------------------------------------------------------
 
 type Variant = { key: string; label: string; run: RunResult; kata?: string };
-type Mode = "watch" | "hand" | "kata";
+type Mode = "campus" | "watch" | "hand" | "kata";
 
 /** Every level the picker offers. */
 const LEVELS = ["level1", "level2", "level3", "level4", "level5", "level6", "level7", "level8", "level9"];
@@ -119,6 +120,9 @@ let modePicker: HTMLElement;
 let levelPicker: HTMLElement;
 let handBadge: HTMLElement;
 let handPanel: HTMLElement;
+let campusPanel: HTMLElement;
+let campusStage: HTMLElement;
+let campus: CampusPlay | null = null;
 let handStage: HTMLElement;
 let handGauges: HTMLElement;
 let kataPanel: HTMLElement;
@@ -157,7 +161,7 @@ async function fetchText(path: string): Promise<string> {
 async function main(): Promise<void> {
   const prefs = loadStore().prefs;
   const savedMode = prefs.mode as string | undefined;
-  mode = savedMode === "hand" || savedMode === "kata" ? savedMode : "watch";
+  mode = savedMode === "hand" || savedMode === "kata" || savedMode === "campus" ? savedMode : "watch";
   buildChrome();
   mountProgressionChrome();
   await applyDriftOnBoot();
@@ -206,6 +210,7 @@ function buildChrome(): void {
     levelButtons.set(id, button);
   }
   for (const [key, text] of [
+    ["campus", "Campus (live)"],
     ["watch", "Watch (auto)"],
     ["hand", "Play by hand"],
     ["kata", "Write a kata"],
@@ -245,6 +250,18 @@ function buildChrome(): void {
   handPanel.append(heading, handGauges, handStage);
   const timelinePanel = dom.timeline.closest(".panel") ?? dom.timeline;
   dom.app.insertBefore(handPanel, timelinePanel);
+
+  campusPanel = document.createElement("section");
+  campusPanel.className = "panel";
+  campusPanel.hidden = true;
+  const campusHeading = document.createElement("h2");
+  campusHeading.textContent = "Campus";
+  campusHeading.id = "campus-heading";
+  campusPanel.setAttribute("aria-labelledby", "campus-heading");
+  campusStage = document.createElement("div");
+  campusStage.className = "campus-stage";
+  campusPanel.append(campusHeading, campusStage);
+  dom.app.insertBefore(campusPanel, timelinePanel);
 
   kataPanel = document.createElement("section");
   kataPanel.className = "panel";
@@ -347,7 +364,7 @@ async function recordCompletion(run: RunResult, dedupeBySeed: boolean): Promise<
 
 /** Is a mode available for the level currently loaded? */
 function modeAllowed(m: Mode): boolean {
-  if (m === "watch") return true;
+  if (m === "watch" || m === "campus") return true;
   if (m === "hand") return HAND_LEVELS.includes(levelId());
   return KATA_LEVELS.includes(levelId());
 }
@@ -361,6 +378,7 @@ function paintControls(): void {
   handBadge.hidden = mode !== "hand";
   handPanel.hidden = mode !== "hand";
   kataPanel.hidden = mode !== "kata";
+  campusPanel.hidden = mode !== "campus";
   dom.picker.hidden = mode !== "watch";
 }
 
@@ -380,6 +398,7 @@ async function loadLevel(id: string): Promise<void> {
   dom.readout.replaceChildren();
   if (mode === "hand") await enterHand();
   else if (mode === "kata") await enterKata();
+  else if (mode === "campus") await enterCampus();
   else await enterWatch();
   paintControls();
 }
@@ -395,6 +414,7 @@ async function setMode(next: Mode): Promise<void> {
   dom.readout.replaceChildren();
   if (next === "hand") await enterHand();
   else if (next === "kata") await enterKata();
+  else if (next === "campus") await enterCampus();
   else await enterWatch();
   paintControls();
   flushPendingWatchRecord();
@@ -412,6 +432,9 @@ function destroyModes(): void {
   hand = null;
   handStage.textContent = "";
   handGauges.textContent = "";
+  campus?.destroy();
+  campus = null;
+  campusStage.textContent = "";
   kata?.destroy();
   kata = null;
   activeKataLevel = null;
@@ -456,6 +479,23 @@ async function enterWatch(): Promise<void> {
   pendingWatchRecord = async () => {
     if (!progression.hasPass(levelId(), watchRun.seed)) await recordCompletion(watchRun, true);
   };
+}
+
+/** Campus mode (phase two, Art 3): the present-tense view — a live top-down campus driven by
+ * stepping the same engine the CLI runs, painted by the scene renderer. The timeline below keeps
+ * its post-run review role (§2.6): when the live run finishes, it replays the finished run. */
+async function enterCampus(): Promise<void> {
+  dom.picker.textContent = "";
+  campus = await CampusPlay.create({
+    level,
+    container: campusStage,
+    reducedMotion: reduceMotion,
+    onFinish: (run) => {
+      renderReadout({ key: "campus", label: "campus", run });
+      void recordCompletion(run, true).catch(fail);
+    },
+    onStatus: (text) => paint(text, 0),
+  });
 }
 
 /** Hand mode: mount the HandGame controller (it mounts the gauges itself). */

@@ -35,6 +35,7 @@ from scheduler_dojo.sim.trajectory import trajectory_hash
 
 # Interactive stepping handles: handle id -> Scheduler (kept alive across step calls).
 _SESSIONS: dict[int, Scheduler] = {}
+_SESSION_LEVELS: dict[int, dict] = {}  # stepped handle -> its level (for scoring step_result)
 _NEXT_HANDLE = [1]
 
 
@@ -54,7 +55,8 @@ def _tick_for(lvl: dict) -> int | None:
 def _nodes_json(cluster: Cluster) -> list[dict]:
     parts = cluster.partitions
     return [{"id": n.id, "name": n.name, "cpus": n.cpus, "gpus": n.gpus,
-             "partition": parts[n.partition_id].name if n.partition_id in parts else n.partition_id}
+             "partition": parts[n.partition_id].name if n.partition_id in parts else n.partition_id,
+             "site": cluster.node_site(n.id)}
             for n in cluster.nodes]
 
 
@@ -67,7 +69,8 @@ def _jobs_json(result, sensors: bool = True) -> list[dict]:
         state = "timeout" if j.timed_out else ("done" if j.completed else "unfinished")
         rec = {"id": j.id, "user": j.user, "nodes": j.nodes_req,
                "submit": j.submit_time, "start": j.start_time, "end": j.end_time,
-               "state": state, "placed": list(j.placed_nodes), "site": j.run_site or ""}
+               "state": state, "placed": list(j.placed_nodes), "site": j.run_site or "",
+               "home": j.home_site or ""}
         if sensors:
             rec["runtime"] = j.runtime_used
         rec["est"] = j.walltime_req
@@ -148,12 +151,18 @@ def start(level: Any, seed: int | None = None, policy: str = "fifo",
     handle = _NEXT_HANDLE[0]
     _NEXT_HANDLE[0] += 1
     _SESSIONS[handle] = sched
-    return {"handle": handle, "state": _snapshot(sched)}
+    _SESSION_LEVELS[handle] = lvl
+    return {"handle": handle, "state": _snapshot(sched), "nodes": _nodes_json(sched.cluster)}
 
 
 def _snapshot(sched: Scheduler) -> dict:
     return {
         "now": sched.now,
+        # every job the viewer has never seen, minimal fields (submit/user/size) — the campus
+        # draws the whole campus from first principles; the cost is O(never-seen jobs).
+        "unseen": [{"id": j.id, "user": j.user, "nodes": j.nodes_req, "est": j.walltime_req,
+                    "submit": j.submit_time, "state": "unseen"}
+                   for j in sched.jobs if j.submit_time > sched.now],
         "events_processed": sched._events_processed,
         "queued": sorted(sched.queued),
         "running": [{"id": j.id, "nodes": list(j.placed_nodes), "start": j.start_time,
@@ -182,16 +191,29 @@ def step_until(handle: int, t: int) -> dict:
 
 
 def step_result(handle: int) -> dict:
-    """Finish the run (drain remaining events) and return the same payload as `run`."""
+    """Finish the run (drain remaining events) and return the same payload as `run` — including
+    the engine-computed `score`/`bars` (so no client ever mirrors `scoring.score`)."""
     sched = _SESSIONS.pop(handle, None)
     if sched is None:
         raise ValueError(f"no such stepping handle {handle}")
-    result = sched.run(until=None) if not getattr(sched, "_finished", False) else sched._result()
-    return {"metrics": scoring.metrics_from_run(result),
-            "trajectory_hash": trajectory_hash(result),
-            "jobs": _jobs_json(result), "end_time": result.end_time,
-            "pressure": dict(sched.pressure), "overflow": sched.overflow_user or "",
-            "trace": list(sched.trace)}
+    lvl = _SESSION_LEVELS.pop(handle, {})
+    finished = sched.is_stopped()
+    result = sched.run(until=None) if not finished else sched._result()
+    out = {"metrics": scoring.metrics_from_run(result),
+           "trajectory_hash": trajectory_hash(result),
+           "jobs": _jobs_json(result, sensors=not lvl.get("hide_actual", False)),
+           "end_time": result.end_time,
+           "pressure": dict(sched.pressure), "overflow": sched.overflow_user or "",
+           "trace": list(sched.trace)}
+    if lvl:
+        out["seed"] = int(lvl.get("seed", 0))
+        out["policy"] = str(lvl.get("default_policy", "fifo"))
+    score = _score_for(lvl, result) if lvl else None
+    if score is not None:
+        out["score"] = score
+    if lvl.get("bars"):
+        out["bars"] = lvl["bars"]
+    return out
 
 
 def check_kata(kata: Any) -> dict:
@@ -343,6 +365,18 @@ def progression_drift(state: dict, *, now: int) -> dict:
 # --- phase two: calendar, weekly offers, city editions, endless -------------------
 
 
+def watch_plan(level: Any) -> dict:
+    """Pacing facts the campus renderer asks the engine for: the sim-step between snapshots and
+    the sun-cycle stride. One source, so CLI and browser animate the same run identically (§5.6)."""
+    from scheduler_dojo.sim import calendar
+
+    lvl = _coerce_level(level)
+    duration = int(lvl.get("duration") or 0)
+    return {"step": max(1, duration // 2400), "tick": _tick_for(lvl),
+            "stride": calendar._stride(duration, calendar.WEEK_DAYS),
+            "duration": duration}
+
+
 def calendar_at(t: int, level: Any, t0: int | None = None) -> dict:
     """Day/week/sun position of sim time `t` for a level — computed in the engine so the CLI
     and the browser agree exactly on when a week ends (§5.6)."""
@@ -440,7 +474,8 @@ _DISPATCH = {
     "hand_result": hand_result,
     "progression_view": progression_view, "progression_completion": progression_completion,
     "progression_buy": progression_buy, "progression_drift": progression_drift,
-    "calendar_at": calendar_at, "offers_list": offers_list,
+    "calendar_at": calendar_at, "watch_plan": watch_plan,
+    "offers_list": offers_list,
     "tutorial_load": tutorial_load, "tutorial_run": tutorial_run, "endless_run": endless_run,
     "share_encode": share_encode, "share_replay": share_replay,
 }

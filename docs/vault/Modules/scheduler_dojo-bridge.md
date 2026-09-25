@@ -30,8 +30,10 @@ last-N decision records. `level` may be a dict or a JSON string.
 - **Stepping** (`start`/`step_*`) drives a `Scheduler` kept alive in the `_SESSIONS` handle table via
   `Scheduler.step_events`/`run_until` — the same event-loop body as a full run, so draining a stepped
   run yields the identical `trajectory_hash` (tested). A stepped run is bit-for-bit a full run.
-  Snapshots carry `placed_nodes`, `reserved` (unspent reserve intents), `pressure`/`overflow`, and a
-  `running[].end` (run + transfer) to animate; `_tick_for(lvl)` gives ring levels their heartbeat and
+  `_snapshot` carries `placed_nodes`, `reserved` (unspent reserve intents), `pressure`/`overflow`, a
+  `running[].end` (run + transfer) to animate, and `unseen` (jobs whose submit is still in the future —
+  so a viewer can draw the whole campus from first principles without having met every job yet);
+  `_tick_for(lvl)` gives ring levels their heartbeat and
   no other level a tick.
 - **Hand placement** (`hand_*`) runs under a no-op *manual* policy: nothing auto-places, the engine still
   validates every `hand_place`, and `hand_tick` advances to the next arrival/finish. `_suggestions`

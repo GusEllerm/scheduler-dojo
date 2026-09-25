@@ -127,7 +127,12 @@ async function boot(): Promise<void> {
   await py.loadPackage("micropip");
 
   status("wheel", `installing ${WHEEL_NAME}`);
-  const wheelUrl = wheelUrlFor(import.meta.url, WHEEL_NAME);
+  let wheelUrl = wheelUrlFor(import.meta.url, WHEEL_NAME);
+  if (import.meta.hot) {
+    // Dev only: Pyodide caches installed packages by URL, so a rebuilt-but-same-named wheel would
+    // never refresh. A per-boot cache-buster keeps the dev wheel honest (prod URLs stay stable).
+    wheelUrl += (wheelUrl.includes("?") ? "&" : "?") + "v=" + Date.now();
+  }
   await py.runPythonAsync(`import micropip\nawait micropip.install(${JSON.stringify(wheelUrl)})`);
   uninstrumentFetch();
 

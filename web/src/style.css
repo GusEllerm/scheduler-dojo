@@ -1252,3 +1252,10 @@ ul.kata-errors {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---- phase two: campus ---- */
+.campus-stage { position: relative; }
+.campus-canvas { display: block; width: 100%; border-radius: 10px; touch-action: manipulation; }
+.campus-controls { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.campus-clock { margin-top: 2px; }
+.campus-detail { position: absolute; padding: 4px 8px; border-radius: 8px; background: var(--sd-panel); color: var(--sd-ink); border: 1px solid var(--sd-line); font-size: 12px; pointer-events: none; }
