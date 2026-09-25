@@ -1025,3 +1025,160 @@ ul.kata-errors {
   color: #ff7b72;
   font-size: 12px;
 }
+
+/* --- Stage 9: level selector wrapping + share button + card modal + banners --------------- */
+
+.mode-level-pickers .run-picker {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.share-row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.share-button {
+  background: #2a3550;
+  color: var(--text);
+  border: 1px solid #46598a;
+  border-radius: 7px;
+  padding: 4px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.share-button:hover {
+  border-color: #ffb454;
+}
+
+.share-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 14, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+.share-modal {
+  background: var(--panel, #151d2b);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: min(720px, 92vw);
+}
+
+.share-modal h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.share-card-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.share-url-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.share-url {
+  flex: 1;
+  min-width: 0;
+  background: #0d1420;
+  color: #9fd0ff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+}
+
+.share-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.share-actions button,
+.share-download {
+  background: #243049;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 5px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.share-status {
+  font-size: 11px;
+  color: #7ee787;
+  white-space: nowrap;
+}
+
+.share-payload {
+  color: var(--muted, #8b96ab);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-banner {
+  grid-column: 1 / -1;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.share-banner.ok {
+  background: rgba(126, 231, 135, 0.10);
+  border: 1px solid rgba(126, 231, 135, 0.45);
+  color: #7ee787;
+}
+
+.share-banner.bad {
+  background: rgba(255, 123, 114, 0.10);
+  border: 1px solid rgba(255, 123, 114, 0.5);
+  color: #ff7b72;
+}
+
+.kata-notice {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: rgba(255, 180, 84, 0.08);
+  border: 1px solid rgba(255, 180, 84, 0.45);
+  border-radius: 8px;
+  padding: 6px 12px;
+  color: #ffb454;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.kata-notice button {
+  background: #2a3550;
+  color: var(--text);
+  border: 1px solid #46598a;
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.kata-notice[hidden] {
+  display: none;
+}

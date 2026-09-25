@@ -112,6 +112,32 @@ export interface ProgressionView {
 /** A level document (the JSON in levels/*.json); kept loose — Python validates it. */
 export type Level = Record<string, unknown> & { id?: string; seed?: number };
 
+// --- share cards (Stage 9; bridge.py share_*) ----------------------------------------
+
+/** Arguments of `share_encode`. Pass the inline `level` dict for a shipped/sandbox card. */
+export interface ShareEncodeArgs {
+  level?: Level | null;
+  seed?: number | null;
+  policy?: string;
+  kata?: string | null;
+  levelId?: string | null;
+}
+
+/** What `share_encode` returns: the `#c=…` payload plus the embedded result hash. */
+export interface ShareMint {
+  payload: string;
+  hash: string;
+}
+
+/** What `share_replay` returns: a re-run of the card and the hash comparison. */
+export interface ShareReplayResult {
+  ok: boolean;
+  metrics: Metrics;
+  trajectory_hash: string;
+  expected_hash: string | null;
+  score?: number;
+}
+
 export interface RunOptions {
   seed?: number | null;
   policy?: string;
@@ -263,6 +289,26 @@ export class DojoBridge {
   /** Offline welcome-back credits since `last_seen` (capped); returns the NEW state. */
   progressionDrift(state: ProgressionState | null, now: number): Promise<ProgressionState> {
     return this.call<ProgressionState>("progression_drift", { state, now });
+  }
+
+  // --- share cards (Stage 9; bridge.py share_*) ----------------------------------------
+
+  /** Run + mint a replayable `#c=` card (the engine embeds the run's trajectory hash). */
+  shareEncode(args: ShareEncodeArgs): Promise<ShareMint> {
+    return this.call<ShareMint>("share_encode", {
+      level: args.level ?? null,
+      seed: args.seed ?? null,
+      policy: args.policy ?? "fifo",
+      kata: args.kata ?? null,
+      level_id: args.levelId ?? null,
+    });
+  }
+
+  /** Re-run a card payload and check its hash. `level` is needed for cards that only reference a
+   *  level_id — and for shipped levels with an explicit `jobs` list, whose job data the card
+   *  itself does not embed (the engine's card schema carries generator/cluster only). */
+  shareReplay(payload: string, level?: Level | null): Promise<ShareReplayResult> {
+    return this.call<ShareReplayResult>("share_replay", { payload, level: level ?? null });
   }
 
   /** Tear the worker down (page teardown / tests). */

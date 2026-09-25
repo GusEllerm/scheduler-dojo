@@ -10,6 +10,7 @@ import { HandGame } from "./hand";
 import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
 import * as progression from "./progression";
+import * as share from "./share";
 import { mountHud, type HudHandle } from "./hud";
 import { mountShop, type ShopHandle } from "./shop";
 import { formatTime, mountTimeline, type TimelineHandle } from "./render/timeline";
@@ -90,15 +91,15 @@ bridge.onEvent((event: WorkerEvent) => {
 
 // --- boot the app ----------------------------------------------------------------------
 
-type Variant = { key: string; label: string; run: RunResult };
+type Variant = { key: string; label: string; run: RunResult; kata?: string };
 type Mode = "watch" | "hand" | "kata";
 
 /** Every level the picker offers. */
-const LEVELS = ["level1", "level2", "level3", "level4", "level5"];
+const LEVELS = ["level1", "level2", "level3", "level4", "level5", "level6", "level7", "level8", "level9"];
 /** Levels played by hand (sandbox / warm-up). */
 const HAND_LEVELS = ["level1", "level2"];
 /** Levels where you write a kata (Stages 6+). */
-const KATA_LEVELS = ["level3", "level4", "level5"];
+const KATA_LEVELS = ["level3", "level4", "level5", "level6", "level7", "level8", "level9"];
 
 let timeline: TimelineHandle | null = null;
 let variants: Variant[] = [];
@@ -125,6 +126,15 @@ const levelButtons = new Map<string, HTMLButtonElement>();
 // Stage 7: progression HUD + upgrade shop (mounted once at boot).
 let hud: HudHandle | null = null;
 let shop: ShopHandle | null = null;
+/** Tier gates (Stage 9): the level's own unlock tiers (raw, before the owned-union), the tiers the
+ * player owns, and their belt — refreshed from progression on load and on every shop change. */
+let baseTiers: string[] = ["core"];
+let ownedTiers: string[] = [];
+let playerBelt: string | undefined;
+/** The gated level dict currently mounted in the kata panel (its `unlocks` mutate when the player
+ * buys a tier, so the next kata run picks the wider gate up without losing the editor text). */
+let activeKataLevel: Level | null = null;
+let kataNotice: HTMLElement;
 /** A watch run whose completion is pending (recorded shortly after the app paints, so the HUD's
  * first frame shows the pre-run state; deduped per level+seed so reloads never farm credits). */
 let pendingWatchRecord: (() => Promise<void>) | null = null;
@@ -148,11 +158,20 @@ async function main(): Promise<void> {
   buildChrome();
   mountProgressionChrome();
   await applyDriftOnBoot();
-  const start = typeof prefs.level === "string" && LEVELS.includes(prefs.level) ? prefs.level : "level1";
+  // Stage 9: a `?c=`/`#c=` link takes priority — boot straight into the card's level, then replay.
+  const cardParam = share.shareParam();
+  const cardMeta = cardParam ? share.decodeShareCard(cardParam) : null;
+  const cardLevel = cardMeta ? share.cardLevelId(cardMeta) : "";
+  const start = LEVELS.includes(cardLevel)
+    ? cardLevel
+    : typeof prefs.level === "string" && LEVELS.includes(prefs.level)
+      ? prefs.level
+      : "level1";
   await loadLevel(start);
   dom.app.hidden = false;
   dom.loader.hidden = true;
   flushPendingWatchRecord();
+  if (cardParam) await replayShareCard(cardParam, cardMeta);
 }
 
 function levelId(): string {
@@ -218,8 +237,11 @@ function buildChrome(): void {
   kataPanel.hidden = true;
   const kataHeading = document.createElement("h2");
   kataHeading.textContent = "Write a kata";
+  kataNotice = document.createElement("div");
+  kataNotice.className = "kata-notice";
+  kataNotice.hidden = true;
   kataStage = document.createElement("div");
-  kataPanel.append(kataHeading, kataStage);
+  kataPanel.append(kataHeading, kataNotice, kataStage);
   dom.app.insertBefore(kataPanel, timelinePanel);
 }
 
@@ -242,11 +264,49 @@ async function applyDriftOnBoot(): Promise<void> {
   await hud?.refresh().catch(fail);
 }
 
-/** Level unlocks the player has earned: the level's own tiers ∪ the upgrades they own. */
+/** Level unlocks the player has earned: the level's own tiers ∪ the upgrades they own (this stays
+ * the watch/hand view); kata runs additionally gate to owned ∩ level via `gatedKataLevel`. */
 async function applyProgressionUnlocks(): Promise<void> {
   const view = await progression.view();
-  const base = Array.isArray(level.unlocks) ? (level.unlocks as string[]) : ["core"];
-  level.unlocks = [...new Set([...base, ...view.unlocked])].sort();
+  ownedTiers = view.unlocked;
+  playerBelt = view.belt;
+  level.unlocks = [...new Set([...baseTiers, ...ownedTiers])].sort();
+  if (activeKataLevel) {
+    activeKataLevel.unlocks = gatedKataLevel().unlocks; // widen the mounted kata's gate in place
+    paintKataNotice();
+  }
+}
+
+/** Display names for the tiers a level can require (kata spec §6 tiers). */
+const TIER_NAMES: Record<string, string> = {
+  core: "Core",
+  reserve: "Reservations",
+  sensor: "Sensors",
+  fairness: "Fairness",
+  preempt: "Preemption",
+  route: "Data routing",
+};
+
+/** `level` gated for kata play: ["core"] ∪ (owned upgrades ∩ the level's own unlock tiers). */
+function gatedKataLevel(): Level {
+  const owned = ownedTiers.filter((tier) => baseTiers.includes(tier));
+  return { ...level, unlocks: [...new Set(["core", ...owned])] };
+}
+
+/** A gentle "…is locked — buy it in Upgrades" notice when the kata level needs an unbought tier. */
+function paintKataNotice(): void {
+  const missing = baseTiers.filter((tier) => tier !== "core" && !ownedTiers.includes(tier));
+  kataNotice.textContent = "";
+  kataNotice.hidden = missing.length === 0;
+  if (!missing.length) return;
+  const names = missing.map((tier) => TIER_NAMES[tier] ?? tier).join(" · ");
+  const text = document.createElement("span");
+  text.textContent = `${names} ${missing.length === 1 ? "is" : "are"} locked — buy ${missing.length === 1 ? "it" : "them"} in Upgrades`;
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Open shop";
+  button.addEventListener("click", () => shop?.open());
+  kataNotice.append(text, button);
 }
 
 /** Record the pending watch-run completion (once) a beat after the app became visible. */
@@ -288,6 +348,8 @@ function paintControls(): void {
 
 async function loadLevel(id: string): Promise<void> {
   level = await fetchJson<Level>(`levels/${id}.json`);
+  baseTiers = Array.isArray(level.unlocks) ? [...(level.unlocks as string[])] : ["core"];
+  activeKataLevel = null;
   await applyProgressionUnlocks().catch(() => undefined); // owned upgrades gate kata tiers
   levelDuration = Number(level.duration ?? 0);
   dom.title.textContent = String(level.title ?? level.id ?? "Level");
@@ -334,7 +396,9 @@ function destroyModes(): void {
   handGauges.textContent = "";
   kata?.destroy();
   kata = null;
+  activeKataLevel = null;
   kataStage.textContent = "";
+  if (kataNotice) kataNotice.hidden = true;
 }
 
 /** Existing behaviour: run the level under its default policy + the reference kata. */
@@ -353,7 +417,7 @@ async function enterWatch(): Promise<void> {
     const report = await bridge.checkKata(kata);
     if (!report.ok) throw new Error(`reference kata invalid: ${formatKataErrors(report.errors)}`);
     const reference = await bridge.runLevel(level, { policy: "kata", kata });
-    variants.push({ key: "kata", label: "reference kata", run: reference });
+    variants.push({ key: "kata", label: "reference kata", run: reference, kata });
   }
 
   dom.picker.replaceChildren(
@@ -393,10 +457,13 @@ async function enterHand(): Promise<void> {
   });
 }
 
-/** Kata mode (Stage 6, levels 3-5): mount the write-check-run controller. */
+/** Kata mode (Stage 6+, levels 3-9): mount the write-check-run controller on the *gated* level —
+ * kata runs only see tiers the player actually owns; locked tiers get a notice, not a surprise. */
 async function enterKata(): Promise<void> {
   dom.picker.textContent = "";
-  kata = mountKataPlay(kataStage, level, {
+  activeKataLevel = gatedKataLevel();
+  paintKataNotice();
+  kata = mountKataPlay(kataStage, activeKataLevel, {
     timeline: dom.timeline,
     onRun: (run) => {
       renderReadout({ key: "kata", label: "kata", run });
@@ -472,7 +539,76 @@ function renderReadout(variant: Variant): void {
     bars.textContent = `pass ${run.bars.pass_score ?? "?"} · gold ${run.bars.gold_score ?? "?"}`;
     dom.readout.append(bars);
   }
+  // Stage 9: every finished run (watch / hand / kata) gets a Share button next to its hash.
+  const shareRow = document.createElement("div");
+  shareRow.className = "share-row";
+  dom.readout.append(shareRow);
+  share.mountShareButton(shareRow, shareContextFor(variant));
   if (run.policy === "hand") renderHandReadout();
+}
+
+/** The card context for a finished run. A hand run cannot be replayed from a seed alone, so its
+ * card replays the level's default (auto) policy at the same seed and says so in the tag line. */
+function shareContextFor(variant: Variant): share.ShareContext {
+  const run = variant.run;
+  // A kata run used the *gated* level (owned tiers only) — mint the card from the same dict, so
+  // the trajectory the card embeds is exactly the one the player just saw.
+  const ctxLevel = run.policy === "kata" && activeKataLevel ? activeKataLevel : level;
+  const policy =
+    run.policy === "kata"
+      ? "kata"
+      : run.policy === "hand"
+        ? String(level.default_policy ?? "fifo")
+        : run.policy;
+  const kata =
+    run.policy === "kata" ? variant.kata ?? share.currentKataSource(kataStage) ?? undefined : undefined;
+  return {
+    level: ctxLevel,
+    levelId: levelId(),
+    title: String(level.title ?? levelId()),
+    seed: run.seed,
+    policy,
+    ...(kata ? { kata } : {}),
+    run,
+    ...(playerBelt ? { belt: playerBelt } : {}),
+    ...(run.policy === "hand" ? { tag: "auto policy at this seed" } : {}),
+  };
+}
+
+/** Boot-time replay of an incoming `?c=` card: verify Python-side, then re-run + paint + banner. */
+async function replayShareCard(payload: string, card: share.DecodedShareCard | null): Promise<void> {
+  // Replay under the tier gate the *card* was minted with (its embedded unlocks), so a player
+  // without the upgrade replays the stubbed run and one with it replays the full run — the hash
+  // check is against the run the card actually promises, not this browser's current unlocks.
+  const embedded = card?.level as Level | null | undefined;
+  const replayLevel: Level =
+    embedded && Array.isArray(embedded.unlocks) ? { ...level, unlocks: embedded.unlocks } : level;
+  let ok = false;
+  let detail = "";
+  try {
+    const verdict = await bridge.shareReplay(payload, replayLevel);
+    ok = verdict.ok;
+    detail = ok
+      ? verdict.trajectory_hash.slice(0, 12)
+      : `got ${String(verdict.trajectory_hash).slice(0, 8)} ≠ ${String(verdict.expected_hash ?? "?").slice(0, 8)}`;
+  } catch (error) {
+    detail = error instanceof BridgeError ? `${error.code}: ${error.message}` : String(error);
+  }
+  if (ok && card) {
+    try {
+      const run = await bridge.runLevel(replayLevel, {
+        seed: card.seed,
+        policy: card.kata ? "kata" : card.policy ?? "fifo",
+        ...(card.kata ? { kata: String(card.kata) } : {}),
+      });
+      variants = [{ key: "share", label: "share replay", run, ...(card.kata ? { kata: String(card.kata) } : {}) }];
+      show(0);
+    } catch (error) {
+      ok = false;
+      detail = error instanceof BridgeError ? `${error.code}: ${error.message}` : String(error);
+    }
+  }
+  share.showShareBanner(dom.readout, ok, detail);
 }
 
 function fail(error: unknown): void {

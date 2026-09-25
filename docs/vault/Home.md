@@ -26,6 +26,15 @@ commit that changes the code is blocked until the note is updated or acknowledge
 
 ## Status
 
+**Stage 8 (Levels 6–9 + engine) & Stage 9 (Share cards) — done.** Stage 8 shipped real **preemption**
+(epoch-guarded stale-`FINISH`, no-checkpoint requeue), multi-site **routing** (`route`/`transfer_secs`/
+site-aware `first_fit`), **trace import** (`dojo import-trace`, explicit-`jobs` levels), and four
+calibrated puzzles (6 partitions/tags, 7 preempt, 8 two-site route, 9 capstone). Stage 9 shipped a
+tamper-evident share flow: a Share button mints a `?c=…` URL + a Canvas PNG card; opening it replays the
+run and shows **"verified ✓"** or **"tampered / hash mismatch ✗"**. Cards embed their run's tiers and
+force them on replay. `dojo verify-card` mirrors it headless. All nine levels are selectable; kata play
+gates tiers as `level.unlocks ∩ owned`.
+
 **Stage 7 (Progression) & Stage 6 (Full kata play) — done.** Stage 6 adds a "Write a kata" mode
 (CodeMirror editor, lexer-mirrored highlighting, inline `check_kata` errors, kata library, Run/Step).
 Stage 7 adds the progression HUD (belt chip, credits, next-belt hint) + upgrade shop, backed by the
@@ -84,7 +93,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | 6 | Full kata play (levels 3–5): syntax editor, inline errors, step/run, kata library | ✅ done |
 | 7 | Progression: credits, belts, upgrade shop, offline progress + drift, save migrations | ✅ done |
 | 8 | Levels 6–9 + trace mode: partitions, DAG/recursion/preempt, two-site route, endless, `dojo import-trace` | ✅ engine + levels done (share/PNG UI is Stage 9) |
-| 9 | Share cards: encode/decode, replay-verify, PNG card, `dojo verify-card` | planned |
+| 9 | Share cards: encode/decode, replay-verify, PNG card, `dojo verify-card` | ✅ done |
 | 10 | Polish, a11y, Pages deploy, README/researchers page, final vault sweep | planned |
 
 ## Deferred
