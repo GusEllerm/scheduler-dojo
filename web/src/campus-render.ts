@@ -671,6 +671,8 @@ export class CampusRenderer {
     ctx.fill();
     if (b.revealed === false) ctx.restore();
   }
+
+  /** Overflow pulse: first appearance of `scene.overflow` paints an expanding ring on that
    *  neighbour for PULSE_MS, timed by the caller's progress (no clock here). Under reducedMotion
    *  it is the static full ring (the steady ring above already covers persistence). */
   private drawOverflowPulse(ctx: CanvasRenderingContext2D, scene: CampusScene,
