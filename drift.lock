@@ -88,7 +88,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Determinism.md"
@@ -128,7 +128,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Kata.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Levels.md"
@@ -268,7 +268,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Decision Log.md"
@@ -1043,7 +1043,7 @@ sig = "71234d3e76362c30"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-builtins.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-check.md"
@@ -1228,7 +1228,7 @@ sig = "8910c73df162f71f"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
 target = "src/scheduler_dojo/sim/scheduler.py"
-sig = "47304f4face07def"
+sig = "4e61bead01006ab4"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
@@ -1238,7 +1238,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-kata-policy.md"
@@ -1388,7 +1388,7 @@ sig = "ea6def626bef7acf"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-errors.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-events.md"
@@ -1423,7 +1423,7 @@ sig = "0d79e9a7a24c003d"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-jobs.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
-sig = "cb732ba0d5926025"
+sig = "582ef806afb7f540"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-jobs.md"

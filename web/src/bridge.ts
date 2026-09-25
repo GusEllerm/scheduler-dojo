@@ -256,6 +256,16 @@ export class DojoBridge {
     return this.call("calendar_at", { t, level });
   }
 
+  /** A city tutorial script (data) — `tutorial_load`; the runner in tutorial.ts executes it. */
+  tutorialLoad<T = Record<string, unknown>>(city = "city1"): Promise<{ tutorial: T }> {
+    return this.call("tutorial_load", { city });
+  }
+
+  /** The deterministic two upgrade offers for a city/week boundary (share-replayable). */
+  offersList(state: ProgressionState | null, city: number, week: number): Promise<{ offers: string[] }> {
+    return this.call("offers_list", { state, city, week });
+  }
+
   // --- hand placement (Stage 5; bridge.py hand_*) -------------------------------------
 
   /** Start a manual run: nothing auto-places; the player drives `handPlace` / `handTick`. */

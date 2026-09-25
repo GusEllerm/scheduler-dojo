@@ -72,7 +72,12 @@ export interface CampusScene {
   lots: Lot[];
   neighbourhoods: Neighbourhood[];
   road: RoadSpec;
-  booth: { x: number; y: number; w: number; h: number; staffed: boolean };
+  booth: { x: number; y: number; w: number; h: number; staffed: boolean; revealed?: boolean };
+  /** hand mode (Art 4): the vehicle the player picked on the road, null when none */
+  selectedId?: string | null;
+  /** hand mode: bays staged for the selected vehicle + a client-side fit hint (the engine still
+   *  validates on place — this is a ghost preview, not a decision) */
+  staged?: { bays: string[]; fits: boolean; user: string } | null;
   overflowUser: string | null;
   done: boolean;
 }
@@ -99,6 +104,10 @@ export interface LayoutInput {
   snap: SnapshotLike;
   clock: { week: number; day: number; sun: number };
   staffed?: boolean;
+  /** hand mode extras (all optional; live mode leaves them unset and the scene is unchanged) */
+  selected?: string | null;
+  staged?: CampusScene["staged"];
+  boothRevealed?: boolean;
 }
 
 /** Pure layout + projection. Deterministic: no Date, no Math.random, no iter over object sets
@@ -200,14 +209,19 @@ function layoutScene(inp: LayoutInput): CampusScene {
   const rank = new Map(snap.queued.map((id, i) => [id, i]));
   for (const v of vehicles) if (v.state === "queued") v.rank = rank.get(v.id) ?? 0;
 
+  const staffed = inp.staffed ?? true;
   return {
     now: snap.now,
     week: inp.clock.week, day: inp.clock.day, sun: inp.clock.sun,
     vehicles,
     queuedOrder: [...snap.queued],
-    chosen: snap.queued[0] ?? null,
+    // "chosen" is the BOOTH's pick — an unstaffed hand booth has chosen nothing (Art 4).
+    chosen: staffed ? snap.queued[0] ?? null : null,
     bays, lots, neighbourhoods, road,
-    booth: { x: width - PAD - 190, y: roadY - 64, w: 120, h: 56, staffed: inp.staffed ?? true },
+    booth: { x: width - PAD - 190, y: roadY - 64, w: 120, h: 56, staffed,
+             revealed: inp.boothRevealed ?? true },
+    selectedId: inp.selected ?? null,
+    staged: inp.staged ?? null,
     overflowUser: snap.overflow ?? null,
     done: !!snap.done,
   };

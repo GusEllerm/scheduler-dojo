@@ -237,6 +237,7 @@ export class CampusRenderer {
     this.drawLots(ctx, scene);
     this.drawBays(ctx, scene);
     this.drawRunBars(ctx, scene);
+    this.drawStaged(ctx, scene);
     this.drawCones(ctx, scene);
     this.drawRoad(ctx, scene);
     this.drawNeighbourhoods(ctx, scene, base, p);
@@ -368,6 +369,36 @@ export class CampusRenderer {
       ctx.stroke(path);
       this.drawWaveMark(ctx, x + s.w / 2, s.y - 3);
     }
+    // Hand mode (Art 4): the PLAYER's pick gets the same chosen outline (no wave-mark — nobody
+    // was waved in). Undefined/null in live mode, so the baseline frame is untouched.
+    const sel = scene.selectedId;
+    if (sel && sel !== chosen && cur.has(sel)) {
+      const s = cur.get(sel)!;
+      const path = new Path2D();
+      roundRectPath(path, s.x, s.y, s.w, s.len, 3);
+      ctx.strokeStyle = this.c("veh-chosen");
+      ctx.lineWidth = 2;
+      ctx.stroke(path);
+    }
+  }
+
+  /** Hand-mode ghost preview: staged bays tinted in the selected vehicle's owner color at low
+   *  alpha, edged `ok` when they would fit / `overflow` when they clearly would not. Undefined
+   *  `staged` in live mode ⇒ this paints nothing (baseline-safe). */
+  private drawStaged(ctx: CanvasRenderingContext2D, scene: CampusScene): void {
+    const staged = scene.staged;
+    if (!staged || !staged.bays.length) return;
+    const geom = bayGeom(scene);
+    const path = new Path2D();
+    for (const id of staged.bays) {
+      const g = geom.get(id);
+      if (g) roundRectPath(path, g.x, g.y, g.w, g.h, 3);
+    }
+    ctx.fillStyle = withAlpha(this.ownerColor(staged.user, scene), 0.4);
+    ctx.fill(path);
+    ctx.strokeStyle = this.c(staged.fits ? "ok" : "overflow");
+    ctx.lineWidth = 2;
+    ctx.stroke(path);
   }
 
   /** Static three-arc wave-mark ("the booth just picked"). Static = deterministic; motion on it
@@ -597,10 +628,14 @@ export class CampusRenderer {
     ctx.fill();
   }
 
-  /** Small original dispatch booth at the road's lot-side end: base, roof, lit window, flag. */
+  /** Small original dispatch booth at the road's lot-side end: base, roof, lit window, flag.
+   *  A booth the tutorial has not revealed yet (`revealed === false`) is drawn dimmed; `undefined`
+   *  (live mode / baselines) draws exactly as before. */
   private drawBooth(ctx: CanvasRenderingContext2D, scene: CampusScene): void {
     const b = scene.booth;
     if (!b) return;
+    if (b.revealed === false) ctx.save();
+    if (b.revealed === false) ctx.globalAlpha = 0.35;
     ctx.fillStyle = this.c("panel");
     ctx.strokeStyle = withAlpha(this.c("ink-soft"), 0.6);
     ctx.lineWidth = 1.5;
@@ -634,9 +669,8 @@ export class CampusRenderer {
     ctx.lineTo(fx, b.y + b.h * 0.35 + 8);
     ctx.closePath();
     ctx.fill();
+    if (b.revealed === false) ctx.restore();
   }
-
-  /** Overflow pulse: first appearance of scene.overflowUser paints an expanding ring on that
    *  neighbour for PULSE_MS, timed by the caller's progress (no clock here). Under reducedMotion
    *  it is the static full ring (the steady ring above already covers persistence). */
   private drawOverflowPulse(ctx: CanvasRenderingContext2D, scene: CampusScene,
