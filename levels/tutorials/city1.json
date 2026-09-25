@@ -6,136 +6,265 @@
   "level_patch": {
     "story": "Four quiet bays. Bring them home.",
     "generator": {
-      "users": [{ "name": "alice", "weight": 1.0 }],
-      "arrival": { "min": 1800, "max": 3600 }
+      "users": [
+        {
+          "name": "alice",
+          "weight": 1.0
+        }
+      ],
+      "arrival": {
+        "min": 1800,
+        "max": 3600
+      }
+    },
+    "pressure": {
+      "cap": 3,
+      "end_on_overflow": false
     }
   },
   "steps": [
     {
       "id": "welcome",
-      "when": { "after_days": 0, "once": true },
+      "when": {
+        "after_days": 0,
+        "once": true
+      },
       "do": [
-        { "lock": "none" },
+        {
+          "lock": "none"
+        },
         {
           "callout": {
             "title": "Welcome to the campus",
             "body": "Vehicles arrive from the neighbourhood and need bays to park in. You are the traffic: tap a vehicle on the road, then tap the bays it needs. Four bays, one campus, nothing else to mind today.",
             "anchor": "road",
-            "actions": ["Got it"]
+            "actions": [
+              "Got it"
+            ]
           }
         }
       ],
-      "then": [{ "wait_for": { "placed_any": true } }]
+      "then": [
+        {
+          "wait_for": {
+            "placed_any": true
+          }
+        }
+      ]
     },
     {
       "id": "parked",
-      "when": { "on_event": "first_place", "once": true },
+      "when": {
+        "on_event": "first_place",
+        "once": true
+      },
       "do": [
         {
           "callout": {
             "title": "That's a park",
-            "body": "A vehicle occupies its bays until it leaves — one vehicle per bay, always. Wide vehicles need several bays side by side.",
+            "body": "A vehicle occupies its bays until it leaves \u2014 one vehicle per bay, always. Wide vehicles need several bays side by side.",
             "anchor": "vehicle:last_placed",
-            "actions": ["Nice"]
+            "actions": [
+              "Nice"
+            ]
           }
         }
       ],
-      "then": [{ "wait_for": { "sim_secs": 600 } }]
+      "then": [
+        {
+          "wait_for": {
+            "sim_secs": 600
+          }
+        }
+      ]
     },
     {
       "id": "adjacency",
-      "when": { "after_sim_secs": 5400, "once": true },
+      "when": {
+        "after_sim_secs": 5400,
+        "once": true
+      },
       "do": [
         {
           "callout": {
             "title": "A convoy arrives",
-            "body": "That wide vehicle needs all four bays at once — and it will only fit if the bays are free and side by side. Try leaving a gap somewhere and watch what it tells you.",
+            "body": "That wide vehicle needs all four bays at once \u2014 and it will only fit if the bays are free and side by side. Try leaving a gap somewhere and watch what it tells you.",
             "anchor": "road",
-            "actions": ["Understood"]
+            "actions": [
+              "Understood"
+            ]
           }
         }
       ],
-      "then": [{ "wait_for": { "sim_secs": 3600, "or_then": true } }]
+      "then": [
+        {
+          "wait_for": {
+            "sim_secs": 3600,
+            "or_then": true
+          }
+        }
+      ]
     },
     {
       "id": "second-neighbourhood",
-      "when": { "after_days": 3, "once": true },
+      "when": {
+        "after_days": 3,
+        "once": true
+      },
       "do": [
-        { "reveal": { "ring": "bob" } },
+        {
+          "reveal": {
+            "ring": "bob"
+          }
+        },
         {
           "callout": {
             "title": "A new neighbour",
-            "body": "Bob moved in. The ring beside each neighbourhood is its patience: it fills while that neighbour's vehicles wait. Watch Bob's ring — when one overflows, the week is over, early and badly.",
+            "body": "Bob moved in. The ring beside each neighbourhood is its patience: it fills while that neighbour's vehicles wait. Watch Bob's ring \u2014 when one overflows, the week is over, early and badly.",
             "anchor": "ring:bob",
-            "actions": ["Hi Bob"]
+            "actions": [
+              "Hi Bob"
+            ]
           }
         }
       ],
-      "then": [{ "wait_for": { "sim_secs": 5400, "or_then": true } }]
+      "then": [
+        {
+          "wait_for": {
+            "sim_secs": 5400,
+            "or_then": true
+          }
+        }
+      ]
     },
     {
       "id": "rings-move",
-      "when": { "first_time": "pressure_moved", "once": true },
+      "when": {
+        "first_time": "pressure_moved",
+        "once": true
+      },
       "do": [
         {
           "callout": {
             "title": "Patience in motion",
-            "body": "The ring fills fastest for small vehicles made to wait — so a short vehicle stuck behind a long one spits red first. Keeping rings calm means keeping everyone moving.",
+            "body": "The ring fills fastest for small vehicles made to wait \u2014 so a short vehicle stuck behind a long one spits red first. Keeping rings calm means keeping everyone moving.",
             "anchor": "ring:any_moving",
-            "actions": ["Noted"]
+            "actions": [
+              "Noted"
+            ]
           }
         }
       ],
-      "then": [{ "wait_for": { "behind": true, "timeout_secs": 7200 } }]
+      "then": [
+        {
+          "wait_for": {
+            "behind": true,
+            "timeout_secs": 7200
+          }
+        }
+      ]
     },
     {
       "id": "staff-booth",
-      "when": { "all": [{ "after_days": 3 }, { "behind": true }], "once": true },
+      "when": {
+        "all": [
+          {
+            "after_days": 3
+          },
+          {
+            "behind": true
+          }
+        ],
+        "once": true
+      },
       "do": [
-        { "reveal": { "booth": true } },
-        { "set_mode": "booth:cards" },
+        {
+          "reveal": {
+            "booth": true
+          }
+        },
+        {
+          "set_mode": "booth:cards"
+        },
         {
           "callout": {
             "title": "Staff the booth",
-            "body": "You cannot keep up by hand any more. The booth at the lot entrance can run your rules for you. Pick a card and slot it in — whichever order you choose becomes the order of the road.",
+            "body": "You cannot keep up by hand any more. The booth at the lot entrance can run your rules for you. Pick a card and slot it in \u2014 whichever order you choose becomes the order of the road.",
             "anchor": "booth",
-            "actions": ["Staff it"]
+            "actions": [
+              "Staff it"
+            ]
           }
         }
       ],
-      "then": [{ "wait_for": { "booth_staffed": true } }]
+      "then": [
+        {
+          "wait_for": {
+            "booth_staffed": true
+          }
+        }
+      ]
     },
     {
       "id": "cards-explained",
-      "when": { "on_event": "booth_staffed", "once": true },
+      "when": {
+        "on_event": "booth_staffed",
+        "once": true
+      },
       "do": [
         {
           "callout": {
             "title": "The card you just slotted",
-            "body": "That card is a rule in one line: it says how to rank every waiting vehicle. Oldest first is fair and simple; shortest first calms rings fastest; biggest first protects the convoys. There is no correct answer — the rings will tell you.",
+            "body": "That card is a rule in one line: it says how to rank every waiting vehicle. Oldest first is fair and simple; shortest first calms rings fastest; biggest first protects the convoys. There is no correct answer \u2014 the rings will tell you.",
             "anchor": "booth",
-            "actions": ["Traffic, go"]
+            "actions": [
+              "Traffic, go"
+            ]
           }
         }
       ],
-      "then": [{ "wait_for": { "week_end": true } }]
+      "then": [
+        {
+          "wait_for": {
+            "week_end": true
+          }
+        }
+      ]
     },
     {
       "id": "week-end",
-      "when": { "on_event": "week_end", "once": true },
+      "when": {
+        "on_event": "week_end",
+        "once": true
+      },
       "do": [
         {
           "callout": {
             "title": "End of week one",
-            "body": "The contractor owes you one upgrade. Take the one your campus needs most — you will meet the other in someone else's save.",
+            "body": "The contractor owes you one upgrade. Take the one your campus needs most \u2014 you will meet the other in someone else's save.",
             "anchor": "offers",
-            "actions": ["Show me"]
+            "actions": [
+              "Show me"
+            ]
           }
         },
-        { "offer_upgrade": { "pick_of": 2 } }
+        {
+          "offer_upgrade": {
+            "pick_of": 2
+          }
+        }
       ],
-      "then": [{ "end": true }]
+      "then": [
+        {
+          "end": true
+        }
+      ]
     }
   ],
-  "end": { "on": { "event": "week_end" }, "next": 2 }
+  "end": {
+    "on": {
+      "event": "week_end"
+    },
+    "next": 2
+  }
 }

@@ -98,3 +98,43 @@ def test_belts_track_lifetime_not_balance():
 
 def unlocked(state):
     return set(state.get("upgrades", []))
+
+
+def test_offer_accept_is_the_free_grant():
+    from scheduler_dojo.progression import new_state, offer_accept, offers, buildings
+
+    st = new_state()
+    pair = offers(st, city=4, week=1)
+    assert len(pair) == 2
+    st2, why = offer_accept(st, 4, 1, pair[0])
+    assert why == "ok" and pair[0] in st2["upgrades"] and st2["credits"] == 0
+    assert buildings(st2) == [pair[0]]
+    # the ledger records the boundary; a second accept (any id) refuses
+    st3, why2 = offer_accept(st2, 4, 1, pair[1])
+    assert why2 == "accepted" and st3["upgrades"] == st2["upgrades"]
+    # and a client cannot hand-pick an un-offered upgrade
+    st4, why3 = offer_accept(st2, 9, 1, "route")
+    assert why3 == "not_offered" and "route" not in st4["upgrades"]
+
+
+def test_offer_accept_replays_from_the_same_save():
+    from scheduler_dojo.progression import new_state, offer_accept, offers
+
+    a = new_state()
+    b = new_state()
+    for city, week in ((4, 1), (5, 2), (7, 1)):
+        pa, pb = offers(a, city, week), offers(b, city, week)
+        assert pa == pb
+        a, _ = offer_accept(a, city, week, pa[0])
+        b, _ = offer_accept(b, city, week, pa[0])
+    assert a["upgrades"] == b["upgrades"] and a["weeks"] == b["weeks"]
+
+
+def test_v2_save_migrates_to_v3_weeks_ledger():
+    from scheduler_dojo.progression import _migrate
+
+    v2 = {"version": 2, "credits": 40, "lifetime": 90, "levels": {}, "upgrades": ["reserve"],
+          "last_seen": 5}
+    st = _migrate(dict(v2))
+    assert st["version"] == 3 and st["weeks"] == {}
+    assert st["upgrades"] == ["reserve"] and st["lifetime"] == 90  # nothing else moves

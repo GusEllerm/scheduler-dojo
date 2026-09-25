@@ -365,9 +365,12 @@ def progression_view(state: dict | None = None, *, now: int = 0) -> dict:
         "credits": st.get("credits", 0),
         "lifetime": st.get("lifetime", 0),
         "unlocked": sorted(prog.unlocked_tiers(st)),
-        "upgrades": {uid: {**u, "owned": uid in st.get("upgrades", []),
+        "upgrades": {uid: {**u, "name": prog.BUILDINGS[uid]["name"],
+                           "blurb": prog.BUILDINGS[uid]["blurb"],
+                           "owned": uid in st.get("upgrades", []),
                            "buyable": prog.can_buy(st, uid)}
                      for uid, u in prog.UPGRADES.items()},
+        "buildings": [{"id": uid, **prog.BUILDINGS[uid]} for uid in prog.buildings(st)],
     }
 
 
@@ -432,6 +435,28 @@ def offers_list(state: dict, city: int, week: int) -> dict:
     from scheduler_dojo import progression as prog
 
     return {"offers": prog.offers(_ensure_state(state), int(city), int(week))}
+
+
+def progression_grant(state: dict, upgrade_id: str) -> dict:
+    """FREE ownership grant — the tutorial's `offer_upgrade {grant}` path (§5.8 guided first use).
+    The tutorial IS the campaign economy for its beats; credits (the belt meter) never move here.
+    A shipped save reached this state anyway by owning the building; this only front-loads it."""
+    from scheduler_dojo import progression as prog
+
+    st = _ensure_state(state)
+    if upgrade_id not in prog.UPGRADES:
+        return {"state": st, "ok": False, "reason": "unknown"}
+    st["upgrades"] = sorted(set(st.get("upgrades", [])) | {upgrade_id})
+    return {"state": st, "ok": True, "reason": "granted"}
+
+
+def offer_accept(state: dict, city: int, week: int, upgrade_id: str) -> dict:
+    """Take a week-end offer (free — §5.8). Returns the new state + an `ok`/`reason` verdict, so
+    the UI can refuse a hand-picked id the boundary never offered (`not_offered`)."""
+    from scheduler_dojo import progression as prog
+
+    st, reason = prog.offer_accept(_ensure_state(state), int(city), int(week), upgrade_id)
+    return {"state": st, "ok": reason == "ok", "reason": reason}
 
 
 def tutorial_load(city: str = "city1") -> dict:
@@ -511,7 +536,7 @@ _DISPATCH = {
     "progression_view": progression_view, "progression_completion": progression_completion,
     "progression_buy": progression_buy, "progression_drift": progression_drift,
     "calendar_at": calendar_at, "watch_plan": watch_plan,
-    "offers_list": offers_list,
+    "offers_list": offers_list, "offer_accept": offer_accept, "progression_grant": progression_grant,
     "tutorial_load": tutorial_load, "tutorial_run": tutorial_run, "endless_run": endless_run,
     "share_encode": share_encode, "share_replay": share_replay,
 }

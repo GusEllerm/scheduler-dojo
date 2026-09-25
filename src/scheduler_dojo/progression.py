@@ -25,7 +25,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
-SAVE_VERSION = 1
+SAVE_VERSION = 3
 CREDIT_DIVISOR = 10  # credits = floor(score / CREDIT_DIVISOR); score 0..1000 -> 0..100 credits
 GOLD_BONUS = 25
 
@@ -44,6 +44,23 @@ UPGRADES: dict[str, dict] = {
     "route": {"cost": 480, "requires": ["fairness"], "unlocks": ["route"]},
 }
 
+# Campus buildings (phase two §5.8): each upgrade is a BUILDING on the map. `anchor` is a hint the
+# renderer resolves against the scene vocabulary (lot side, road edge, booth). The week-end offer
+# cards and the campus sprites both read this table, so an offer and the thing it builds are one
+# fact in one place.
+BUILDINGS: dict[str, dict] = {
+    "reserve": {"name": "Cone locker", "blurb": "Chalk cones to hold bays a convoy will need.",
+                "anchor": "lot", "tier": "reserve"},
+    "sensors": {"name": "Weigh station", "blurb": "Trust only what vehicles CLAIM, not what they do.",
+                "anchor": "road", "tier": "sensor"},
+    "fairness": {"name": "Community board", "blurb": "Per-user shares, so starvation is visible.",
+                 "anchor": "neighbourhood", "tier": "fairness"},
+    "preempt": {"name": "Tow truck", "blurb": "Escort a stuck vehicle off the bays, at a cost.",
+                "anchor": "road", "tier": "preempt"},
+    "route": {"name": "Motorway gate", "blurb": "Drive a vehicle's whole workload to the far campus.",
+              "anchor": "edge", "tier": "route"},
+}
+
 # Offline drift: credits-per-hour while idle, capped. A gentle "welcome back," never punishing.
 DRIFT_CREDITS_PER_HOUR = 2
 DRIFT_CAP_HOURS = 12.0
@@ -51,7 +68,7 @@ DRIFT_CAP_HOURS = 12.0
 
 def new_state(*, now: int = 0) -> dict:
     return {"version": SAVE_VERSION, "credits": 0, "lifetime": 0, "levels": {},
-            "upgrades": [], "last_seen": now}
+            "upgrades": [], "last_seen": now, "weeks": {}}
 
 
 def belt(credits: int) -> str:
@@ -142,6 +159,34 @@ def offers(state: dict, city: int, week: int) -> list[str]:
 
 
 
+def offer_accept(state: dict, city: int, week: int, upgrade_id: str) -> tuple[dict, str]:
+    """Accept a week-end OFFER for free (§5.8) — the offer IS the grant, credits never move.
+
+    Refuses (state unchanged, reason string) when the boundary already accepted (`"accepted"`),
+    the id is not one of THIS boundary's deterministic pair (`"not_offered"`) — so a client cannot
+    hand-pick from the whole tree — or the id is unknown (`"unknown"`). Accepting adds ownership
+    exactly like a purchase and records `state["weeks"]["city:week"] = id` for the board/sprites.
+    Deterministic: the same save at the same boundary always offers and accepts the same way.
+    """
+    st = _migrate(dict(state))
+    if upgrade_id not in UPGRADES:
+        return st, "unknown"
+    key = f"{int(city)}:{int(week)}"
+    if key in st.get("weeks", {}):
+        return st, "accepted"
+    if upgrade_id not in offers(st, int(city), int(week)):
+        return st, "not_offered"
+    st["upgrades"] = sorted(set(st.get("upgrades", [])) | {upgrade_id})
+    st.setdefault("weeks", {})[key] = upgrade_id
+    return st, "ok"
+
+
+def buildings(state: dict) -> list[str]:
+    """Owned upgrades, i.e. the buildings standing on the campus (sorted ids)."""
+    st = _migrate(dict(state))
+    return sorted(uid for uid in st.get("upgrades", []) if uid in BUILDINGS)
+
+
 def apply_drift(state: dict, *, now: int) -> dict:
     """Award idle credits for time away (capped, monotone); advance `last_seen`. Never negative."""
     st = _migrate(dict(state))
@@ -164,5 +209,6 @@ def _migrate(state: dict) -> dict:
         state.setdefault("levels", {})
         state.setdefault("upgrades", [])
         state.setdefault("last_seen", 0)
+        state.setdefault("weeks", {})  # week-end offers accepted, keyed "city:week" (v3)
         state["version"] = SAVE_VERSION
     return state

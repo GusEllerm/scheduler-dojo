@@ -39,9 +39,9 @@ def _write(tmp_path: Path, files: dict[str, dict]) -> list[Path]:
     return paths
 
 
-def test_checker_reads_the_three_shipped_cities():
+def test_checker_reads_the_nine_shipped_cities():
     checker = _checker()
-    assert [p.name for p in checker.default_files()] == ["city1.json", "city2.json", "city3.json"]
+    assert [p.name for p in checker.default_files()] == [f"city{i}.json" for i in range(1, 10)]
 
 
 def test_shipped_tutorials_are_valid():
@@ -134,3 +134,51 @@ def test_unknown_builtin_would_be_rejected(tmp_path):
     broken["steps"][2]["do"].insert(0, {"reveal": {"builtins": ["teleport_jobs"]}})
     (path,) = _write(tmp_path, {"city3.json": broken})
     assert any("unknown builtin" in e for e in checker.check_file(path))
+
+
+def test_all_nine_city_scripts_load_and_validate():
+    import json
+
+    from scheduler_dojo.sim.tutorial import load_tutorial
+
+    for city in range(1, 10):
+        doc = load_tutorial(f"city{city}")
+        assert doc["city"] == city
+        assert doc["steps"], f"city{city} has no steps"
+
+
+def test_pressure_patch_makes_a_city_edition_with_rings():
+    from scheduler_dojo.sim.errors import LevelError
+    from scheduler_dojo.sim.tutorial import load_city_level, validate_patch
+
+    lvl = load_city_level("city3")
+    assert lvl["pressure"] == {"cap": 2, "end_on_overflow": False}
+    base = json.loads((ROOT / "levels" / "level3.json").read_text())
+    assert "pressure" not in base  # additive-only: the canonical level is untouched
+    # and the canonical file's own calibrated run is unaffected by the edition existing
+    from scheduler_dojo import bridge
+
+    r = bridge.run(base, policy="idle")
+    assert r["score"] is not None
+    with pytest.raises(LevelError):
+        validate_patch({"pressure": {"cap": 1}}, {"duration": 100})
+
+
+def test_pressure_patch_cannot_replace_a_levels_own_block():
+    from scheduler_dojo.sim.errors import LevelError
+    from scheduler_dojo.sim.tutorial import validate_patch
+
+    with pytest.raises(LevelError):
+        validate_patch({"pressure": {"cap": 3}},
+                       {"duration": 100, "pressure": {"cap": 2, "end_on_overflow": True}})
+
+
+def test_city_edition_with_rings_runs_deterministically():
+    from scheduler_dojo import bridge
+    from scheduler_dojo.sim.tutorial import load_city_level
+
+    lvl = load_city_level("city1")
+    a = bridge.run(lvl, policy="idle")
+    b = bridge.run(lvl, policy="idle")
+    assert a["trajectory_hash"] == b["trajectory_hash"]
+    assert a["metrics"] == b["metrics"]

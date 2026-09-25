@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "city": 5,
+  "title": "Everyone at the table",
+  "level": "level5",
+  "level_patch": {
+    "story": "One loud neighbour books every vehicle. The score says you are fine. It is not fine."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "One table, many appetites",
+            "body": "Your numbers look healthy — utilization is up, average waits are down. Averages are how starvation hides: one neighbour is filling the road while the others never get a turn. Watch the rings on the quiet neighbourhoods.",
+            "anchor": "road",
+            "actions": ["Which neighbours?"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "first_time": "pressure_moved", "timeout_secs": 7200 } }]
+    },
+    {
+      "id": "averages-lie",
+      "when": { "first_time": "pressure_moved", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "Fairness is a metric, not a mood",
+            "body": "Good schedulers measure who is waiting, not just how long on average. Put the shares on the wall where a starving neighbourhood is impossible to unsee, and the booth can be judged on it.",
+            "anchor": "ring:batch",
+            "actions": ["Hang the board"]
+          }
+        },
+        { "offer_upgrade": { "forced": "fairness" } }
+      ],
+      "then": [{ "wait_for": { "owned": "fairness" } }]
+    },
+    {
+      "id": "community-board",
+      "when": { "on_event": "upgrade_placed:fairness", "once": true },
+      "do": [
+        { "reveal": { "building": "fairness" } },
+        {
+          "callout": {
+            "title": "The community board",
+            "body": "Per-neighbourhood shares, updated live: who is parked, who is waiting, who has been waiting longest. A fairness rule is now on the menu for the booth — oldest-first across neighbourhoods instead of across the whole road.",
+            "anchor": "building:fairness",
+            "actions": ["Fair is a strategy"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "day": 3 } }]
+    },
+    {
+      "id": "staff-fair",
+      "when": { "after_days": 3, "once": true },
+      "do": [
+        { "set_mode": "booth:cards" },
+        {
+          "callout": {
+            "title": "Round-robin the road",
+            "body": "Slot the fair card: key by WHO is waiting longest, not what is shortest. Same road, same bays, entirely different week. Watch the board even out while the busy neighbour's ring cools.",
+            "anchor": "booth",
+            "actions": ["Swap the card"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "booth_staffed": true, "timeout_secs": 10800 } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "End of the week",
+            "body": "You kept every neighbourhood at the table. Take a building — next week someone will want to break an agreement early, and you will have a truck for that.",
+            "anchor": "offers",
+            "actions": ["Show me"]
+          }
+        },
+        { "offer_upgrade": { "pick_of": 2 } }
+      ],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "next": 6 }
+}

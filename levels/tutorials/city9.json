@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "city": 9,
+  "title": "The whole board",
+  "level": "level9",
+  "level_patch": {
+    "story": "Everything at once: a starved neighbourhood, a convoy nobody can fit, and one week to keep the whole table fed."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "The final week",
+            "body": "No new rules this city — just everything you already have, at the same time: the convoy that needs every bay, the quiet neighbourhood being starved, the short vehicles that could slip underneath. A black belt is one good week.",
+            "anchor": "road",
+            "actions": ["Staff the booth"]
+          }
+        },
+        { "set_mode": "booth:cards" }
+      ],
+      "then": [{ "wait_for": { "cards_placed": 2, "timeout_secs": 10800 } }]
+    },
+    {
+      "id": "the-board-talks",
+      "when": { "on_event": "cards_placed:2", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "Two modules, one mind",
+            "body": "Order decides who is next; the place card decides about the future — cones for the convoy, gaps rented to the short vehicles, the board watching every neighbourhood keep its share. This is the booth a real centre runs, written in twelve lines.",
+            "anchor": "booth",
+            "actions": ["Run the week"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "day": 4 } }]
+    },
+    {
+      "id": "black-belt",
+      "when": { "after_days": 4, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "You ran a whole centre",
+            "body": "Ordering, backfill, cones, fairness, the truck, the gate — you have placed every one of them by hand and automated every one of them behind your rules. The dojo's board is yours: nine cities, and the endless road if you want it forever.",
+            "anchor": "road",
+            "actions": ["Take the week"]
+          }
+        },
+        { "offer_upgrade": { "pick_of": 2 } }
+      ],
+      "then": [{ "wait_for": { "week_end": true } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "End of the week — and of the dojo",
+            "body": "Post your week on a card and watch someone else's campus argue with yours. The endless road never closes.",
+            "anchor": "offers",
+            "actions": ["Done"]
+          }
+        }
+      ],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "endless_unlock": true }
+}

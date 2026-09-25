@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "city": 6,
+  "title": "The special machines",
+  "level": "level6",
+  "level_patch": {
+    "story": "Two glass bays can do what the ordinary ones cannot — and ordinary vehicles must never take them."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "Not all bays are bays",
+            "body": "The tinted lot has special equipment the ordinary lot lacks. Some vehicles need it and go nowhere else; the rest must never waste it. Park one of each and you will feel the difference immediately.",
+            "anchor": "lots",
+            "actions": ["Try a wrong one"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "placed_any": true, "timeout_secs": 3600 } }]
+    },
+    {
+      "id": "wrong-bay",
+      "when": { "on_event": "first_place", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "That one will cost you",
+            "body": "A special bay occupied by an ordinary vehicle is the worst idle there is: nobody else can use it and this one barely needed it. The red note you got was the engine protecting the glass — every wrong placement comes back as a real error, not a shrug.",
+            "anchor": "bay:a1",
+            "actions": ["Teach the booth"]
+          }
+        },
+        { "highlight": { "target": "lot:gpu" } }
+      ],
+      "then": [{ "wait_for": { "day": 2 } }]
+    },
+    {
+      "id": "partition-card",
+      "when": { "after_days": 2, "once": true },
+      "do": [
+        { "set_mode": "booth:cards" },
+        {
+          "callout": {
+            "title": "Rules that know the map",
+            "body": "This booth card reads the lots: special vehicles to special bays, ordinary ones never there, and the glass kept for the ones who need it. Slot it and the red notes stop coming.",
+            "anchor": "booth",
+            "actions": ["Slot it"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "booth_staffed": true, "timeout_secs": 10800 } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "End of the week",
+            "body": "The glass stayed free and the ordinary lots stayed full — that is what knowing your bays is worth. Take a building for next week.",
+            "anchor": "offers",
+            "actions": ["Show me"]
+          }
+        },
+        { "offer_upgrade": { "pick_of": 2 } }
+      ],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "next": 7 }
+}

@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "city": 8,
+  "title": "Data does not travel",
+  "level": "level8",
+  "level_patch": {
+    "story": "There is a second campus across the field. Its bays are empty and its data is not on this road."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "Two campuses, one road",
+            "body": "The far lot across the field is real capacity — but every vehicle's cargo lives on one campus or the other, and hauling it costs minutes per bay-hour. A vehicle parked away from its data pays for the trip on every second it runs.",
+            "anchor": "lot:beta",
+            "actions": ["Surely not worth it"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "placed_any": true, "timeout_secs": 3600 } }]
+    },
+    {
+      "id": "the-trip",
+      "when": { "on_event": "first_place", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "The trip you did not book",
+            "body": "That vehicle just started driving its own workload across the field — its run bar is longer than its promise by exactly the haul. The fix is not avoiding the far campus; it is choosing the trip ON PURPOSE when the far bays are what is free.",
+            "anchor": "road",
+            "actions": ["Open the gate"]
+          }
+        },
+        { "offer_upgrade": { "forced": "route" } }
+      ],
+      "then": [{ "wait_for": { "owned": "route" } }]
+    },
+    {
+      "id": "motorway-gate",
+      "when": { "on_event": "upgrade_placed:route", "once": true },
+      "do": [
+        { "reveal": { "building": "route" } },
+        {
+          "callout": {
+            "title": "The motorway gate",
+            "body": "The booth may now route: send a vehicle's whole drive to the campus of its data, or across the field when home is full — and the why-panel will show the trip it chose and the minutes it cost. Route deliberately and both campuses drain together.",
+            "anchor": "building:route",
+            "actions": ["Send one across"]
+          }
+        },
+        { "set_mode": "step" }
+      ],
+      "then": [{ "wait_for": { "day": 4 } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "End of the week",
+            "body": "Both campuses busy, every trip on purpose. Next city is the whole board at once — everything you have learned, in one week.",
+            "anchor": "offers",
+            "actions": ["Show me"]
+          }
+        },
+        { "offer_upgrade": { "pick_of": 2 } }
+      ],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "next": 9 }
+}

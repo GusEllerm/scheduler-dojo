@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "city": 7,
+  "title": "The urgent file",
+  "level": "level7",
+  "level_patch": {
+    "story": "One tiny vehicle matters more than everything parked. The bays say otherwise."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "Small, and on fire",
+            "body": "Somewhere in that queue is a one-bay vehicle whose people are watching the clock right now, and a big comfortable vehicle is parked in every bay it needs. Ordering the road cannot fix this: by the time the queue gets around to it, the moment has passed.",
+            "anchor": "road",
+            "actions": ["There must be a truck for that"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "day": 2 } }]
+    },
+    {
+      "id": "tow-truck",
+      "when": { "after_days": 2, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "The tow truck",
+            "body": "You can escort a parked vehicle off its bays and put the urgent one in. This is the one rule that BREAKS agreements — the escorted vehicle restarts its whole drive from zero, and you pay that cost on the scoreboard, on purpose.",
+            "anchor": "road",
+            "actions": ["Call the truck"]
+          }
+        },
+        { "offer_upgrade": { "forced": "preempt" } }
+      ],
+      "then": [{ "wait_for": { "owned": "preempt" } }]
+    },
+    {
+      "id": "first-tow",
+      "when": { "on_event": "upgrade_placed:preempt", "once": true },
+      "do": [
+        { "reveal": { "building": "preempt" } },
+        {
+          "callout": {
+            "title": "Escort one by hand",
+            "body": "Open the why-panel and step the campus: find the decision where the booth moved the urgent vehicle into the big one's bays. One tow buys the moment; the restarted drive is what it charged you.",
+            "anchor": "building:preempt",
+            "actions": ["Step and see"]
+          }
+        },
+        { "set_mode": "step" }
+      ],
+      "then": [{ "wait_for": { "sim_secs": 7200, "or_then": true } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "End of the week",
+            "body": "You spent a restart to buy a moment, and the scoreboard knows exactly what you spent. That is the whole lesson: preemption is expensive on purpose. Take a building.",
+            "anchor": "offers",
+            "actions": ["Show me"]
+          }
+        },
+        { "offer_upgrade": { "pick_of": 2 } }
+      ],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "next": 8 }
+}

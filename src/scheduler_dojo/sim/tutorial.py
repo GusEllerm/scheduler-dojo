@@ -19,7 +19,7 @@ from scheduler_dojo.sim.errors import LEVEL_SCHEMA, LevelError
 from scheduler_dojo.sim.level import load_level_file
 
 # Whitelisted level_patch top-level keys (mirrors check_tutorials.PATCH_KEYS).
-PATCH_KEYS = frozenset({"story", "duration", "generator"})
+PATCH_KEYS = frozenset({"story", "duration", "generator", "pressure"})
 
 # Repo layout, resolved the way sim/level.py:load_level_file does — plain paths under the repo.
 ROOT = Path(__file__).resolve().parents[3]
@@ -46,6 +46,19 @@ def validate_patch(patch: Any, level: dict[str, Any] | None = None) -> None:
         d = patch["duration"]
         if not isinstance(d, int) or isinstance(d, bool) or d <= 0:
             raise LevelError("level_patch.duration must be a positive integer", code=LEVEL_SCHEMA)
+    if "pressure" in patch:
+        pr = patch["pressure"]
+        if not isinstance(pr, dict) or not isinstance(pr.get("cap", 2), int) or pr["cap"] < 2 \
+                or not isinstance(pr.get("end_on_overflow", False), bool):
+            raise LevelError(
+                'level_patch.pressure must be {"cap": int >= 2, "end_on_overflow": bool}',
+                code=LEVEL_SCHEMA)
+        if level is not None and level.get("pressure") is not None:
+            # Additive-only: a level calibrated with its own rings keeps them; editions ADD rings,
+            # they never mutate calibrated ones (canonical hashes are never in play here, because
+            # patches only apply to levels without a pressure block — but the rule keeps it honest).
+            raise LevelError("level_patch.pressure cannot replace a level's own pressure block",
+                             code=LEVEL_SCHEMA)
     if "generator" not in patch:
         return
     gen = patch["generator"]
@@ -73,6 +86,8 @@ def apply_patch(level: dict[str, Any], patch: dict[str, Any]) -> dict[str, Any]:
             out[key] = copy.deepcopy(patch[key])
     for key, value in sorted((patch.get("generator") or {}).items()):
         out["generator"][key] = copy.deepcopy(value)
+    if "pressure" in patch:  # rings for the city edition only (canonical hashes untouched)
+        out["pressure"] = copy.deepcopy(patch["pressure"])
     return out
 
 

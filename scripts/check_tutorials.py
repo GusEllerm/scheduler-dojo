@@ -66,7 +66,7 @@ def canonical_upgrade(name: str) -> str:
 
 TOP_KEYS = {"version", "city", "title", "level", "level_patch", "steps", "end"}
 STEP_KEYS = {"id", "when", "do", "then"}
-PATCH_KEYS = {"story", "duration", "generator"}
+PATCH_KEYS = {"story", "duration", "generator", "pressure"}
 WHEN_KEYS = {"after_days", "after_sim_secs", "on_event", "first_time", "all", "once"}
 # Engine-fact predicates allowed *inside* `when.all` only (never standalone) — see module docstring.
 WHEN_ALL_ONLY_FACTS = {"behind"}
@@ -506,6 +506,13 @@ def _check_level_patch(patch, level_doc: dict, errors: list[str]) -> None:
     if "duration" in patch and (not isinstance(patch["duration"], (int, float))
                                or isinstance(patch["duration"], bool) or patch["duration"] <= 0):
         errors.append("$.level_patch.duration: needs a positive number")
+    if "pressure" in patch:
+        pr = patch["pressure"]
+        if (not isinstance(pr, dict) or not isinstance(pr.get("cap", 2), int) or pr.get("cap", 2) < 2
+                or not isinstance(pr.get("end_on_overflow", False), bool)):
+            errors.append('$.level_patch.pressure: must be {"cap": int >= 2, "end_on_overflow": bool}')
+        elif isinstance(level_doc, dict) and level_doc.get("pressure") is not None:
+            errors.append("$.level_patch.pressure: cannot replace a level's own pressure block")
     if "generator" not in patch:
         return
     gen = patch["generator"]

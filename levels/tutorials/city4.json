@@ -1,0 +1,76 @@
+{
+  "version": 1,
+  "city": 4,
+  "title": "Trust, but verify",
+  "level": "level4",
+  "level_patch": {
+    "story": "Some vehicles park for far longer than they promised. Nobody checked."
+  },
+  "steps": [
+    {
+      "id": "welcome",
+      "when": { "after_days": 0, "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "The long naps",
+            "body": "Every vehicle here states how long it needs. Most are honest. Watch the bays where the claims were generous — the vehicle in the bay does not have to keep its word, only stay until the posted time runs out.",
+            "anchor": "road",
+            "actions": ["That can't be right"]
+          }
+        }
+      ],
+      "then": [{ "wait_for": { "first_time": "timeout", "timeout_secs": 7200 } }]
+    },
+    {
+      "id": "lie-named",
+      "when": { "first_time": "timeout", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "A walltime is a promise, not a personality",
+            "body": "The posted time is what the scheduler may rely on — overpromise and the tow crew ends it at the promise, no matter how much work is left. If your rules are built on claimed times, they deserve to know which claims just broke.",
+            "anchor": "bay:n0",
+            "actions": ["Install the scale"]
+          }
+        },
+        { "offer_upgrade": { "forced": "sensors" } }
+      ],
+      "then": [{ "wait_for": { "owned": "sensors" } }]
+    },
+    {
+      "id": "weigh-station",
+      "when": { "on_event": "upgrade_placed:sensors", "once": true },
+      "do": [
+        { "reveal": { "building": "sensors" } },
+        {
+          "callout": {
+            "title": "The weigh station",
+            "body": "The booth can now read the scale: your rules may ask what a vehicle CLAIMED, never what it secretly does. Step the campus with the why-panel open and watch a timeout decision say so out loud.",
+            "anchor": "building:sensors",
+            "actions": ["Step through it"]
+          }
+        },
+        { "set_mode": "step" }
+      ],
+      "then": [{ "wait_for": { "sim_secs": 3600, "or_then": true } }]
+    },
+    {
+      "id": "week-end",
+      "when": { "on_event": "week_end", "once": true },
+      "do": [
+        {
+          "callout": {
+            "title": "End of the week",
+            "body": "The contractor owes you a building. Whatever you pick, remember the scale's lesson: automate on what people promised you, and keep the receipts.",
+            "anchor": "offers",
+            "actions": ["Show me"]
+          }
+        },
+        { "offer_upgrade": { "pick_of": 2 } }
+      ],
+      "then": [{ "end": true }]
+    }
+  ],
+  "end": { "on": { "event": "week_end" }, "next": 5 }
+}
