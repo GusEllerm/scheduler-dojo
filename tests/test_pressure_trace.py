@@ -86,11 +86,20 @@ def test_trace_in_step_snapshots_and_kata_order_keys():
     lvl = _levels(_convoy_jobs(), dur=3000)
     kata = "order by wide_first:\n    key = (0 - job.nodes_req, job.submit_time)\n"
     h = bridge.start(lvl, kata=kata, trace=50)["handle"]
-    bridge.step_until(h, 5)
+    step = bridge.step_until(h, 10)
+    assert "trace" in step, "trace-enabled steps must carry the decision records per step"
+    assert all("t" in r and "action" in r and "seq" in r for r in step["trace"])
     res = bridge.step_result(h)
     assert res["trace"]
     orders = [r for r in res["trace"] if r["action"] == "order"]
     assert orders and orders[0]["keys"], "kata order decisions must record per-job keys"
+
+
+def test_trace_absent_from_steps_when_disabled():
+    lvl = _levels(_convoy_jobs(), dur=3000)
+    h = bridge.start(lvl, policy="fifo")["handle"]
+    assert "trace" not in bridge.step_until(h, 10)
+    assert "trace" not in bridge.step_n(h, 5)
 
 
 def test_run_record_carries_real_placements():

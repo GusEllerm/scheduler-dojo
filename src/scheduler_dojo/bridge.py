@@ -11,8 +11,10 @@ Public surface (dispatched by name in `dispatch`):
 - ``run(level, seed=None, policy="fifo", kata=None)`` -> a run summary + timeline ``frames`` + metrics
   + ``score`` + ``trajectory_hash``. ``level`` is a level dict (or a JSON string).
 - ``step(level, seed=..., policy=...)`` starts an interactive run and returns a handle id;
-  ``step_n(handle, n)`` / ``step_until(handle, t)`` advance it and return a compact state diff;
-  ``step_result(handle)`` finalizes. This is the §4.1 stepping API for animated hand placement.
+  ``step_n(handle, n)`` / ``step_until(handle, t)`` advance it and return a compact state diff
+  (plus the last-N ``trace`` records when ``trace`` was enabled at ``start`` — the booth's
+  why-panel reads them per step); ``step_result(handle)`` finalizes. This is the §4.1 stepping API
+  for animated hand placement.
 - ``check_kata(kata)`` -> a ``Report`` dict (``dojo kata check`` for the editor).
 - ``calibrate? / version``: ``version()`` for the loading screen.
 
@@ -196,16 +198,25 @@ def _snapshot(sched: Scheduler, lvl: dict | None = None) -> dict:
     }
 
 
+def _step_out(sched: Scheduler, lvl: dict | None, finished: bool) -> dict:
+    """One stepping result: the snapshot plus (only when tracing is on) the last-N decision
+    records — the booth's why-panel reads them per step; a headless run pays nothing (§5.2)."""
+    out = {"state": _snapshot(sched, lvl), "done": finished}
+    if sched.trace:
+        out["trace"] = list(sched.trace)
+    return out
+
+
 def step_n(handle: int, n: int = 1) -> dict:
     sched = _SESSIONS[handle]
     finished = True if getattr(sched, "_finished", False) else sched.step_events(n)
-    return {"state": _snapshot(sched, _SESSION_LEVELS.get(handle)), "done": finished}
+    return _step_out(sched, _SESSION_LEVELS.get(handle), finished)
 
 
 def step_until(handle: int, t: int) -> dict:
     sched = _SESSIONS[handle]
     finished = True if getattr(sched, "_finished", False) else sched.run_until(t)
-    return {"state": _snapshot(sched, _SESSION_LEVELS.get(handle)), "done": finished}
+    return _step_out(sched, _SESSION_LEVELS.get(handle), finished)
 
 
 def step_result(handle: int) -> dict:
