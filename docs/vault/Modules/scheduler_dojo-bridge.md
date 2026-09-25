@@ -29,7 +29,10 @@ last-N decision records. `level` may be a dict or a JSON string.
   `tests/goldens/levels.json` hash). See [[Determinism]].
 - **Stepping** (`start`/`step_*`) drives a `Scheduler` kept alive in the `_SESSIONS` handle table via
   `Scheduler.step_events`/`run_until` — the same event-loop body as a full run, so draining a stepped
-  run yields the identical `trajectory_hash` (tested). A stepped run is bit-for-bit a full run.
+  run yields the identical `trajectory_hash` (tested). A stepped run is bit-for-bit a full run —
+  including the drain: `step_result` stops at the horizon because `Scheduler.run` owns it, and
+  `_snapshot` masks `running[].end` to the job's claimed walltime when `hide_actual` is set, so no
+  actual runtime leaks mid-run (review F1/F4).
   `_snapshot` carries `placed_total`/`week` (the tutorial predicates' deterministic sources — the
   week from the engine calendar) and `placed_nodes`, `reserved` (unspent reserve intents), `pressure`/`overflow`, a
   `running[].end` (run + transfer) to animate, and `unseen` (jobs whose submit is still in the future —

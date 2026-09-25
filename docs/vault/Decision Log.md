@@ -261,3 +261,18 @@ City 1's "one neighbourhood until day 3" is a `level_patch` over the canonical `
 generator knobs), so calibration, goldens and share cards keep referring to the one level; the
 patched variant is pinned by its own tutorial golden. Alternatives (recalibrate levels to tutorial
 pacing / separate tutorial ids) fork the calibration story for no pedagogical gain. See [[Tutorial]].
+
+## 2026-10-02 — Adversarial review of Art 2: horizon belongs to the engine (phase two)
+
+`[agent decision]` The review of `2a3669e` found that a stepped drain (`step_result` →
+`run(until=None)`) processed events **past** the level horizon, so stepped and full runs hashed
+differently — and that `is_stopped()` treated *any* overflow as an ending even for
+`end_on_overflow: false` levels. Both fixed by moving ownership: `Scheduler.run` now clamps
+`until=None` to `t0 + horizon` itself (the engine owns the horizon, callers cannot forget it), and
+the pressure ending keys on the **level flag**, not a bare `overflow_user`. Ring-only levels keep
+running with a full ring — the display feature the note always promised. Sensor visibility was
+closing two of its three exit paths (`_snapshot.end` leaked the true runtime mid-run; a falsy
+`start_time == 0` slid the run bar); both closed, each with a named regression test
+(review F1–F6 in `tests/test_pressure_trace.py`). Goldens byte-identical — none of this moves a
+canonical trajectory.
+

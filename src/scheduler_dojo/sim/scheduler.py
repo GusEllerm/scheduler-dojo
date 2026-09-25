@@ -155,6 +155,9 @@ class Scheduler:
         self.pressure_on = pressure is not None  # undeclared levels never compute rings (hash-stable)
         self.pressure: dict[str, float] = {}
         self.overflow_user: str | None = None
+        # Set when the heap drains or the run ends by pressure; initialized (was only ever read
+        # through getattr(...,False)) so `run` can test it directly.
+        self._finished = False
         self.overflow_time: int | None = None
         # trace > 0 keeps the last `trace` decision records (a ring buffer); 0 pays nothing.
         self._trace_limit = trace
@@ -370,9 +373,16 @@ class Scheduler:
             raise errors.DeterminismError(
                 "Scheduler.run called twice on the same Job/Cluster objects", code="rerun")
         self._ran = True
+        # A caller's `until=None` still honors the constructed horizon: the engine never processes
+        # events past `t0 + horizon` (a stepped `step_result` drain must truncate exactly where a
+        # canonical `run(until=duration)` does, or stepped and full runs hash differently — F1).
+        if until is None and self.horizon is not None and self.horizon > 0:
+            until = self._t0 + self.horizon
         self._advance(until=until, max_events=max_events)
-        if not self.is_stopped():
-            # Patience ran out mid-run: the run ends here — do NOT drain the remaining events.
+        if self.overflow_user is not None and self.pressure_end and not self._finished:
+            # Patience ran out mid-run *and the level ends on overflow*: the run ends here —
+            # do NOT drain the remaining events. (Ring-only levels keep draining: F2 review fix
+            # narrowed is_stopped(), so the ending is keyed on the level flag, not that method.)
             self._finished = True
         return self._result()
 
@@ -437,8 +447,11 @@ class Scheduler:
             self.now = until
 
     def is_stopped(self) -> bool:
-        """True when the run is over: heap drained, or patience ran out (phase-two overflow)."""
-        return bool(getattr(self, "_finished", False)) or self.overflow_user is not None
+        """True when the run is over: heap drained, or patience ran out *and the level ends on
+        overflow*. A ring-only level (`end_on_overflow: false`) keeps running with a full ring —
+        `overflow_user` is a display fact there, not an ending (F2 review fix)."""
+        return bool(getattr(self, "_finished", False)) or (
+            self.overflow_user is not None and self.pressure_end)
 
     def _require_unfinished(self) -> None:
         if self.is_stopped():

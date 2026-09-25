@@ -16,7 +16,9 @@ with a `level_schema`/`level_metric`/`level_bars` code). `run_level(level, seed=
 validates, defaults `seed` to the level's fixed puzzle `seed` and `policy` to the level's
 `default_policy`, threads the optional level key `transfer_rate_mbs` (MB/s inter-site rate for
 route-tier levels; absent ⇒ instantaneous, the pre-Stage-8 behaviour) into the `Scheduler`, threads
-the phase-two keys `pressure` (patience rings; a pressure level also gets `tick≈duration/70` so
+the phase-two keys `pressure` (patience rings — validation requires a positive `duration` with
+them, since a tick with no horizon would self-reschedule forever (review F3); a pressure level
+also gets `tick≈duration/70` so
 rings fill between events — undeclared levels keep `tick=None`, hash-stable) and `horizon`, and
 accepts `trace=N` (decision trace) plus `sched_out` (a dict receiving the `Scheduler` so the bridge
 can read rings/trace after the run), schedules

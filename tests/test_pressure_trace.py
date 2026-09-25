@@ -131,3 +131,79 @@ def test_reserve_intent_surfaces_in_snapshot_and_clears_on_place():
     bridge.step_until(h, 1)
     st = bridge.step_until(h, 2)["state"]
     assert st["reserved"].get("P") == 400
+
+
+# --- review-fix regressions (adversarial review of `2a3669e`, F1-F6) ------------
+
+
+def _past_horizon_level():
+    return {"id": "ph", "title": "ph", "duration": 120, "seed": 0,
+            "cluster": {"nodes": [{"id": "n0", "cpus": 8}, {"id": "n1", "cpus": 8}]},
+            "jobs": [{"id": "j0", "user": "u", "submit_time": 0, "nodes_req": 1,
+                      "walltime_req": 100, "actual_runtime": 100},
+                     {"id": "j1", "user": "u", "submit_time": 200, "nodes_req": 1,
+                      "walltime_req": 50, "actual_runtime": 50}]}
+
+
+def test_stepped_drain_stops_at_the_horizon():
+    """F1: events past the horizon must not be processed by a stepped drain."""
+    lvl = _past_horizon_level()
+    canon = bridge.run(lvl, policy="fifo")
+    h = bridge.start(lvl, policy="fifo")["handle"]
+    bridge.step_until(h, 60)
+    bridge.step_until(h, 120)
+    stepped = bridge.step_result(h)
+    assert stepped["trajectory_hash"] == canon["trajectory_hash"]
+    assert next(j for j in stepped["jobs"] if j["id"] == "j1")["state"] == "unfinished"
+
+
+def test_ring_only_level_keeps_stepping_after_overflow():
+    """F2: `end_on_overflow: false` is a display feature — steps must neither freeze nor raise."""
+    lvl = _past_horizon_level()
+    # a queued waiter to fill the ring: wait 50 / (grace 1 x est 10) => overflow at t=60
+    lvl["jobs"].append({"id": "j2", "user": "u", "submit_time": 50, "nodes_req": 1,
+                        "walltime_req": 10, "actual_runtime": 10})
+    lvl["cluster"]["nodes"] = [{"id": "n0", "cpus": 8}]
+    lvl["pressure"] = {"cap": 2, "end_on_overflow": False}
+    h = bridge.start(lvl, policy="fifo")["handle"]
+    bridge.step_until(h, 120)  # must not raise "already finished"
+    st = bridge.step_result(h)
+    assert st["overflow"]  # the ring filled...
+    assert next(j for j in st["jobs"] if j["id"] == "j0")["state"] == "done"  # ...and the run drained
+
+
+def test_pressure_level_requires_duration():
+    """F3: a pressure level without a horizon would tick forever — validation refuses it."""
+    from scheduler_dojo.sim.errors import LevelError
+
+    lvl = _past_horizon_level()
+    del lvl["duration"]
+    lvl["pressure"] = {"cap": 2}
+    import pytest
+
+    with pytest.raises(LevelError):
+        bridge.run(lvl, policy="fifo")
+
+
+def test_snapshot_hides_true_runtime_and_zero_start_is_exact():
+    """F4+F5: no actual_runtime leak through `running[].end`; a t=0 placement ends exactly at runtime."""
+    lvl = {"id": "sv", "title": "sv", "duration": 400, "seed": 0, "hide_actual": True,
+           "cluster": {"nodes": [{"id": "n0", "cpus": 8}]},
+           "jobs": [{"id": "a", "user": "u", "submit_time": 0, "nodes_req": 1,
+                     "walltime_req": 100, "actual_runtime": 30}]}
+    h = bridge.start(lvl, policy="fifo")["handle"]
+    st = bridge.step_until(h, 5)["state"]
+    end = st["running"][0]["end"]
+    assert end == 100  # the CLAIMED walltime, never start+30
+    res = bridge.step_result(h)
+    assert "runtime" not in next(j for j in res["jobs"] if j["id"] == "a")  # key absent, not peekable
+
+
+def test_endless_horizon_lives_in_the_ramp():
+    """F6: `horizon` is read from the growth ramp (one lookup, both spellings agree)."""
+    g = {"base": {"users": [{"name": "u", "weight": 1.0}]},
+         "growth": {"horizon": 3600, "arrival_max_factor": 1.0}}
+    a = bridge.endless_run(g, seed=3)
+    b = bridge.endless_run({"horizon": 3600, **g}, seed=3)
+    assert a["trajectory_hash"] == b["trajectory_hash"]
+    assert a["end_time"] <= 3600 * 2  # no 30-day stream behind a 1-hour level

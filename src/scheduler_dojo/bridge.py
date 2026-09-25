@@ -156,6 +156,7 @@ def start(level: Any, seed: int | None = None, policy: str = "fifo",
 
 
 def _snapshot(sched: Scheduler, lvl: dict | None = None) -> dict:
+    sensors_visible = not (lvl or {}).get("hide_actual", False)
     # `placed_total`/`week` feed the tutorial's deterministic predicates (`placed_any`, `first_place`,
     # `week_end`, `after_days`); `week` is the engine calendar's (§5.6), 1-indexed like `day_week`.
     week = 1
@@ -179,8 +180,12 @@ def _snapshot(sched: Scheduler, lvl: dict | None = None) -> dict:
         "events_processed": sched._events_processed,
         "queued": sorted(sched.queued),
         "running": [{"id": j.id, "nodes": list(j.placed_nodes), "start": j.start_time,
-                     "end": (j.start_time or sched.now) + max(
-                         1, min(j.actual_runtime, j.walltime_req)) + sched.transfer_secs(j)}
+                     # Sensor visibility (§5.5): with `hide_actual` the run bar may only span the
+                     # CLAIMED walltime — `actual_runtime` must not leak before any result does.
+                     # `start_time` is checked for None, never truthiness: a 0-start is falsy (F5).
+                     "end": (j.start_time if j.start_time is not None else sched.now) + (
+                         max(1, min(j.walltime_req, j.actual_runtime)) if sensors_visible else
+                         max(1, j.walltime_req)) + sched.transfer_secs(j)}
                     for j in sorted(sched.running.values(), key=lambda j: j.id)],
         "reserved": {jid: t for jid, t in sorted(sched.reservations.items())
                      if jid in sched.queued},
@@ -211,7 +216,11 @@ def step_result(handle: int) -> dict:
         raise ValueError(f"no such stepping handle {handle}")
     lvl = _SESSION_LEVELS.pop(handle, {})
     finished = sched.is_stopped()
+    # Drain *to the horizon* (`run` stops at t0+horizon), never past it — events scheduled beyond
+    # the week (jobs still running at week end are the point) must not be processed, or a stepped
+    # run would gain trajectory entries a canonical `run` truncates and the hashes would diverge.
     result = sched.run(until=None) if not finished else sched._result()
+    # (horizon is enforced inside `run`; see scheduler.run)
     out = {"metrics": scoring.metrics_from_run(result),
            "trajectory_hash": trajectory_hash(result),
            "jobs": _jobs_json(result, sensors=not lvl.get("hide_actual", False)),
@@ -436,7 +445,10 @@ def endless_run(growth: dict, seed: int = 0, policy: str = "fifo",
     from scheduler_dojo.sim.endless import DEFAULT_HORIZON, generate_endless_jobs
 
     jobs = generate_endless_jobs(int(seed), growth)
-    horizon = int(growth.get("horizon", DEFAULT_HORIZON))
+    # One lookup, matching `generate_endless_jobs`: `horizon` nests under "growth" (the ramp);
+    # a top-level one is accepted as a deprecated alias so a client cannot half-wedge the worker.
+    horizon = int((growth.get("growth") or {}).get("horizon",
+                                                   growth.get("horizon", DEFAULT_HORIZON)))
     nodes = growth.get("cluster", {"nodes": [{"id": f"e{i}", "cpus": 8} for i in range(4)]})
     lvl = {"id": "endless", "title": "Endless", "cluster": nodes,
            "jobs": [{"id": j.id, "user": j.user, "submit_time": j.submit_time,

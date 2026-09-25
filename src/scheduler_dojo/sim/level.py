@@ -58,6 +58,11 @@ def validate_level(level: dict[str, Any]) -> None:
     if pressure is not None:
         if not isinstance(pressure, dict):
             raise LevelError("pressure must be an object", code=LEVEL_SCHEMA)
+        if not level.get("duration") or int(level["duration"]) <= 0:
+            # Ticks self-reschedule forever without a horizon to stop at — a pressure level
+            # without `duration` is an unterminating run, not a display feature (F3 review fix).
+            raise LevelError("a level with `pressure` must declare a positive `duration`",
+                             code=LEVEL_SCHEMA)
         cap = pressure.get("cap", 2)
         if not isinstance(cap, int) or cap < 2:
             raise LevelError("pressure.cap must be an integer >= 2 (overflow grace in runtimes)",
@@ -216,7 +221,8 @@ def run_level(level: dict[str, Any], *, seed: int | None = None, policy: str | N
         dur = int(level.get("duration") or 0)
         tick = max(1, dur // 70) if dur else 60
     sched = Scheduler(cluster, jobs, active, transfer_rate_mbs=rate,
-                      pressure=pressure, tick=tick, trace=trace)
+                      pressure=pressure, tick=tick, trace=trace,
+                      horizon=level.get("duration"))  # tick bounds inside the engine, not just `until`
     _LATE[0] = sched
     if sched_out is not None:
         sched_out["sched"] = sched

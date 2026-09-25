@@ -56,6 +56,9 @@ clock on the step horizon. `fifo`, `shortest_first`, and `idle`
   invariant and the browser clock is a float wall mapping.
 - **Determinism:** `queued`/`running` are exposed sorted by id; ties broken by `(submit_time, id)`
   and `(walltime_req, submit_time, id)`.
+- **Horizon discipline (review F1):** a `run(until=None)` still stops at `t0 + horizon` — the
+  engine, not the caller, owns the horizon, so a stepped `step_result` drain truncates exactly
+  where a canonical `run(until=duration)` does and the trajectory hashes agree.
 - **Patience rings (phase two):** constructed with `pressure={"cap", "end_on_overflow"}` (levels
   without the block never compute rings — hash-identical to phase one), `_compute_pressure` runs at
   every batch: per user, the max over unfinished jobs of `wait / ((cap-1) x est)` clamped to [0,1]
@@ -63,7 +66,9 @@ clock on the step horizon. `fifo`, `shortest_first`, and `idle`
   `overflow_user`/`overflow_time`, and with `end_on_overflow` the run stops there (`is_stopped()`
   covers both endings). Ring levels tick (`tick≈duration/70` via `sim.level`/`bridge._tick_for`) so
   rings fill between events; TICK reschedules to the next boundary bounded by `horizon`, never by a
-  step's `until`, so stepped and full runs agree.
+  step's `until`, so stepped and full runs agree. With `end_on_overflow: false` the ring is a pure
+  display fact: `is_stopped()` keys the ending on the level flag, and such a level keeps stepping
+  and drains normally after its first full ring (review F2).
 - **Decision trace (phase two):** `trace=N` keeps a ring buffer of the last N records on `Scheduler.trace`
   (`place`/`preempt`/`route` emit from the engine; the kata adds `order` keys + `fallback` codes via
   its `tracer`); `trace=0` pays nothing. `reservations` mirrors `reserve()` intents for snapshots.
