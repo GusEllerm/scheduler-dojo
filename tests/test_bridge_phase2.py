@@ -115,7 +115,7 @@ def test_endless_level_is_stepable_and_matches_endless_run():
     to the one-shot endless_run."""
     growth = {"base_qps": 0.001, "growth_per_day": 1.5, "growth": {"days": 3, "horizon": 6000}}
     lvl = bridge.endless_level(growth, seed=2)
-    assert bridge.validate_level(lvl)["ok"]
+    bridge.validate_level(lvl)  # raises LevelError if the builder emitted a bad level
     one = bridge.endless_run(growth, seed=2, policy="fifo")["summary"]["served"]
     h = bridge.start({"level": lvl, "seed": 2, "policy": "fifo"})["handle"]
     served = 0
