@@ -150,6 +150,25 @@ export interface RunOptions {
   policy?: string;
   /** Kata source text (or a path readable by the sim). */
   kata?: string | null;
+  /** Art 5: keep the last N decision records (the booth's why-panel feed); 0 pays nothing. */
+  trace?: number;
+}
+
+/**
+ * One engine decision-trace record (`Scheduler._trace_event`): `order` records carry the computed
+ * `keys` per queued job (bounded), `place` the real `nodes`, `fallback` a `code`, `route` a `site`.
+ */
+export interface TraceRecord {
+  t: number;
+  action: string;
+  job: string;
+  seq: number;
+  nodes?: string[];
+  keys?: [string, unknown[]][];
+  code?: string;
+  end?: number;
+  site?: string;
+  transfer?: number;
 }
 
 /** A structured failure reported by the Python boundary (or the worker itself). */
@@ -231,14 +250,15 @@ export class DojoBridge {
     const args: Record<string, unknown> = { level, policy: options.policy ?? "fifo" };
     if (options.seed !== undefined && options.seed !== null) args.seed = options.seed;
     if (options.kata !== undefined && options.kata !== null) args.kata = options.kata;
+    if (options.trace !== undefined && options.trace !== null) args.trace = options.trace;
     return this.call("start", args);
   }
 
-  stepUntil(handle: number, t: number): Promise<{ state: StepState; done: boolean }> {
+  stepUntil(handle: number, t: number): Promise<{ state: StepState; done: boolean; trace?: TraceRecord[] }> {
     return this.call("step_until", { handle, t });
   }
 
-  stepN(handle: number, n = 1): Promise<{ state: StepState; done: boolean }> {
+  stepN(handle: number, n = 1): Promise<{ state: StepState; done: boolean; trace?: TraceRecord[] }> {
     return this.call("step_n", { handle, n });
   }
 

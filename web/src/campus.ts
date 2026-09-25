@@ -62,6 +62,20 @@ export interface RoadSpec {
   laneH: number;
 }
 
+/**
+ * A reservation cone (Art 5). Engine cones come from the snapshot's `reserved` intents
+ * (job -> intended start) and carry NO bays — the snapshot never says which bays a reservation
+ * books, so the painter draws them on the vehicle, never on guessed bays (never fake engine
+ * facts). Viewer cones (the hand "Cone it" overlay) carry the bays FIFO would have offered —
+ * a drawing hint backed by the engine's own `suggestions`, and they decay purely on sim time.
+ */
+export interface Cone {
+  job: string;
+  bays: string[];
+  /** sim time the countdown reads against (the reservation's intended start / the decay deadline) */
+  until: number | null;
+}
+
 export interface CampusScene {
   now: number;
   week: number; day: number; sun: number;        // from bridge calendar_at/watch_plan stride math
@@ -73,6 +87,8 @@ export interface CampusScene {
   neighbourhoods: Neighbourhood[];
   road: RoadSpec;
   booth: { x: number; y: number; w: number; h: number; staffed: boolean; revealed?: boolean };
+  /** Art 5: reservation cones (engine `reserved` + viewer hand cones), sorted by job id. */
+  cones: Cone[];
   /** hand mode (Art 4): the vehicle the player picked on the road, null when none */
   selectedId?: string | null;
   /** hand mode: bays staged for the selected vehicle + a client-side fit hint (the engine still
@@ -108,6 +124,8 @@ export interface LayoutInput {
   selected?: string | null;
   staged?: CampusScene["staged"];
   boothRevealed?: boolean;
+  /** Art 5 hand mode: viewer-side cones (decided by sim time, never wall clock). */
+  handCones?: Cone[];
 }
 
 /** Pure layout + projection. Deterministic: no Date, no Math.random, no iter over object sets
@@ -209,6 +227,15 @@ function layoutScene(inp: LayoutInput): CampusScene {
   const rank = new Map(snap.queued.map((id, i) => [id, i]));
   for (const v of vehicles) if (v.state === "queued") v.rank = rank.get(v.id) ?? 0;
 
+  // ---- cones: engine reservation intents (sorted — object key order is not the source) ------
+  const cones: Cone[] = Object.entries(snap.reserved ?? {})
+    .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+    .map(([job, until]) => ({ job, bays: [], until }));
+  for (const c of inp.handCones ?? []) {
+    if (c.until !== null && c.until <= snap.now) continue;   // decayed on sim time — gone
+    if (!cones.some((e) => e.job === c.job)) cones.push(c);
+  }
+
   const staffed = inp.staffed ?? true;
   return {
     now: snap.now,
@@ -222,6 +249,7 @@ function layoutScene(inp: LayoutInput): CampusScene {
              revealed: inp.boothRevealed ?? true },
     selectedId: inp.selected ?? null,
     staged: inp.staged ?? null,
+    cones,
     overflowUser: snap.overflow ?? null,
     done: !!snap.done,
   };

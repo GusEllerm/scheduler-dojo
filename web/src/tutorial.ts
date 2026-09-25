@@ -12,7 +12,7 @@
 
 import { bridge, type Level, type StepState } from "./bridge";
 import { buy as buyUpgrade, getProgression } from "./progression";
-import { trapDialog } from "./booth";
+import { ruleCards, trapDialog } from "./booth";
 import type { CampusPlay } from "./campus-play";
 
 // --- the script shape (levels/tutorials/*.json, validated by scripts/check_tutorials.py) ----
@@ -161,7 +161,9 @@ export class TutorialRunner {
       this.prevStepOnEvent?.(name);
     };
     this.campus.onStep = (state) => this.observe(state);
-    if (this.campus.isHand) this.campus.revealBooth(false); // the script reveals it on day 3
+    // City 1 hides the booth until the script reveals it; from city 2 on the booth is a
+    // standing part of the campus (city 2 opens with it staffed).
+    if (this.campus.isHand && Number(this.script.city ?? 1) === 1) this.campus.revealBooth(false);
     void this.runLoop();
   }
 
@@ -229,6 +231,9 @@ export class TutorialRunner {
       case "sim_secs": return this.now >= start + Number(value);
       case "week_end": return this.events.has("week_end");
       case "booth_staffed": return this.events.has("booth_staffed");
+      case "card_swapped": return this.events.has("card_swapped");
+      case "line_edited": return this.events.has("line_edited");
+      case "cards_placed": return ruleCards(this.campus.boothKata()).length >= Number(value);
       case "day": return this.day >= Number(value);
       case "chosen": return this.campus.currentScene()?.chosen != null;
       default:
@@ -334,6 +339,32 @@ export class TutorialRunner {
     if (action.set_mode) {
       const mode = String(action.set_mode);
       this.campus.setModeChip(mode === "hand" ? "traffic: by hand" : `booth: ${mode.split(":")[1] ?? mode}`);
+      // Art 5: the booth modes open the panel they name — `booth:line` straight into the
+      // one-line editor (city 2's "the card IS the kata" beat).
+      if (mode === "booth:cards") this.campus.openBoothPanel({});
+      else if (mode === "booth:line") this.campus.openBoothPanel({ mode: "line" });
+      return;
+    }
+    if ("swap_card" in action) {
+      // Art 5: open the booth with the slot picker, pulsing the target slot (default: order).
+      const spec = action.swap_card;
+      const slot = typeof spec === "object" && spec !== null
+        ? String((spec as Record<string, unknown>).slot ?? "order")
+        : "order";
+      this.campus.openBoothPanel({ slot });
+      return;
+    }
+    if ("edit_line" in action) {
+      // Art 5: open the booth in one-line mode, focused on the named card's line.
+      const spec = action.edit_line;
+      const o = (typeof spec === "object" && spec !== null
+        ? spec
+        : { card: spec }) as Record<string, unknown>;
+      this.campus.openBoothPanel({
+        mode: "line",
+        slot: typeof o.slot === "string" ? o.slot : undefined,
+        card: typeof o.card === "string" ? o.card : undefined,
+      });
       return;
     }
     if (action.offer_upgrade) {
@@ -341,7 +372,13 @@ export class TutorialRunner {
       return;
     }
     if ("highlight" in action) {
-      console.warn("tutorial: highlight is not wired yet — skipped");
+      // Art 5: pulse a scene anchor (Concepts/Campus scene vocabulary) — a nudge, not a gate.
+      const spec = action.highlight;
+      const target = typeof spec === "string" ? spec
+        : String((spec as Record<string, unknown> | undefined)?.target ?? "");
+      if (!this.campus.pulseAnchor(target)) {
+        console.warn(`tutorial: highlight "${target}" has no scene anchor — skipped`);
+      }
       return;
     }
     console.warn(`tutorial: unknown do "${Object.keys(action).join(",")}" — skipped`);

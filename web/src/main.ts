@@ -11,7 +11,7 @@ import { bridge, BridgeError, formatKataErrors, type Level, type RunResult } fro
 import { HandGame } from "./hand";
 import { CampusPlay } from "./campus-play";
 import { TutorialRunner, cityLevel } from "./tutorial";
-import { getBoothChoice } from "./booth";
+import { getBoothChoice, saveBoothChoice } from "./booth";
 import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
 import * as progression from "./progression";
@@ -130,11 +130,15 @@ let campusToolbar: HTMLElement | null = null;
 const campusVariantButtons = new Map<"live" | "hand", HTMLButtonElement>();
 let campusTutorialChip: HTMLButtonElement | null = null;
 let campus: CampusPlay | null = null;
-/** Art 4: which campus run is up (live auto vs hand) and whether the city-1 script is attached. */
+/** Art 4: which campus run is up (live auto vs hand) and whether a city script is attached. */
 let campusVariant: "live" | "hand" = "live";
 let campusTutorial = false;
+/** Art 5: which city script the tutorial chip / `?city=N` boots (`city1` … `city9`). */
+let campusCity = "city1";
 let tutorialRunner: TutorialRunner | null = null;
 const cityParam = new URLSearchParams(location.search).get("city");
+/** `?city=N` (any city): boot straight into that city's scripted hand campus. */
+const cityNum = cityParam !== null && /^[1-9]\d*$/.test(cityParam) ? cityParam : null;
 let handStage: HTMLElement;
 let handGauges: HTMLElement;
 let kataPanel: HTMLElement;
@@ -174,11 +178,12 @@ async function main(): Promise<void> {
   const prefs = loadStore().prefs;
   const savedMode = prefs.mode as string | undefined;
   mode = savedMode === "hand" || savedMode === "kata" || savedMode === "campus" ? savedMode : "watch";
-  if (cityParam === "1") {
-    // ?city=1: boot straight into the campus tutorial — hand traffic, script attached.
+  if (cityNum !== null) {
+    // ?city=N: boot straight into the campus tutorial — hand traffic, script attached.
     mode = "campus";
     campusVariant = "hand";
     campusTutorial = true;
+    campusCity = `city${cityNum}`;
   }
   buildChrome();
   mountProgressionChrome();
@@ -537,7 +542,7 @@ function buildCampusToolbar(): void {
   const chip = document.createElement("button");
   chip.type = "button";
   chip.className = "campus-tutorial-chip";
-  chip.textContent = "Tutorial: city 1";
+  chip.textContent = `Tutorial: ${campusCity.replace("city", "city ")}`;
   chip.addEventListener("click", () => {
     campusTutorial = !campusTutorial;
     if (campusTutorial) campusVariant = "hand"; // the script drives hand traffic
@@ -549,17 +554,17 @@ function buildCampusToolbar(): void {
   void paintCampusToolbar().catch(() => undefined);
 }
 
-/** Live/Hand pressed states + chip visibility (belt ≤ Orange, or `?city=1` forcing it on). */
+/** Live/Hand pressed states + chip visibility (belt ≤ Orange, or `?city=N` forcing it on). */
 async function paintCampusToolbar(): Promise<void> {
   for (const [variant, button] of campusVariantButtons) {
     button.setAttribute("aria-pressed", String(campusVariant === variant));
   }
   if (!campusTutorialChip) return;
-  if (cityParam === "1") campusTutorial = true;
+  if (cityNum !== null) campusTutorial = true;
   let belt = playerBelt;
   if (belt === undefined) belt = (await progression.view()).belt;
   const early = ["white", "yellow", "orange"].includes(String(belt).toLowerCase());
-  campusTutorialChip.hidden = !(early || cityParam === "1");
+  campusTutorialChip.hidden = !(early || cityNum !== null);
   campusTutorialChip.setAttribute("aria-pressed", String(campusTutorial));
 }
 
@@ -574,8 +579,8 @@ async function startCampusRun(): Promise<void> {
   let runLevel = level;
   let ruleCardsSource: string | undefined;
   if (campusTutorial) {
-    const edition = await cityLevel("city1").catch((error: unknown) => {
-      console.warn("tutorial city level failed", error);
+    const edition = await cityLevel(campusCity).catch((error: unknown) => {
+      console.warn(`tutorial ${campusCity} city level failed`, error);
       return null;
     });
     if (edition) runLevel = edition.level;
@@ -590,6 +595,8 @@ async function startCampusRun(): Promise<void> {
     mode: campusVariant,
     reducedMotion: reduceMotion,
     ruleCardsSource,
+    // Art 5: the booth's "Open the full editor" hands its serialization to the kata editor.
+    onOpenEditor: (kata) => { void handoffToKata(kata).catch(fail); },
     onFinish: (run) => {
       renderReadout({ key: "campus", label: "campus", run });
       void recordCompletion(run, true).catch(fail);
@@ -597,8 +604,26 @@ async function startCampusRun(): Promise<void> {
     onStatus: (text) => paint(text, 0),
   });
   if (campusVariant === "hand" && campusTutorial) {
-    tutorialRunner = await TutorialRunner.start("city1", campus, { onStatus: (text) => paint(text, 0) });
+    tutorialRunner = await TutorialRunner.start(campusCity, campus, { onStatus: (text) => paint(text, 0) });
   }
+}
+
+/**
+ * Art 5 editor hand-off: persist the booth's serialization (the kata editor preselects it via
+ * `getBoothChoice` → `KataPlayOptions.initialKata`) and switch app mode to the editor. A level
+ * that is hand-only (levels 1-2) cannot host kata mode, so the hand-off hops to the first kata
+ * level — the player's cards carry over, the level they were watching does not (city 3 scripts
+ * the guided version of this beat).
+ */
+async function handoffToKata(kata: string): Promise<void> {
+  saveBoothChoice("booth cards", kata);
+  if (modeAllowed("kata")) {
+    await setMode("kata");
+    return;
+  }
+  mode = "kata";
+  saveStore({ prefs: { mode: mode as "watch" } });
+  await setLevel("level3"); // loads under kata mode (allowed there) and saves the prefs
 }
 
 /** Hand mode: mount the HandGame controller (it mounts the gauges itself). */

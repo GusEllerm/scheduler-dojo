@@ -1269,12 +1269,15 @@ ul.kata-errors {
 .campus-toast { position: absolute; left: 12px; top: 10px; z-index: 4; max-width: min(420px, 70%);
   padding: 6px 10px; border-radius: 8px; background: var(--sd-panel); color: var(--sd-ink);
   border: 1px solid var(--sd-line); font-size: 12px; }
-.campus-toast.error { border-color: var(--sd-overflow); border-width: 2px; }
+.campus-toast.error { border-color: var(--sd-overflow); border-width: 2px; color: var(--sd-overflow);
+  font-weight: 600; } /* Art 5: the engine code rides in the message — make it read red */
 .campus-mode-chip { position: absolute; right: 12px; top: 10px; z-index: 4; padding: 2px 10px;
   border-radius: 999px; background: var(--sd-panel); color: var(--sd-ink);
   border: 1px solid var(--sd-line); font-size: 11px; }
-.tutorial-skip { position: absolute; right: 12px; top: 38px; z-index: 9; font-size: 11px; }
-.callout-overlay { position: absolute; inset: 0; z-index: 6; background: rgba(0, 0, 0, 0.25); }
+/* z-order: the callout and the Skip button must clear an open booth overlay (z 30) — Art 5
+   opens the booth from scripted `set_mode` beats, and Skip is the permanent escape hatch. */
+.tutorial-skip { position: absolute; right: 12px; top: 38px; z-index: 36; font-size: 11px; }
+.callout-overlay { position: absolute; inset: 0; z-index: 35; background: rgba(0, 0, 0, 0.25); }
 .callout-panel { position: absolute; width: min(320px, calc(100% - 24px)); box-sizing: border-box;
   padding: 10px 12px; border-radius: 10px; background: var(--sd-panel); color: var(--sd-ink);
   border: 1px solid var(--sd-line); }
@@ -1306,3 +1309,39 @@ ul.kata-errors {
   cursor: pointer; text-align: left; font: inherit; font-size: 12px; }
 .booth-note { font-size: 12px; }
 .booth-error { font-size: 12px; color: var(--sd-overflow); }
+
+/* ---- phase two, Art 5a: booth card slots, one-line editor, tutorial pulses ---- */
+.booth-slots { display: grid; gap: 8px; margin-bottom: 4px; }
+.booth-slot { border: 1px solid var(--sd-line); border-radius: 10px; padding: 6px 8px; }
+.booth-slot.pulse { animation: sd-pulse-ring 550ms ease-out 2; }
+.booth-slot-btn { display: flex; justify-content: space-between; gap: 8px; width: 100%; align-items: baseline;
+  background: none; border: none; color: inherit; font: inherit; font-size: 13px; cursor: pointer;
+  padding: 2px; border-radius: 6px; }
+.booth-slot-btn .slot-name { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; }
+.booth-slot-btn .slot-card { color: var(--sd-ink-soft); font-family: ui-monospace, monospace; font-size: 12px; }
+.booth-line { display: grid; grid-template-columns: minmax(170px, 1fr) minmax(190px, 1fr); gap: 8px;
+  align-items: start; margin-top: 4px; }
+.booth-line-input { width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace;
+  font-size: 12px; background: var(--sd-ground); color: var(--sd-ink); border: 1px solid var(--sd-line);
+  border-radius: 6px; padding: 4px 6px; }
+.booth-card-src { margin: 0; font-family: ui-monospace, monospace; font-size: 11px; white-space: pre-wrap;
+  border: 1px dashed var(--sd-line); border-radius: 6px; padding: 4px 6px; color: var(--sd-ink-soft); }
+.booth-library { display: flex; gap: 8px; flex-wrap: wrap; }
+.booth-lib-card { display: flex; gap: 8px; align-items: baseline; padding: 5px 8px; border-radius: 8px;
+  border: 1px solid var(--sd-line); background: none; color: inherit; cursor: pointer; font: inherit;
+  font-size: 12px; }
+.booth-lib-card span { color: var(--sd-ink-soft); font-size: 11px; text-transform: uppercase; }
+.booth-lib-card[aria-pressed="true"] { outline: 2px solid var(--sd-gold); }
+.booth-editor-row { display: flex; justify-content: flex-end; margin-top: 6px; }
+.booth-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--sd-line);
+  color: var(--sd-ink-soft); white-space: nowrap; }
+.booth-chip.ok { color: var(--sd-ok); border-color: var(--sd-ok); }
+.booth-chip.bad { color: var(--sd-overflow); border-color: var(--sd-overflow); border-width: 2px;
+  font-weight: 600; }
+.campus-pulse { position: absolute; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%;
+  border: 3px solid var(--sd-gold); pointer-events: none; z-index: 8;
+  animation: sd-pulse-ring 600ms ease-out 2; }
+@keyframes sd-pulse-ring {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sd-gold) 80%, transparent); }
+  to   { box-shadow: 0 0 0 14px color-mix(in srgb, var(--sd-gold) 0%, transparent); }
+}

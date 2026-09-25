@@ -12,7 +12,7 @@
 import { bridge, BridgeError, type HandSuggestions, type Level, type RunResult, type StepState } from "./bridge";
 import { buildScene, type CampusScene, type SnapshotLike } from "./campus";
 import { bayBox, hitTest, vehicleBox } from "./campus-hit";
-import { openBoothDialog, saveBoothChoice } from "./booth";
+import { boothCards, openBoothDialog, saveBoothChoice, type BoothDialogHandle } from "./booth";
 import { readTokens } from "./tokens";
 
 export interface CampusPlayOptions {
@@ -26,8 +26,10 @@ export interface CampusPlayOptions {
   /** Art 4: "hand" runs the same engine under the manual policy — the player parks vehicles and
    *  presses Time (`hand_tick`); "live" (default) is the Art 3 auto-stepping campus, untouched. */
   mode?: "live" | "hand";
-  /** Kata text whose modules render as the booth's rule cards (hand mode's booth dialog). */
+  /** Kata text whose modules seed the booth's card slots (hand mode's booth dialog). */
   ruleCardsSource?: string;
+  /** Art 5: "Open the full editor" — the booth hands its serialization to the kata editor. */
+  onOpenEditor?: (kata: string) => void;
   onFinish?: (run: RunResult) => void;
   onStatus?: (text: string) => void;
 }
@@ -84,9 +86,8 @@ export class CampusPlay {
   private toastEl: HTMLElement;
   private toastTimer = 0;
   private chipEl: HTMLElement;
-  private boothDialog: { close(): void } | null = null;
+  private boothDialog: BoothDialogHandle | null = null;
   private undoBtn: HTMLButtonElement | null = null;
-  private staffedName: string | null = null;
   private staffedKata: string | null = null;
 
   private constructor(opts: CampusPlayOptions) {
@@ -555,28 +556,39 @@ export class CampusPlay {
     }
   }
 
-  private openBooth(): void {
+  private openBooth(opts: { mode?: "cards" | "line"; slot?: string; card?: string } = {}): void {
     this.boothDialog?.close();
+    const kataSource = this.staffedKata ?? this.opts.ruleCardsSource ?? "";
     this.boothDialog = openBoothDialog({
-      kataSource: this.staffedKata ?? this.opts.ruleCardsSource ?? "",
-      staffed: this.boothStaffed,
-      staffedName: this.staffedName,
-      onStaff: (name, kataText) => this.staffBooth(name, kataText),
+      kataSource,
+      staffed: this.boothStaffed || boothCards(kataSource).length > 0,
+      mode: opts.mode,
+      focusSlot: opts.slot,
+      focusCard: opts.card,
+      onChange: (kata, kind) => this.boothChanged(kata, kind),
+      onOpenEditor: (kata) => {
+        this.boothDialog?.close();
+        this.opts.onOpenEditor?.(kata);
+      },
     });
   }
 
   /**
-   * Staffing records the choice — there is NO mid-run policy switch in the bridge (hand_start
-   * runs the manual policy; inventing one would be inventing engine behavior), so the choice is
-   * announced to the tutorial (`booth_staffed`) and persisted for the next kata run to preselect.
+   * Art 5: a booth change is recorded, not pushed — there is NO mid-run policy switch in the
+   * bridge (`hand_start` runs the manual policy; inventing one would be inventing engine
+   * behavior). The serialization persists for the next kata run (`boothKata` prefs → the kata
+   * editor's `initialKata`) and is announced to the tutorial (`card_swapped` / `line_edited`,
+   * plus `booth_staffed` the first time the booth stops being empty). The staffed state mirrors
+   * the engine contract: a booth with slotted cards has chosen rules.
    */
-  private staffBooth(name: string, kataText: string): void {
-    this.staffedName = name;
-    this.staffedKata = kataText;
-    this.boothStaffed = true;
-    saveBoothChoice(name, kataText);
-    this.showToast(`Booth staffed: ${name} — recorded; the next kata run starts from it.`, false);
-    this.onEvent?.("booth_staffed");
+  private boothChanged(kata: string, kind: "slot" | "edit"): void {
+    const had = this.boothStaffed;
+    this.staffedKata = kata;
+    const names = boothCards(kata).map((c) => c.name);
+    this.boothStaffed = names.length > 0;
+    if (this.boothStaffed) saveBoothChoice(names.join(" + "), kata);
+    this.onEvent?.(kind === "edit" ? "line_edited" : "card_swapped");
+    if (!had && this.boothStaffed) this.onEvent?.("booth_staffed");
     this.repaint();
   }
 
@@ -660,6 +672,32 @@ export class CampusPlay {
   }
 
   notifyEvent(name: string): void { this.onEvent?.(name); }
+
+  /** Art 5 (tutorial `swap_card` / `edit_line` / `set_mode booth:*`): open — or re-aim — the
+   *  booth panel; `slot` pulses a slot zone, `mode: "line"` focuses the one-line editor. */
+  openBoothPanel(opts: { mode?: "cards" | "line"; slot?: string; card?: string } = {}): void {
+    if (!this.handMode || this.finished || this.lockKind === "booth") return;
+    this.revealBooth(true);
+    if (this.boothDialog) this.boothDialog.showMode(opts);
+    else this.openBooth(opts);
+  }
+
+  /** The kata text the booth currently stands for (the tutorial's `cards_placed` source). */
+  boothKata(): string { return this.staffedKata ?? this.opts.ruleCardsSource ?? ""; }
+
+  /** Art 5 tutorial `highlight`: a transient ring on a scene anchor (a visual nudge — it
+   *  decides nothing and reads nothing but the current projection, so sim time never gates it). */
+  pulseAnchor(name: string): boolean {
+    const at = this.anchorPoint(name);
+    if (!at) return false;
+    const el = document.createElement("div");
+    el.className = "campus-pulse";
+    el.style.left = `${at.x}px`;
+    el.style.top = `${at.y}px`;
+    this.opts.container.append(el);
+    window.setTimeout(() => el.remove(), 1300);
+    return true;
+  }
 
   /** Canvas-space point for a tutorial anchor name (Concepts/Campus scene vocabulary). */
   anchorPoint(name: string, lastPlacedId?: string | null): { x: number; y: number } | null {

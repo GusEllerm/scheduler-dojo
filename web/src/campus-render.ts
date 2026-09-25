@@ -65,10 +65,18 @@ function withAlpha(color: string, alpha: number): string {
   return color;
 }
 
+/** hashUser — stable neighbourhood index from a user name. */
 function hashUser(user: string): number {
   let h = 0;
   for (let i = 0; i < user.length; i++) h = (h * 31 + user.charCodeAt(i)) | 0;
   return Math.abs(h);
+}
+
+/** Countdown label for cone text: whole units, never wall clock. */
+function fmtDur(t: number): string {
+  if (t < 60) return `${t}s`;
+  if (t < 3600) return `${Math.round(t / 60)}m`;
+  return `${(t / 3600).toFixed(1)}h`;
 }
 
 function roundRectPath(p: Path2D, x: number, y: number, w: number, h: number, r: number): void {
@@ -521,43 +529,61 @@ export class CampusRenderer {
     }
   }
 
-  /** Reservation cones on the lot's road-side edge, with a shrinking countdown tick. */
+  /** Reservation cones (Art 5): one per `scene.cones` entry — bay-backed ones (viewer hand cones)
+   *  sit on the lot's road-side edge over their bays; engine reservations (the snapshot carries no
+   *  reserved bays) sit on the vehicle itself, never on guessed bays. Countdown = a shrinking tick
+   *  plus a text label, both keyed on sim time only. */
   private drawCones(ctx: CanvasRenderingContext2D, scene: CampusScene): void {
     const geom = bayGeom(scene);
-    const groups = new Map<string, { cx: number; edgeY: number; until: number | null; count: number }>();
-    for (const b of scene.bays) {
-      if (!b.reservedFor) continue;
-      const g = geom.get(b.id);
-      if (!g || !g.lot) continue;
-      const prev = groups.get(b.reservedFor);
-      const cx = g.x + g.w / 2;
-      if (!prev) groups.set(b.reservedFor, { cx, edgeY: g.lot.y + g.lot.h, until: b.reservedUntil ?? null, count: 1 });
-      else { prev.cx += cx; prev.until = prev.until ?? b.reservedUntil ?? null; prev.count += 1; }
-    }
-    const ghost = withAlpha(this.c("veh-reserved"), 0.25);
-    for (const [, gp] of groups) {
-      const n = gp.count;
-      const cx = gp.cx / n;
-      ctx.fillStyle = ghost;
+    const slots = roadSlots(scene);
+    const byId = new Map(scene.vehicles.map((v) => [v.id, v]));
+    ctx.font = FONT_LABEL;
+    ctx.textAlign = "center";
+    for (const cone of scene.cones) {
+      const veh = byId.get(cone.job);
+      let cx: number | null = null;
+      let edgeY: number | null = null;
+      if (cone.bays.length) {
+        let sum = 0, n = 0, bottom = 0;
+        for (const bid of cone.bays) {
+          const g = geom.get(bid);
+          if (!g || !g.lot) continue;
+          sum += g.x + g.w / 2; n += 1;
+          bottom = Math.max(bottom, g.lot.y + g.lot.h);
+        }
+        if (n) { cx = sum / n; edgeY = bottom; }
+      }
+      if (cx === null || edgeY === null) {
+        // no bays (engine intent) — the cone hovers over the vehicle on the road
+        if (!veh) continue;
+        const s = slots.get(cone.job);
+        if (!s) continue;
+        cx = s.x + s.w / 2; edgeY = s.y + s.len + 2;
+      }
       const path = new Path2D();
-      path.moveTo(cx - CONE_W / 2, gp.edgeY);
-      path.lineTo(cx + CONE_W / 2, gp.edgeY);
-      path.lineTo(cx, gp.edgeY + CONE_H);
+      ctx.fillStyle = withAlpha(this.c("veh-reserved"), 0.25);
+      path.moveTo(cx - CONE_W / 2, edgeY);
+      path.lineTo(cx + CONE_W / 2, edgeY);
+      path.lineTo(cx, edgeY + CONE_H);
       path.closePath();
       ctx.fill(path);
       ctx.strokeStyle = this.c("veh-reserved");
       ctx.lineWidth = 1;
       ctx.stroke(path);
-      if (gp.until !== null) {
-        const frac = clamp((gp.until - scene.now) / RESERVE_SPAN, 0, 1);
+      if (cone.until !== null) {
+        const rem = Math.max(0, cone.until - scene.now);
+        const frac = clamp(rem / RESERVE_SPAN, 0, 1);
         ctx.strokeStyle = this.c("veh-reserved");
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(cx - CONE_W / 2, gp.edgeY + CONE_H + 3);
-        ctx.lineTo(cx - CONE_W / 2 + CONE_W * frac, gp.edgeY + CONE_H + 3);
+        ctx.moveTo(cx - CONE_W / 2, edgeY + CONE_H + 3);
+        ctx.lineTo(cx - CONE_W / 2 + CONE_W * frac, edgeY + CONE_H + 3);
         ctx.stroke();
+        ctx.fillStyle = this.c("veh-reserved");
+        ctx.fillText(fmtDur(rem), cx, edgeY + CONE_H + 14);
       }
     }
+    ctx.textAlign = "start";
   }
 
   /** Shape + label + patience ring (ring-track + judgement fill) + numeric-free % mark. */
