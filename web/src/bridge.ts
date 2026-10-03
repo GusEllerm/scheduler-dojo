@@ -60,6 +60,8 @@ export interface RunResult {
   bars?: { pass_score?: number; gold_score?: number };
   /** §5.3: the user whose patience ring overflowed at the end ('' when none) — `step_result`. */
   overflow?: string;
+  /** review F5: the sim time the ring FILLED (`end_time` is the last finish, not the stop). */
+  overflow_time?: number;
 }
 
 export interface KataReport {
@@ -470,6 +472,9 @@ export interface StepState {
   pressure?: Record<string, number>;
   /** user whose ring overflowed ('' when none) */
   overflow?: string;
+  /** review F1: t0 + horizon on step snapshots (null when the level has no horizon) — the live
+   *  loop's target must never cap BELOW it, or the engine clamps the clock there forever. */
+  horizon_end?: number | null;
   finished: number;
   done: boolean;
 }

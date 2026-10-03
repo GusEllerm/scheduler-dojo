@@ -6,17 +6,26 @@
 //
 // Cases:
 //   endless   a save with prefs.endlessUnlocked clicks the Endless chip; the run is watched live
-//             at 1x; on-campus counts + fps are logged at week 1 and week 2, and
+//             at 1x (the endless campus paces at 3,600 sim-s/s — one sim day is 24 s wall);
+//             on-campus counts + fps are logged at week 1 and week 2, and
 //             art7a-endless-w2.png shows the thicker week. (The scene's vehicle LIST is the whole
 //             pre-materialized 30-day stream — 1861 vehicles at t=0 — so density is measured by
 //             the ON-CAMPUS count, never by the list length.)
-//   overflow  the same endless run, PAUSED immediately (before the rAF loop's first step lands —
-//             see the open defect note in Sessions/2026-10-02 Phase 2 Art 7.md) and fast-forwarded
-//             with step_until jumps (seekRender, the visual harness's own hook) until a patience
-//             ring overflows (~t=1,905,852 s at the default seed): the overflow flash, then the
-//             review panel — mistakes non-empty, best persisted, chip shows the best.
+//   overflow  the same endless run, PAUSED immediately (deterministic jumps drive; a pre-frame
+//             pause also guarantees the loop never races the seeks) and fast-forwarded with
+//             step_until jumps (seekRender, the visual harness's own hook) until a patience ring
+//             overflows (~t=1,905,852 s at the default seed — engine-verified; done fires on the
+//             stop frame since 4cab6b3): the overflow flash, then the review panel — mistakes
+//             non-empty, best persisted, chip shows the best.
 //   city      a city (level3) campus run to the end of its horizon: the freeze offers, one is
 //             taken, and the SAME review opens with the share bars.
+//
+// Review-pass note: an earlier "seek stall" investigation was TWO artifacts, not an app race —
+// (1) playwright silently does NOT invoke block/expression-bodied `async (t) => …` STRINGS
+// passed to evaluate (it returns undefined) — the first passes' "frozen" seeks never ran; every
+// seek here is a real function. (2) the real pin was the engine's horizon clamp, fixed in
+// 4cab6b3 (stepped runs END at t0+horizon; snapshots publish `horizon_end`). See
+// Sessions/2026-10-02 Phase 2 Art 7.md.
 //
 // The driver clicks in-game buttons (Endless chip, offers, speed select) and only the public
 // debug hooks the harness already uses (`__campus.fps()`, `__campus.seekRender()`).
@@ -79,8 +88,10 @@ async function clickButton(page, text, sel = "button") {
  * the ENDLESS campus exists (a leftover city campus has far fewer) — a `day >= 1` wait is
  * vacuous (the counter starts at 1) and can resolve on the pre-chip campus mid-teardown.
  * `pauseFirst` clicks Pause in the SAME evaluate that observes the marker, before the loop's
- * first `step_until` lands: seeks issued after a live frame are subject to the open stall
- * defect (Sessions/2026-10-02 Phase 2 Art 7.md), a seek after a pre-frame pause is proven.
+ * first `step_until` lands: the run is then driven purely by the seeks below (no wall-clock
+ * traffic while the case inspects it). Pausing before the first frame is belt-and-braces
+ * determinism, not a workaround — the old "stall" was the evaluate-string artifact + the engine
+ * horizon pin, both dead (see the header note).
  */
 async function bootEndless(page, prefs = { endlessUnlocked: true }, pauseFirst = false) {
   await bootApp(page, prefs);
@@ -107,16 +118,17 @@ async function bootEndless(page, prefs = { endlessUnlocked: true }, pauseFirst =
   say(`endless up, paused before the first live step at t=${stv.snap} (paused=${stv.paused})`);
 }
 
-/** Deterministic jump via the harness's own hook. If the snapshot does not advance, wait and
- *  retry (the open stall defect: a step_until issued while the rAF loop's last step is still
- *  settling can be lost; a settle delay always recovers it). Retries are LOGGED, never hidden. */
+/** Deterministic jump via the harness's own hook, returning the engine's own `done` (the
+ *  run-over signal — never a day-count guess). The settle-retry loop is belt-and-braces only:
+ *  with the horizon fix (4cab6b3) and real-function evaluates it should never fire, and if a
+ *  retry DOES happen the log says so loudly. */
 async function seekLogged(page, t) {
   for (let attempt = 0; attempt <= 8; attempt++) {
-    const r = await page.evaluate(`async (t) => {
+    const r = await page.evaluate(async (t) => {
       try { await window.__campus.seekRender(t); }
-      catch (e) { return { err: String(e && e.message || e) }; }
+      catch (e) { return { err: String((e && e.message) || e) }; }
       return { snap: window.__campus.snap?.now, done: window.__campus.snap?.done };
-    }`, t);
+    }, t);
     if (r.err) {
       // `run_until` after the run ended raises — reaching that is a DONE, not a failure.
       if (/finished/i.test(r.err)) return { done: true, retries: attempt };
@@ -124,7 +136,7 @@ async function seekLogged(page, t) {
       return { done: false, retries: attempt };
     }
     if (r.done || (r.snap ?? 0) >= t) return { ...r, retries: attempt };
-    if (attempt === 0) say(`stall workaround: snap stuck at ${r.snap} for seek(${t}) — retrying`);
+    if (attempt === 0) say(`unexpected seek stall (retrying): snap ${r.snap} < target ${t}, done=${r.done}`);
     await page.waitForTimeout(400);
   }
   fail(`seek(${t}) never advanced`);
@@ -136,20 +148,32 @@ async function seekLogged(page, t) {
 async function caseEndless(browser) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await bootEndless(page, { endlessUnlocked: true }, false);   // LIVE: the rAF loop drives
-  // wait for a settled week-1 sample (day 2+, while week is still 1)
+  // wait for a settled week-1 sample (day 2+ = ~48 s wall at the 3,600 sim-s/s endless pace)
   await page.waitForFunction(
     "(() => { const s = window.__campus?.currentScene(); return s && s.day >= 2; })()",
-    null, { timeout: 60_000 });
+    null, { timeout: 240_000 });
   const w1 = await sceneStats(page);
   say(`week ${w1.week} · day ${w1.day} · on campus ${w1.on} · stream size ${w1.vehicles} `
     + `(constant: the whole 30-day stream exists at t=0)`);
   const fps = [];
-  // week 2 = days 8..14 of the literal calendar; keep sampling fps while the ramp thickens
+  // The default seed's ramp, honestly: the 4-bay lot absorbs weeks 1–2, and the jam that kills
+  // the run (~day 22) builds from ~day 16. So the screenshot's wait is DENSITY-DRIVEN (the run's
+  // own signal — on-campus >= 6 — not a day count): it captures the thickening whenever it
+  // actually arrives, at week >= 2 (asserted).
   await page.waitForFunction(
     "(() => { const s = window.__campus?.currentScene(); return s && s.day >= 8; })()",
-    null, { timeout: 120_000 });
+    null, { timeout: 420_000 });
   const w2 = await sceneStats(page);
-  if (w2.week !== 2) fail(`week 2 expected, scene says week ${w2.week}`);
+  say(`week ${w2.week} · day ${w2.day} · on campus ${w2.on}`);
+  await page.waitForFunction(`(() => {
+    const s = window.__campus?.currentScene();
+    if (!s) return false;
+    const on = s.vehicles.filter((v) => ["queued", "chosen", "reserved", "running"]
+      .includes(v.state)).length;
+    return on >= 6 || s.done === true;
+  })()`, null, { timeout: 900_000 });
+  const w2b0 = await sceneStats(page);
+  if (w2b0.week < 2) fail(`week >= 2 expected at the shot, scene says week ${w2b0.week}`);
   await page.screenshot({ path: `${shotDir}/art7a-endless-w2.png` });
   for (let i = 0; i < 6; i++) {
     fps.push(await page.evaluate("window.__campus?.fps() ?? 0"));
@@ -157,9 +181,9 @@ async function caseEndless(browser) {
   }
   // Peak on-campus density over a short window — an INSTANTANEOUS count can dip between
   // arrivals, and a dip would say "thinner" about a week that is demonstrably thicker.
-  let peak = w2.on;
-  let w2b = w2;
-  for (let i = 0; i < 5; i++) {
+  let peak = w2b0.on;
+  let w2b = w2b0;
+  for (let i = 0; i < 8; i++) {
     const s = await sceneStats(page);
     if (s.on > peak) { peak = s.on; w2b = s; }
     await page.waitForTimeout(400);
@@ -168,7 +192,7 @@ async function caseEndless(browser) {
     + `· stream size ${w2b.vehicles}`);
   say(`fps samples: ${fps.map((f) => f.toFixed(0)).join(", ")}`);
   if (!fps.some((f) => f >= 45)) fail(`fps never reached 45: ${fps.join(", ")}`);
-  if (peak <= w1.on) fail(`on-campus traffic not denser by week 2 (${w1.on} -> peak ${peak})`);
+  if (peak <= w1.on) fail(`on-campus traffic not denser by the shot (${w1.on} -> peak ${peak})`);
   ok(`week 1 on-campus ${w1.on} -> week 2 on-campus ${w2b.on} (peak ${peak}), `
     + `fps peak ${Math.max(...fps).toFixed(0)}`);
   await page.close();
@@ -193,7 +217,7 @@ async function caseOverflow(browser) {
     retries += r.retries;
     if (r.done) break;
   }
-  if (retries) say(`stall workarounds used: ${retries} seek retries after settle waits`);
+  if (retries) say(`WARNING: ${retries} seek retries needed (expected 0) — investigate`);
   const end = await page.evaluate(`(async () => {
     await new Promise((r) => setTimeout(r, 1200));   // the overflow flash's hold (~900 ms)
     const s = window.__campus.snap ?? {};

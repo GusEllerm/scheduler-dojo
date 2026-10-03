@@ -36,7 +36,9 @@ a mouse, because a scheduling lesson you cannot read is not a lesson.
 5. **Modals are dialogs and are closable by keyboard.** The upgrade shop, the share modal, the campus
    booth (`web/src/booth.ts` `openBoothDialog`), the week-end offers panel (`web/src/offers.ts`,
    Art 6a — Take/Later are real buttons, the verdict line is `role="status"`, and a focusable
-   pending-offers button in the campus controls reopens it while traffic is frozen) and the tutorial
+   pending-offers button in the campus controls reopens it while traffic is frozen), the run review
+   panel (`web/src/review.ts` `openReviewPanel`, Art 7a — one at a time, its "Back to the campus"
+   button takes initial focus and Escape/`trapDialog` closes it) and the tutorial
    callouts (`web/src/tutorial.ts`, and the booth dialog in `web/src/booth.ts` via the shared
    `trapDialog`)
    are `role="dialog" aria-modal="true" aria-labelledby=<their heading>`;

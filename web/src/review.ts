@@ -51,10 +51,14 @@ export interface MistakeRow {
 }
 
 /** The share math's view of a finished run (`FairnessJob` needs a numeric claimed length — a
- *  hidden-actual level still shows `est`, and `est ?? 0` matches what the vehicle drew). */
+ *  hidden-actual level still shows `est`, and `est ?? 0` matches what the vehicle drew).
+ *  Pyodide's `toJs` turns Python `None` into **undefined** (phase one guards this exact quirk
+ *  at `main.ts`/`timeline.ts`), and `fairnessShares` only treats `null` as never-started — so
+ *  normalize here or an unfinished job poisons the sums with NaN. */
 function shareJobs(run: RunResult) {
   return (run.jobs ?? []).map((j) => ({
-    user: j.user, submit: j.submit, start: j.start, end: j.end, est: j.est ?? 0,
+    user: j.user, submit: j.submit, start: j.start ?? null, end: j.end ?? null,
+    est: j.est ?? 0,
   }));
 }
 
@@ -67,7 +71,10 @@ export function mistakesOf(run: RunResult): MistakeRow[] {
   if (run.overflow) {
     rows.push({
       user: run.overflow,
-      text: `${run.overflow}'s patience ring filled at ${formatTime(end)} — that is what ended `
+      // F5: the ring-FILL instant (`overflow_time`) is what ended the run — `end_time` is the
+      // last vehicle FINISH, which trails the stop. Fall back to it only for old payloads.
+      text: `${run.overflow}'s patience ring filled at ` 
+        + `${formatTime(run.overflow_time ?? end)} — that is what ended `
         + `this run. Watch that neighbour's ring next time.`,
     });
   }

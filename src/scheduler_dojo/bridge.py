@@ -38,6 +38,7 @@ from scheduler_dojo.sim.trajectory import trajectory_hash
 # Interactive stepping handles: handle id -> Scheduler (kept alive across step calls).
 _SESSIONS: dict[int, Scheduler] = {}
 _SESSION_LEVELS: dict[int, dict] = {}  # stepped handle -> its level (for scoring step_result)
+_SESSION_POLICIES: dict[int, str] = {}  # stepped handle -> the policy actually started with
 _NEXT_HANDLE = [1]
 
 
@@ -157,6 +158,10 @@ def start(level: Any, seed: int | None = None, policy: str = "fifo",
     _NEXT_HANDLE[0] += 1
     _SESSIONS[handle] = sched
     _SESSION_LEVELS[handle] = lvl
+    # What the run actually runs (a `start(policy=X)` can differ from the level's default_policy,
+    # e.g. the endless campus starts `shortest_first` on a level with no default) — `run()` reports
+    # this truthfully at line ~108; `step_result` must too, or the review screen's policy lies.
+    _SESSION_POLICIES[handle] = "kata" if kata is not None else policy
     return {"handle": handle, "state": _snapshot(sched, lvl), "nodes": _nodes_json(sched.cluster)}
 
 
@@ -256,7 +261,7 @@ def step_result(handle: int) -> dict:
            "trace": list(sched.trace)}
     if lvl:
         out["seed"] = int(lvl.get("seed", 0))
-        out["policy"] = str(lvl.get("default_policy", "fifo"))
+        out["policy"] = _SESSION_POLICIES.pop(handle, str(lvl.get("default_policy", "fifo")))
     score = _score_for(lvl, result) if lvl else None
     if score is not None:
         out["score"] = score

@@ -53,12 +53,19 @@ clock on the step horizon. `fifo`, `shortest_first`, and `idle`
   an event, never backwards; `_finished` is only set on an empty heap when `until` cannot hide future
   events, so `run_until(t)` mid-horizon never ends a run early). Nothing between events reads `now`,
   so trajectories are unaffected. `run_until` clamps a float `t` to int — the integer clock is an
-  invariant and the browser clock is a float wall mapping.
+  invariant and the browser clock is a float wall mapping. When a done branch fires it lands the
+  clock first (both the empty-heap case, where the LAST EVENT predates `t0 + horizon`, and the
+  next-event-past-slice-horizon case below) — a run ending short of the horizon would otherwise pin
+  `now` before the boundary and make a city's week-end freeze miss its offer (review F1 follow-up).
 - **Determinism:** `queued`/`running` are exposed sorted by id; ties broken by `(submit_time, id)`
   and `(walltime_req, submit_time, id)`.
 - **Horizon discipline (review F1):** a `run(until=None)` still stops at `t0 + horizon` — the
   engine, not the caller, owns the horizon, so a stepped `step_result` drain truncates exactly
-  where a canonical `run(until=duration)` does and the trajectory hashes agree.
+  where a canonical `run(until=duration)` does and the trajectory hashes agree. A step slice whose
+  `until` is at/after `t0 + horizon` and whose next event is beyond it marks the run finished (the
+  clock pinned at `now < horizon` with done never firing is the bug this closes), and the empty-heap
+  done path advances the clock to the horizon too — so stepped endless/city runs END on the boundary
+  the campus watches, with `horizon_end` published for the browser's step-target cap floor.
 - **Patience rings (phase two):** constructed with `pressure={"cap", "end_on_overflow"}` (levels
   without the block never compute rings — hash-identical to phase one), `_compute_pressure` runs at
   every batch: per user, the max over unfinished jobs of `wait / ((cap-1) x est)` clamped to [0,1]

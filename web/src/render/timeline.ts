@@ -111,12 +111,15 @@ export function mountTimeline(
   scrub.max = String(horizon);
   scrub.step = "1";
   let dragging = false;
+  // review F4: a NAMED handler, removed in `destroy()` — an anonymous one on `window` leaked for
+  // every review panel ever opened (the timeline outlives its container otherwise).
+  const endDrag = () => {
+    dragging = false;
+  };
   scrub.addEventListener("pointerdown", () => {
     dragging = true;
   });
-  window.addEventListener("pointerup", () => {
-    dragging = false;
-  });
+  window.addEventListener("pointerup", endDrag);
   const clock = el("span", "dojo-tl-clock", controls);
   const legend = el("div", "dojo-tl-legend", controls);
   for (const [label, color] of [
@@ -342,6 +345,7 @@ export function mountTimeline(
     destroy() {
       pause();
       observer.disconnect();
+      window.removeEventListener("pointerup", endDrag);
       container.textContent = "";
     },
   };
@@ -397,7 +401,10 @@ function layoutSegments(
 }
 
 function nodeLabel(node: NodeInfo): string {
-  const parts = [node.name || node.id, `${node.cpus}c`];
+  // A campus run's node list (from the step payloads) carries ids but no cpus/name — an
+  // absent cpu count is not "undefinedc".
+  const parts = [node.name || node.id];
+  if (node.cpus) parts.push(`${node.cpus}c`);
   if (node.gpus) parts.push(`${node.gpus}g`);
   return parts.join(" ");
 }

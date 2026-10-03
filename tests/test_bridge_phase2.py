@@ -165,3 +165,13 @@ def test_pressure_stop_reports_done_and_never_raises_next_call():
     assert res["overflow"] == "w"
     assert res["overflow_time"] == 1068  # the ring filled here, NOT at end_time (F5)
     assert res["end_time"] != res["overflow_time"]
+
+
+def test_empty_heap_done_lands_the_clock_on_the_horizon():
+    """Review F1 follow-up: when a slice finishes a run whose LAST EVENT predates the horizon
+    (heap drained before `t0 + horizon`), the observed clock must still land on the horizon —
+    the campus week-boundary freeze watches `now`, and a clock pinned at the last event would
+    let a city run end without ever reaching its week-end offer."""
+    h = bridge.start(_t0_pressure_level("f1b", False), seed=0)["handle"]
+    out = bridge.step_until(h, 3000)
+    assert out["done"] and out["state"]["now"] == 900 + 2000  # last event ~1850, horizon 2900

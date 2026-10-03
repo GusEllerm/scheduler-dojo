@@ -58,6 +58,11 @@ export interface CampusPlayOptions {
   mode?: "live" | "hand";
   /** Kata text whose modules seed the booth's card slots (hand mode's booth dialog). */
   ruleCardsSource?: string;
+  /** review F3: 1x playback rate in SIM-seconds per wall second, overriding the watch plan's
+   *  cadence (`plan.step` × 60). Cities are compressed weeks that that cadence paces well;
+   *  an endless LITERAL 30-day horizon crushed to the same rate ends in ~40 s of watching —
+   *  `main.ts` hands the endless campus a calm override. Never set by the visual harness. */
+  simRate?: number;
   /** Art 5: "Open the full editor" — the booth hands its serialization to the kata editor. */
   onOpenEditor?: (kata: string) => void;
   onFinish?: (run: RunResult) => void;
@@ -102,6 +107,8 @@ export class CampusPlay {
   /** Player-side tutorial events (e.g. "booth_staffed" from the booth dialog). */
   onEvent?: (name: string) => void;
   private readonly handMode: boolean;
+  /** review F1: the engine's `t0 + horizon` (from step snapshots) — the step-target cap floor. */
+  private horizonEnd: number | null = null;
   /** Art 7: the live endless campus (generator id "endless") — literal-day calendar, no week
    *  freezes, and a pressure overflow ends the run with the §Art 7 flash moment. */
   private readonly endlessMode: boolean;
@@ -778,10 +785,19 @@ export class CampusPlay {
   private simTarget(_delta: number): number {
     const now = this.pair?.simAt ?? 0;
     const wall = (performance.now() - this.startPerf) / 1000;
-    const target = this.startSim + wall * this.plan.step * 60 * this.speed;
-    const t = Math.max(now + 1, Math.max(target, now + this.plan.step));
-    const cap = this.plan.duration ? this.plan.duration + 2 * this.plan.step : Infinity;
-    return Math.floor(Math.min(t, cap));  // integer clock — never hand the engine a float
+    // review F3: with a pacing override the per-frame floor is the override's own stride
+    // (one frame at 1x), not the watch plan's compressed week step.
+    const stride = this.opts.simRate ? Math.max(1, Math.round(this.opts.simRate / 60))
+                                     : this.plan.step;
+    const target = this.startSim + wall * (this.opts.simRate ?? this.plan.step * 60) * this.speed;
+    const t = Math.max(now + 1, Math.max(target, now + stride));
+    // Review F1: the target cap must never sit BELOW the engine's own horizon — on t0>0 levels
+    // the fixed `duration + 2*step` can, and the engine clamps its clock to t0+horizon (the
+    // endless stall). `horizon_end` is the engine publishing exactly that bound.
+    const cap = this.plan.duration
+      ? Math.max(this.plan.duration + 2 * this.plan.step, this.horizonEnd ?? -Infinity)
+      : Infinity;
+    return Math.floor(Math.min(t, cap));
   }
 
   /** Absorb one snapshot into the job union view and build the SnapshotLike the scene projects. */
@@ -832,6 +848,7 @@ export class CampusPlay {
 
   /** Absorb one snapshot into the scene pair + job union view. */
   private step_once(state: StepState): void {
+    if (state.horizon_end !== undefined) this.horizonEnd = state.horizon_end;
     const snap = this.collect(state);
     this.snap = snap;
     // Viewer hand cones decay on SIM time, in step order — never a wall-clock timer, so a paused

@@ -133,6 +133,55 @@ the campus control/hand/variant bars wrap, the offers panel goes one card per ro
 behaviour, no canvas geometry — verified with measured boxes and a clipped-text sweep at 820 and
 1280 (`Sessions/2026-10-02 Phase 2 Art 6.md`).
 
+## The endless campus and the review screen (Art 7a)
+
+**Endless is one LEVEL the engine builds.** `main.ts` hands the growth curve (one neighbourhood,
++4 days per new neighbour, +60 % arrivals per literal week, a 30-day horizon, `cap: 6`) to
+`bridge.endlessLevel` (§5.7) — `bridge.endless_level` returns a plain stepable inline level (the
+materialized stream, `duration` = horizon, `pressure.end_on_overflow`) that `CampusPlay` drives
+like a city run, recognized by `id === "endless"` (`endlessMode`). Its clock labels **literal**
+86,400 s days and 7-day weeks (the city mapping stays the compressed one-week one); a week
+boundary advances the calendar and does NOT freeze — `progression.offers` is keyed by integer
+city with no endless key, and the generator's ramp IS the curve (§2.5). The booth runs the
+engine's `shortest_first` policy. The stream is seeded from the save (`prefs.endlessSeed`, first
+launch `20261002`); "New seed ▸" rerolls with a UI-side LCG step from the shown integer —
+`Math.random` never touches a sim-bound stream ([[Determinism]]).
+
+**Pacing is presentation.** The watch plan's cadence (`step` × 60) suits a compressed city week
+but crushes a literal 30-day stream into ~40 s of watching, so the endless campus passes a
+`simRate` override to `CampusPlay` (3,600 sim-s per wall-s at 1× — one literal day ≈ 24 s;
+review F3). The stream, the hashes, and the city pacing are untouched.
+
+**A step target never caps below the engine's horizon.** Step snapshots publish `horizon_end`
+(t0 + horizon) and `simTarget` takes `max` of its cap and it — the fixed `duration + 2·step` cap
+could sit below the horizon on t0>0 levels and pin the clock (the endless stall, review F1). On
+the engine side stepped runs END at the horizon, and even when the LAST EVENT predates it
+(empty heap at/after `t0 + horizon`) done lands the observed clock ON the horizon — a city run's
+week-end offer ritual depends on `now` reaching the boundary ([[scheduler_dojo-sim-scheduler]],
+[[Pyodide Bridge]]).
+
+**The overflow moment.** `step_n`/`step_until` report `done` on the stop frame; `afterDone` holds
+one ring-pulse flash of the overflowing neighbour's road vehicles (`overflowMoment`, the
+`.campus-overflow-flash` CSS pulse in the `overflow` token, ~0.9 s) before `finish`. The visual
+harness never flashes and reduced motion finishes instantly — the Art 3 baselines are
+byte-identical (verified, level1/level3, after this slice).
+
+**The review screen** (`web/src/review.ts`, §2.6) opens itself at the end of a campus run (live,
+hand, endless); every other finished run gets a "Review ▸" button on the readout
+(`mountReviewButton`) instead of a page-load modal. It recomputes nothing: the strip is the
+phase-one `mountTimeline` mounted paused, the share rows are the rail's `fairnessShares`, and the
+mistake lines are *derived* — timeouts, never-parked, starved shares, and the overflow line
+timed at `overflow_time` (the ring-FILL instant — `end_time` is the last FINISH and trails it,
+review F5). `shareJobs` null-normalizes `start`/`end` because **Pyodide turns Python `None` into
+`undefined`** (the same quirk phase one guards at `main.ts`/`timeline.ts`) and `fairnessShares`
+recognizes only `null` — unnormalized, one unfinished job poisons every share with NaN. Endless
+adds the best-score line instead of belt logic: literal days survived (`floor(end_time/86400)`)
++ vehicles served, persisted in `prefs.endlessBest` (days first, served as tie-break) and shown
+on the "Endless ▸" chip. Evidence (default seed `20261002`): the run overflows at
+**t = 1,905,852 s — day 22.05, `user4`**, the screen reads 22 days / 928 served; week traffic
+density goes 0-on-campus (day 2) to ~10 queued at the day-16 jam at 60 fps —
+`Sessions/2026-10-02 Phase 2 Art 7.md`.
+
 ## Scene vocabulary (renderer contract)
 
 The TS scene layer owns *sprites and layout only*: `vehicle` (job + state: queued/chosen/reserved/

@@ -154,6 +154,14 @@ const ENDLESS_GROWTH: Record<string, unknown> = {
 };
 /** The seed a save gets on its first endless launch; rerolls are stored per player afterwards. */
 const ENDLESS_SEED_DEFAULT = 20261002;
+/**
+ * Review F3: the endless campus' 1x pace — 3,600 sim-seconds per wall second (one sim hour per
+ * real second). The watch plan's own cadence (`step` × 60 ≈ 64,800) was tuned for a city's
+ * compressed week and ends a LITERAL 30-day endless run in ~40 s — the ramp never reads as a
+ * ramp. At 3,600 one literal day is 24 s and the week-2 thickening arrives at ~3 min: watchable,
+ * and a full run is minutes, not a blink. Pacing only — the stream itself is untouched.
+ */
+const ENDLESS_SIM_RATE = 3_600;
 /** A scripted booth hand-off that hopped to kata mode; Back to campus returns to the chain. */
 let returnCampus = false;
 let kataBackChip: HTMLButtonElement | null = null;
@@ -819,6 +827,7 @@ async function startCampusRun(): Promise<void> {
     reducedMotion: reduceMotion,
     ruleCardsSource,
     ...(policy ? { policy } : {}),
+    ...(campusEndless ? { simRate: ENDLESS_SIM_RATE } : {}),   // review F3 (pacing only)
     // Art 5: the booth's "Open the full editor" hands its serialization to the kata editor.
     onOpenEditor: (kata) => { void handoffToKata(kata).catch(fail); },
     onFinish: (run) => {

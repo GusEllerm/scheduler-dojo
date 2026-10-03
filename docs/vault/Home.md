@@ -126,7 +126,7 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | Art 4 | Hand play + city-1 tutorial + first booth reveal | ✅ done (untagged; city 1 driven end to end) |
 | Art 5 | Booth: cards→editor, why-panel, step mode, cones | 🟡 5a booth panels + 5b why-panel/step/cones/misfit/keyboard shipped (`Sessions/2026-10-02 Phase 2 Art 5.md`); playtest report + `art-5` tag pending |
 | Art 6 | Weeks/offers/buildings, cities 4–9, save migration | 🟡 6a week end + offers-as-buildings + free grants, 6b campaign chaining + fairness rail + 820 px pass shipped (`Sessions/2026-10-02 Phase 2 Art 6.md`); a human playtest report + `art-6` tag pending |
-| Art 7 | Endless, city board, strip review, share redraw | ⬜ |
+| Art 7 | Endless, city board, strip review, share redraw | 🟡 7a endless campus + review screen + best scores shipped (`Sessions/2026-10-02 Phase 2 Art 7.md`); city board, share-card redraw + `art-7` tag pending |
 | Art 8 | Onboarding polish, a11y audit, help drawer, sound | ⬜ |
 | Art 9 | Ship: README/GIF, vault sweep, final playtest, Final Report | ⬜ |
 

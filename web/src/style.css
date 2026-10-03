@@ -1454,6 +1454,12 @@ ul.kata-errors {
   letter-spacing: 0.08em; color: var(--sd-ink-soft); }
 .review-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 8px; margin: 4px 0 2px; }
+/* The readout's stat card, restated for the panel (`.readout .stat` is scoped, and a bare
+   number+label otherwise runs together as "15037.10bounded slowdown"). */
+.review-stats .stat { display: grid; gap: 2px; min-width: 0; }
+.review-stats .stat b { font-size: 17px; font-variant-numeric: tabular-nums; }
+.review-stats .stat span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--sd-ink-soft); }
 .review-strip { margin: 4px 0 8px; }
 .review-mistakes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .review-mistakes li { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }

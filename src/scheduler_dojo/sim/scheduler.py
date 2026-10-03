@@ -408,6 +408,11 @@ class Scheduler:
                 # Empty heap only means FINISHED when the step horizon cannot hide future events
                 # (else a `run_until(t)` with nothing scheduled before t would end the run early).
                 if until is None or until >= self._t0 + (self.horizon or 0):
+                    # Land the OBSERVED clock exactly at the truncation point before reporting
+                    # done (same rationale as the `t > until` branch below): a run whose last
+                    # event predates the horizon would otherwise pin `now` short of the week
+                    # boundary and make the campus week-freeze miss it (review F1 follow-up).
+                    self._advance_clock_to(until)
                     self._finished = True
                     return True
                 self._advance_clock_to(until)
