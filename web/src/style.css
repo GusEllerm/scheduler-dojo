@@ -1436,7 +1436,42 @@ ul.kata-errors {
 /* The chaining chips: "Next city ▸" (only while a chain is pending) and Endless availability. */
 .campus-next-chip { border-color: var(--sd-gold); font-weight: 600; }
 .campus-endless-chip[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.campus-endless-seed { border-radius: 999px; font-size: 11px; }
+.campus-endless-seed[hidden] { display: none; }
 .kata-back-chip { margin: 0 0 6px; }
+
+/* ---- phase two, Art 7: the review screen, the endless overflow moment ---- */
+/* The review panel (§2.6: the strip is the post-run review). It is a fixed overlay (runs live in
+   watch/kata/hand chrome too, not only the campus stage), scrolls when tall, and keeps the
+   campus's calm card language. The strip inside is the phase-one timeline paused; the fairness
+   rows reuse the rail's classes so the two views say share in the same voice. */
+.review-overlay { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-start;
+  justify-content: center; padding: 4vh 16px; background: rgba(0, 0, 0, 0.35); overflow: auto; }
+.review-panel { position: static; width: min(680px, 100%); max-height: 92vh; overflow: auto; }
+.review-meta { margin: 0 0 6px; }
+.review-endless { margin: 0 0 6px; font-size: 13px; color: var(--sd-ink); }
+.review-panel h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--sd-ink-soft); }
+.review-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px; margin: 4px 0 2px; }
+.review-strip { margin: 4px 0 8px; }
+.review-mistakes { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.review-mistakes li { display: flex; gap: 8px; align-items: baseline; font-size: 12px; }
+.review-dot { flex: none; align-self: center; width: 8px; height: 8px; border-radius: 2px;
+  background: var(--sd-ink-soft); }
+.review-ok { margin: 0; font-size: 12px; color: var(--sd-ink-soft); }
+.review-open { font-size: 12px; }
+/* The overflow moment (deliverable 4): the overflowing neighbour's queued vehicles get ONE ring
+   pulse in the `overflow` token, then the run freezes into review. The global reduced-motion rule
+   (no animation) already makes this the static equivalent; campus-play additionally skips the
+   hold when reduced motion is on. */
+.campus-overflow-flash { position: absolute; min-width: 22px; min-height: 12px; border-radius: 6px;
+  border: 2px solid var(--sd-overflow); pointer-events: none; z-index: 9;
+  animation: sd-pulse-overflow 850ms ease-out 1; }
+@keyframes sd-pulse-overflow {
+  from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--sd-overflow) 85%, transparent); }
+  to   { box-shadow: 0 0 0 14px color-mix(in srgb, var(--sd-overflow) 0%, transparent); }
+}
 
 /* 820 px (and anything narrower): every campus bar wraps, the rail drops under the canvas, and the
    offers panel goes one-per-row. All layout — no behaviour, no canvas geometry. */

@@ -18,6 +18,7 @@ import * as progression from "./progression";
 import * as share from "./share";
 import { mountHud, type HudHandle } from "./hud";
 import { mountShop, type ShopHandle } from "./shop";
+import { closeReview, mountReviewButton, openReviewPanel, type ReviewEndless } from "./review";
 import { formatTime, mountTimeline, type TimelineHandle } from "./render/timeline";
 import type { Stage, WorkerEvent } from "./worker";
 
@@ -133,8 +134,26 @@ const campusVariantButtons = new Map<"live" | "hand", HTMLButtonElement>();
 let campusTutorialChip: HTMLButtonElement | null = null;
 /** Art 6b chaining: "Next city ▸" (the script ended and its `end.next` names a city). */
 let campusNextChip: HTMLButtonElement | null = null;
-/** Art 6b: Endless availability — flipped by a script's `endless_unlock`, launched for real by Art 7. */
+/** Art 6b: Endless availability — Art 7 launched it: the chip starts the live endless campus. */
 let campusEndlessChip: HTMLButtonElement | null = null;
+/** Art 7: the campus currently running is the endless city (own best, own calendar, no offers). */
+let campusEndless = false;
+let campusSeedBtn: HTMLButtonElement | null = null;
+/**
+ * Art 7: the default endless growth curve (§5.7). Tuned against the real engine (see
+ * `Sessions/2026-10-02 Phase 2 Art 7.md`): 24 vehicles/day from one neighbourhood, a new one
+ * every 4 days, +60 % arrivals per WEEK (the generator's literal weeks — the ramp a player
+ * watches), a 30-day horizon, and `cap: 6` patience (a 30-day city forgives a 5x-claimed wait;
+ * cap 2 pops its rings on day 1). Overflow of any ring ends the run (§5.3).
+ */
+const ENDLESS_GROWTH: Record<string, unknown> = {
+  base: { arrival: [1200, 2000], nodes: [1, 2], walltime: [600, 3600], jobs_per_day: 24 },
+  growth: { new_user_every_days: 4, max_users: 6, rate_ramp_pct_per_week: 60,
+            horizon: 30 * 86_400 },
+  pressure: { cap: 6, end_on_overflow: true },
+};
+/** The seed a save gets on its first endless launch; rerolls are stored per player afterwards. */
+const ENDLESS_SEED_DEFAULT = 20261002;
 /** A scripted booth hand-off that hopped to kata mode; Back to campus returns to the chain. */
 let returnCampus = false;
 let kataBackChip: HTMLButtonElement | null = null;
@@ -506,6 +525,7 @@ function destroyModes(): void {
   tutorialRunner = null;
   campus?.destroy();
   campus = null;
+  closeReview();   // Art 7: a review panel never outlives the run view that opened it
   campusStage.textContent = "";
   campusRail.textContent = "";
   campusRail.hidden = true;
@@ -583,8 +603,9 @@ function buildCampusToolbar(): void {
     button.type = "button";
     button.textContent = text;
     button.addEventListener("click", () => {
-      if (campusVariant === variant && campus) return;
+      if (campusVariant === variant && campus && !campusEndless) return;
       campusVariant = variant;
+      campusEndless = false;   // Art 7: the city campus replaces the endless one
       void startCampusRun().catch(fail);
     });
     campusToolbar.append(button);
@@ -597,11 +618,12 @@ function buildCampusToolbar(): void {
   chip.addEventListener("click", () => {
     campusTutorial = !campusTutorial;
     if (campusTutorial) campusVariant = "hand"; // the script drives hand traffic
+    campusEndless = false;
     void startCampusRun().catch(fail);
   });
   campusToolbar.append(chip);
   campusTutorialChip = chip;
-  campusToolbar.append(buildNextCityChip(), buildEndlessChip());
+  campusToolbar.append(buildNextCityChip(), buildEndlessChip(), buildEndlessSeedButton());
   campusPanel.insertBefore(campusToolbar, campusBody);
   void paintCampusToolbar().catch(() => undefined);
 }
@@ -628,16 +650,77 @@ function buildNextCityChip(): HTMLButtonElement {
   return next;
 }
 
-/** Art 6b: Endless availability (flipped by `endless_unlock`; the mode itself is Art 7). */
+/** Art 7: Endless is live — unlocked, the chip starts the seeded growing city on the campus. */
 function buildEndlessChip(): HTMLButtonElement {
   const endless = document.createElement("button");
   endless.type = "button";
   endless.className = "campus-tutorial-chip campus-endless-chip";
-  endless.title = "unlocked by city 3 — the growing city itself arrives with Art 7";
-  endless.disabled = true;
-  endless.addEventListener("click", () => paint("endless: unlocked, launching in Art 7", shown));
+  endless.title = "the growing city (§2.5): a seeded ramp, one street, until a ring overflows";
+  endless.addEventListener("click", () => {
+    if (endless.disabled) return;
+    startEndlessRun();
+  });
   campusEndlessChip = endless;
   return endless;
+}
+
+/**
+ * Art 7: the endless "New seed ▸" button — visible while an endless run is up, showing the
+ * CURRENT seed (the stream is deterministic off it). A reroll is a plain LCG step from the shown
+ * integer (UI-side only — `Math.random` never touches a sim stream, [[Determinism]]).
+ */
+function buildEndlessSeedButton(): HTMLButtonElement {
+  const seed = document.createElement("button");
+  seed.type = "button";
+  seed.className = "campus-tutorial-chip campus-endless-seed";
+  seed.title = "the stream is seeded — reroll from the shown integer (deterministic, UI-side)";
+  seed.hidden = true;
+  seed.addEventListener("click", () => {
+    saveStore({ prefs: { endlessSeed: (Math.imul(endlessSeed(), 1103515245) + 12345) >>> 0 } });
+    if (campusEndless) void startCampusRun().catch(fail);
+    else void paintCampusToolbar().catch(() => undefined);
+  });
+  campusSeedBtn = seed;
+  return seed;
+}
+
+/** The endless stream's seed: from the save (stable per player), persisted on first read. */
+function endlessSeed(): number {
+  const saved = loadStore().prefs.endlessSeed;
+  if (typeof saved === "number" && Number.isInteger(saved)) return saved;
+  saveStore({ prefs: { endlessSeed: ENDLESS_SEED_DEFAULT } });
+  return ENDLESS_SEED_DEFAULT;
+}
+
+/** The persisted endless best (days survived + vehicles served), or null. */
+function endlessBest(): { days: number; served: number } | null {
+  const b = loadStore().prefs.endlessBest as { days?: unknown; served?: unknown } | undefined;
+  return b && typeof b.days === "number" && typeof b.served === "number"
+    ? { days: b.days, served: b.served } : null;
+}
+
+/** Record an endless finish against the best (days first, served as tie-break); UI arithmetic. */
+function recordEndlessBest(run: RunResult): ReviewEndless {
+  const days = Math.floor((run.end_time || 0) / 86_400);   // full literal days survived
+  const served = (run.jobs ?? []).filter((j) => j.state === "done").length;
+  const prev = endlessBest();
+  const isNew = !prev || days > prev.days || (days === prev.days && served > prev.served);
+  if (isNew) saveStore({ prefs: { endlessBest: { days, served } } });
+  const best = endlessBest() ?? { days, served };
+  return { days, served, bestDays: best.days, bestServed: best.served, isNewBest: isNew };
+}
+
+/** Endless ▸ pressed: the campus reruns as the seeded endless city (live traffic, no script). */
+function startEndlessRun(): void {
+  campusEndless = true;
+  campusTutorial = false;
+  campusVariant = "live";
+  if (campusNextChip) {
+    campusNextChip.hidden = true;
+    campusNextCity = null;
+  }
+  saveStore({ prefs: { mode: "campus" as "watch" } });
+  void startCampusRun().catch(fail);
 }
 
 /** A city script finished (Art 6b): offer the chain, and flip Endless availability when earned. */
@@ -645,7 +728,7 @@ function onScriptEnd(ending: TutorialEnding): void {
   if (ending.endlessUnlock) {
     saveStore({ prefs: { endlessUnlocked: true } });
     void paintCampusToolbar().catch(() => undefined);
-    paint("endless unlocked — the growing city arrives with Art 7", 0);
+    paint("endless unlocked — press the Endless chip \u25b8", 0);
   }
   if (ending.completed && ending.next !== null && ending.next >= 1 && ending.next <= 9) {
     campusNextCity = ending.next;
@@ -679,8 +762,19 @@ async function paintCampusToolbar(): Promise<void> {
   // Available once a script granted it, or once the campaign is past city 3 (the hand-off path
   // into a script never runs `onEnd` for the city that unlocked it).
   const unlocked = loadStore().prefs.endlessUnlocked === true || cityNumber() > 3;
-  campusEndlessChip.textContent = unlocked ? "Endless ▸ (Art 7)" : "Endless ▸ (locked)";
+  const best = endlessBest();
+  campusEndlessChip.disabled = !unlocked;
+  campusEndlessChip.textContent = unlocked
+    ? (best ? `Endless ▸ best ${best.days}d · ${best.served} served` : "Endless ▸")
+    : "Endless ▸ (locked)";
   campusEndlessChip.setAttribute("aria-disabled", String(!unlocked));
+  campusEndlessChip.title = unlocked
+    ? `seed ${endlessSeed()} — the same save grows the same city; "New seed" rerolls it`
+    : "unlocked after city 3";
+  if (campusSeedBtn) {
+    campusSeedBtn.hidden = !(unlocked && campusEndless);
+    campusSeedBtn.textContent = `New seed ▸ (${endlessSeed()})`;
+  }
 }
 
 /** (Re)start the campus run for the current variant, patching in the city edition when scripted. */
@@ -689,6 +783,7 @@ async function startCampusRun(): Promise<void> {
   tutorialRunner = null;
   campus?.destroy();
   campus = null;
+  closeReview();   // Art 7: a stale review never rides along into the next run
   campusStage.textContent = "";
   campusRail.textContent = "";
   campusRail.hidden = true;
@@ -697,7 +792,15 @@ async function startCampusRun(): Promise<void> {
   await paintCampusToolbar().catch(() => undefined);
   let runLevel = level;
   let ruleCardsSource: string | undefined;
-  if (campusTutorial) {
+  let policy: string | undefined;
+  if (campusEndless) {
+    // Art 7: the engine builds the stream (`bridge.endless_level`, §5.7) — a plain stepable
+    // level dict, byte-identical to what `endless_run` would run at this seed. The endless
+    // booth is "staffed" with the engine's own `shortest_first` policy (the campaign's card,
+    // a name in the engine's POLICIES table); the client decides nothing.
+    runLevel = await bridge.endlessLevel(ENDLESS_GROWTH, endlessSeed());
+    policy = "shortest_first";
+  } else if (campusTutorial) {
     const edition = await cityLevel(campusCity).catch((error: unknown) => {
       console.warn(`tutorial ${campusCity} city level failed`, error);
       return null;
@@ -715,13 +818,29 @@ async function startCampusRun(): Promise<void> {
     mode: campusVariant,
     reducedMotion: reduceMotion,
     ruleCardsSource,
+    ...(policy ? { policy } : {}),
     // Art 5: the booth's "Open the full editor" hands its serialization to the kata editor.
     onOpenEditor: (kata) => { void handoffToKata(kata).catch(fail); },
     onFinish: (run) => {
       renderReadout({ key: "campus", label: "campus", run });
+      if (campusEndless) {
+        // Endless is the leaderboard-of-one (§2.5): days survived + served, not belt logic —
+        // the engine's per-level completion (and its credit award) stays with the cities.
+        const endless = recordEndlessBest(run);
+        void paintCampusToolbar().catch(() => undefined);
+        if (!tutorialRunner) {
+          openReviewPanel({ host: document.body, run, title: "Endless", endless });
+        }
+        return;
+      }
       // A city edition's run records against the edition's level (`level6`), not the level the
       // picker last happened to load — the chain never touches the picker.
       void recordCompletion(run, true, String(run.level_id || levelId())).catch(fail);
+      // Art 7: the run review (strip + shares + mistakes). A script still on stage owns its own
+      // endings — the readout's "Review ▸" button is there whenever the player wants the panel.
+      if (!tutorialRunner) {
+        openReviewPanel({ host: document.body, run, title: String(run.level_id || levelId()) });
+      }
     },
     onStatus: (text) => paint(text, 0),
   });
@@ -890,6 +1009,9 @@ function renderReadout(variant: Variant): void {
   shareRow.className = "share-row";
   dom.readout.append(shareRow);
   share.mountShareButton(shareRow, shareContextFor(variant));
+  // Art 7: and a Review button — the same panel a campus run opens itself, for every other
+  // finished run (a watch run "ends" the instant a page loads; no modal for that).
+  mountReviewButton(shareRow, () => ({ run, title: String(run.level_id ?? levelId()) }));
   if (run.policy === "hand") renderHandReadout();
 }
 

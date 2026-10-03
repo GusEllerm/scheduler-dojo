@@ -58,6 +58,8 @@ export interface RunResult {
   trajectory_hash: string;
   score?: number;
   bars?: { pass_score?: number; gold_score?: number };
+  /** §5.3: the user whose patience ring overflowed at the end ('' when none) — `step_result`. */
+  overflow?: string;
 }
 
 export interface KataReport {
@@ -290,6 +292,15 @@ export class DojoBridge {
   /** Day/week/sun position of a sim time, computed by the engine. */
   calendarAt(t: number, level: Level | string): Promise<{ day: number; week: number; sun: number; week_end: number }> {
     return this.call("calendar_at", { t, level });
+  }
+
+  /**
+   * Art 7: the inline endless LEVEL for a seeded growth curve (`bridge.endless_level`, §5.7) —
+   * the same stream `endless_run` uses, returned as a plain stepable level dict (jobs list,
+   * `duration` = the horizon, `pressure.end_on_overflow`) so the campus can drive it live.
+   */
+  endlessLevel(growth: Record<string, unknown>, seed = 0): Promise<Level> {
+    return this.call<Level>("endless_level", { growth, seed });
   }
 
   /** A city tutorial script (data) — `tutorial_load`; the runner in tutorial.ts executes it. */

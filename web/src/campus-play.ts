@@ -27,6 +27,18 @@ import { openOffersPanel, type OfferCard, type OfferVerdict, type OffersPanelHan
  */
 const TRACE_DEPTH = 24;
 
+/**
+ * Art 7: one LITERAL sim-day (the same 86,400 s constant `sim/endless.py` generates its days
+ * with) — endless weeks are literal 7-day weeks (§2.5). Display mapping only: the engine calendar
+ * maps every horizon to one week (`duration / 7` day strides, §5.6), which is right for cities
+ * but would hide the endless ramp — the generator thickens traffic every literal week, so the
+ * endless clock labels literal days. Nothing is decided by this (weeks/offers aside: endless has
+ * no week-end offers at all — `progression.offers` is keyed by integer city, there is no endless
+ * key, so a boundary just advances the calendar while traffic keeps flowing).
+ */
+const ENDLESS_DAY_SECS = 86_400;
+const ENDLESS_WEEK_SECS = 7 * ENDLESS_DAY_SECS;
+
 export interface CampusPlayOptions {
   level: Level;
   container: HTMLElement;
@@ -90,6 +102,11 @@ export class CampusPlay {
   /** Player-side tutorial events (e.g. "booth_staffed" from the booth dialog). */
   onEvent?: (name: string) => void;
   private readonly handMode: boolean;
+  /** Art 7: the live endless campus (generator id "endless") — literal-day calendar, no week
+   *  freezes, and a pressure overflow ends the run with the §Art 7 flash moment. */
+  private readonly endlessMode: boolean;
+  /** the overflow moment's one-shot hold before `finish` (reduced motion: no hold) */
+  private flashTimer = 0;
   private suggestions: HandSuggestions = {};
   private selected: string | null = null;
   private staged: string[] = [];
@@ -164,6 +181,7 @@ export class CampusPlay {
     this.opts = opts;
     this.manual = (opts.manual ?? false) || opts.mode === "hand"; // hand time advances on presses, never rAF
     this.handMode = opts.mode === "hand";
+    this.endlessMode = !this.handMode && String(opts.level.id ?? "") === "endless";
     if (this.handMode) this.boothStaffed = false; // an unstinted booth has chosen nothing
     this.canvas = document.createElement("canvas");
     this.canvas.className = "campus-canvas";
@@ -403,11 +421,13 @@ export class CampusPlay {
   /** Engine calendar boundary + owned buildings + the pending-offers hatch (harness: nothing). */
   private async setupArt6(): Promise<void> {
     if (this.harnessMode) return;
-    try {
-      const cal = await bridge.calendarAt(0, this.opts.level);
-      this.weekEndAt = cal.week_end;
-      this.weekNum = Math.max(1, cal.week);
-    } catch { /* week detection falls back to the snapshot `week` field in weekTick */ }
+    if (!this.endlessMode) {
+      try {
+        const cal = await bridge.calendarAt(0, this.opts.level);
+        this.weekEndAt = cal.week_end;
+        this.weekNum = Math.max(1, cal.week);
+      } catch { /* week detection falls back to the snapshot `week` field in weekTick */ }
+    }
     await this.refreshBuildings();
     const btn = document.createElement("button");
     btn.type = "button";
@@ -440,6 +460,14 @@ export class CampusPlay {
   /** Snapshots in: has the engine clock reached the week boundary? (sim time only, §Determinism) */
   private weekTick(state: StepState): void {
     if (this.weekFrozen) return;
+    if (this.endlessMode) {
+      // Endless week boundary: advance the calendar, DO NOT freeze. The offer table is keyed by
+      // integer city (`progression.offers` coerces `int(city)` — a non-int city raises, and there
+      // is no endless key), so the honest answer at an endless boundary is "nothing to choose":
+      // the generator's weekly ramp IS the difficulty curve (§2.5).
+      this.weekNum = Math.floor(state.now / ENDLESS_WEEK_SECS) + 1;
+      return;
+    }
     const wk = state.week ?? this.weekNum;
     if (wk > this.weekNum || (Number.isFinite(this.weekEndAt) && state.now >= this.weekEndAt)) {
       this.frozenWeek = this.weekNum;          // the week that ENDED is the one that offers
@@ -818,8 +846,12 @@ export class CampusPlay {
       const v = scene.vehicles;
       const running = v.filter((x) => x.state === "running").length;
       const done = v.filter((x) => x.state === "done").length;
+    { // Art 7: an endless run says the week too — the ramp is read weekly, the day counter alone
+      // would not show it.
+      const weekTag = this.endlessMode ? `week ${this.weekNum} · ` : "";
       this.clockEl.textContent =
-        `day ${scene.day} · t=${fmt(state.now)} · ${running} on campus · ${done}/${v.length} done`;
+        `${weekTag}day ${scene.day} · t=${fmt(state.now)} · ${running} on campus · ${done}/${v.length} done`;
+    }
     }
     if (this.handMode) this.paintHandControls();
     // Art 6a: the week boundary (engine clock), building pops, and the first-use guidance — all
@@ -832,10 +864,45 @@ export class CampusPlay {
     }
     // The tutorial runner's eyes: one call per engine snapshot, after the scene exists.
     try { this.onStep?.(state); } catch { /* a broken observer must never kill the campus */ }
-    if (state.done) {
-      if (this.weekFrozen) this.pendingFinish = true;
-      else void this.finish();
+    if (state.done) this.afterDone(state);
+  }
+
+  /**
+   * A snapshot arrived with the run finished: hold the result for an unresolved week (traffic
+   * must not finish around a choice it never made), else — if a patience ring was the thing that
+   * ended it — hold ONE overflow flash of that neighbour's vehicles (§Art 7 deliverable 4), then
+   * finish. The harness never flashes (its baselines must not move); reduced motion finishes on
+   * the settled static frame (the instant state change IS the equivalent).
+   */
+  private afterDone(state: StepState): void {
+    if (this.weekFrozen) { this.pendingFinish = true; return; }
+    if (this.overflowMoment(state.overflow ?? "")) return;
+    void this.finish();
+  }
+
+  /** Flash the overflowing neighbour's road vehicles; true = finish is deferred to the flash. */
+  private overflowMoment(user: string): boolean {
+    if (this.harnessMode || this.finished || !user) return false;
+    const s = this.pair?.cur;
+    if (!s) return false;
+    const mine = s.vehicles.filter((v) => v.user === user
+      && (v.state === "queued" || v.state === "chosen" || v.state === "reserved"));
+    for (const v of mine.slice(0, 16)) {
+      const b = vehicleBox(s, v);
+      const el = document.createElement("div");
+      el.className = "campus-overflow-flash";
+      el.style.left = `${b.x}px`;
+      el.style.top = `${b.y}px`;
+      el.style.width = `${Math.max(22, b.w)}px`;
+      el.style.height = `${Math.max(12, b.h)}px`;
+      this.opts.container.append(el);
+      window.setTimeout(() => el.remove(), 1600);
     }
+    this.showToast(`${user}'s patience ran out — that is how the run ends.`, false);
+    if (this.opts.reducedMotion) return false;   // static: the ring and the toast land this frame
+    window.clearTimeout(this.flashTimer);
+    this.flashTimer = window.setTimeout(() => void this.finish(), 900);
+    return true;
   }
 
   /** Pure projection of the last snapshot + the current hand-selection into a scene. */
@@ -846,8 +913,14 @@ export class CampusPlay {
     return buildScene({
       width: this.cssWidth(), height: this.cssHeight(),
       nodes: this.nodes, jobs: snap.jobs, snap,
-      clock: { week: this.weekNum, day: Math.floor(snap.now / Math.max(1, this.plan.stride)) + 1,
-               sun: ((snap.now % (this.plan.stride * 7)) / (this.plan.stride * 7)) || 0 },
+      clock: this.endlessMode
+        // Art 7: endless labels LITERAL days/weeks (§2.5, ENDLESS_DAY_SECS note up top); the sun
+        // is a real 86,400 s cycle, which is what the generator's days are drawn on.
+        ? { week: Math.floor(snap.now / ENDLESS_WEEK_SECS) + 1,
+            day: Math.floor(snap.now / ENDLESS_DAY_SECS) + 1,
+            sun: (snap.now % ENDLESS_DAY_SECS) / ENDLESS_DAY_SECS }
+        : { week: this.weekNum, day: Math.floor(snap.now / Math.max(1, this.plan.stride)) + 1,
+            sun: ((snap.now % (this.plan.stride * 7)) / (this.plan.stride * 7)) || 0 },
       staffed: this.boothStaffed,
       selected: this.selected,
       staged: sel && this.staged.length
@@ -931,10 +1004,9 @@ export class CampusPlay {
   /** Advance deterministically to sim time `t` and render one settled frame (harness mode). */
   async seekRender(t: number): Promise<void> {
     const res = await bridge.stepUntil(this.handle, t);
-    this.step_once(res.state);
+    this.step_once(res.state);          // `done` routes through afterDone (freeze / flash / finish)
     this.paintWhy(res.trace);
     this.paintFrame(1);
-    if (res.state.done) await this.finish();
   }
 
   /* ------------------------------------------------- hand mode (Art 4) ------ */
@@ -1596,6 +1668,7 @@ export class CampusPlay {
   destroy(): void {
     this.destroyed = true;
     if (this.raf) cancelAnimationFrame(this.raf);
+    window.clearTimeout(this.flashTimer);
     this.resizeObserver?.disconnect();
     window.clearTimeout(this.toastTimer);
     this.boothDialog?.close();
