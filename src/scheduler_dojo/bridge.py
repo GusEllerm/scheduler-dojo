@@ -116,6 +116,9 @@ def run(level: Any, seed: int | None = None, policy: str = "fifo",
         "trajectory_hash": trajectory_hash(result),
         "pressure": dict(sched.pressure),
         "overflow": sched.overflow_user or "",
+        # The instant the overflowing ring filled (review F5): `end_time` is the last FINISH
+        # processed, which is NOT the overflow moment — the review screen must not guess.
+        "overflow_time": sched.overflow_time if sched.overflow_user is not None else None,
     }
     if trace:
         out["trace"] = list(sched.trace)
@@ -174,6 +177,11 @@ def _snapshot(sched: Scheduler, lvl: dict | None = None) -> dict:
         "now": sched.now,
         "placed_total": getattr(sched, "placed_total", 0),
         "week": week,
+        # Where the ENGINE horizon ends in absolute time (t0 + duration). A stepped driver must
+        # aim its slice targets at/ past this: a target below it can never prove "finished"
+        # (arrivals hide beyond the slice), which is how the endless campus used to pin the clock
+        # (review F1). None when the run has no horizon.
+        "horizon_end": (sched._t0 + sched.horizon) if (sched.horizon and sched.horizon > 0) else None,
         # every job the viewer has never seen, minimal fields (submit/user/size) — the campus
         # draws the whole campus from first principles; the cost is O(never-seen jobs).
         "unseen": [{"id": j.id, "user": j.user, "nodes": j.nodes_req, "est": j.walltime_req,
@@ -209,14 +217,21 @@ def _step_out(sched: Scheduler, lvl: dict | None, finished: bool) -> dict:
 
 def step_n(handle: int, n: int = 1) -> dict:
     sched = _SESSIONS[handle]
-    finished = True if getattr(sched, "_finished", False) else sched.step_events(n)
+    finished = True if getattr(sched, "_finished", False) else _or_stopped(sched.step_events(n), sched)
     return _step_out(sched, _SESSION_LEVELS.get(handle), finished)
 
 
 def step_until(handle: int, t: int) -> dict:
     sched = _SESSIONS[handle]
-    finished = True if getattr(sched, "_finished", False) else sched.run_until(t)
+    finished = True if getattr(sched, "_finished", False) else _or_stopped(sched.run_until(t), sched)
     return _step_out(sched, _SESSION_LEVELS.get(handle), finished)
+
+
+def _or_stopped(step_returned: bool, sched) -> bool:
+    """A step that STOPS mid-call (pressure overflow at a batch inside the slice) returns False —
+    the empty-heap test says nothing about the stop. Fold the stop into `done` so the frame after
+    the flash sees done=true instead of stepping into "already finished" (review F2)."""
+    return bool(step_returned) or sched.is_stopped()
 
 
 def step_result(handle: int) -> dict:
@@ -237,6 +252,7 @@ def step_result(handle: int) -> dict:
            "jobs": _jobs_json(result, sensors=not lvl.get("hide_actual", False)),
            "end_time": result.end_time,
            "pressure": dict(sched.pressure), "overflow": sched.overflow_user or "",
+           "overflow_time": sched.overflow_time if sched.overflow_user is not None else None,
            "trace": list(sched.trace)}
     if lvl:
         out["seed"] = int(lvl.get("seed", 0))

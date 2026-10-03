@@ -416,6 +416,13 @@ class Scheduler:
                 # The clock lands exactly at the step horizon — `now` is an *observed* time, not a
                 # decision time; no state reads it between events, so trajectories are unaffected.
                 self._advance_clock_to(until)
+                if self.horizon is not None and self.horizon > 0 and until >= self._t0 + self.horizon:
+                    # The slice horizon is at/after the ENGINE horizon and the next event is beyond
+                    # it: nothing can ever happen inside the run again — finished, exactly where a
+                    # canonical `run` truncates (review F1: a driver whose target sat below
+                    # t0+horizon used to pin the clock forever with done never firing).
+                    self._finished = True
+                    return True
                 return False
             self.now = t
             for ev in self._events.pop_batch():
@@ -427,6 +434,10 @@ class Scheduler:
                 self._compute_pressure()
                 if self.overflow_user is not None and self.pressure_end:
                     # Patience ran out: the run stops here (jobs unfinished are scored as such).
+                    # `_finished` is set so the NEXT stepping call reports done instead of raising
+                    # "already finished" through `_require_unfinished` (review F2: the heap is
+                    # usually non-empty at overflow, so the old bare return left it unset).
+                    self._finished = True
                     return len(self._events) == 0
             self._safe_policy()
             batches += 1
@@ -448,8 +459,14 @@ class Scheduler:
         return self._advance(until=t)
 
     def _advance_clock_to(self, until: int | None) -> None:
-        """Move the observed clock up to a step horizon (never past an event, never backwards)."""
-        if until is not None and until > self.now and (self.horizon is None or until <= self._t0 + self.horizon):
+        """Move the observed clock up to a step horizon (never past an event, never backwards).
+        A slice horizon past the engine horizon CLAMPS to it — refusing to move pinned the clock
+        for a driver whose `until` overshot (review F1)."""
+        if until is None:
+            return
+        if self.horizon is not None and self.horizon > 0:
+            until = min(until, self._t0 + self.horizon)
+        if until > self.now:
             self.now = until
 
     def is_stopped(self) -> bool:

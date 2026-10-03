@@ -127,3 +127,41 @@ def test_endless_level_is_stepable_and_matches_endless_run():
     final = bridge.step_result(h)
     assert final["trajectory_hash"] == one["trajectory_hash"]
     assert final["end_time"] == one["end_time"]
+
+
+def _t0_pressure_level(id_: str, end_on_overflow: bool) -> dict:
+    """t0=900 level: A/B long, C needs both nodes and waits; overflow ring fills at 1068."""
+    return {"id": id_, "title": "t0", "duration": 2000,
+            "cluster": {"nodes": [{"id": "n0", "cpus": 8}, {"id": "n1", "cpus": 8}]},
+            "jobs": [
+                {"id": "A", "user": "u", "submit_time": 900, "nodes_req": 1,
+                 "walltime_req": 900, "actual_runtime": 900},
+                {"id": "B", "user": "v", "submit_time": 950, "nodes_req": 1,
+                 "walltime_req": 900, "actual_runtime": 900},
+                {"id": "C", "user": "w", "submit_time": 1000, "nodes_req": 2,
+                 "walltime_req": 50, "actual_runtime": 50}],
+            "pressure": {"cap": 2, "end_on_overflow": end_on_overflow}}
+
+
+def test_step_slice_at_horizon_end_finishes_t0_shifted_run():
+    """Review F1: a driver slice at/after `horizon_end` ends the run (no clock pin), and the
+    snapshot publishes `horizon_end` so the browser driver can aim there."""
+    lvl = _t0_pressure_level("f1", False)
+    st = bridge.start(lvl, seed=0)
+    assert st["state"]["horizon_end"] == 900 + 2000
+    out = bridge.step_until(st["handle"], 3000)
+    assert out["done"] and out["state"]["now"] >= 900 + 2000 - 100
+
+
+def test_pressure_stop_reports_done_and_never_raises_next_call():
+    """Review F2: overflow sets `_finished`; the post-flash stepping call reports done=true."""
+    h = bridge.start(_t0_pressure_level("f2", True), seed=0)["handle"]
+    for _ in range(50):
+        out = bridge.step_until(h, 3000)
+        if out["done"]:
+            break
+    assert bridge.step_until(h, 3000)["done"]  # would raise DeterminismError pre-fix
+    res = bridge.step_result(h)
+    assert res["overflow"] == "w"
+    assert res["overflow_time"] == 1068  # the ring filled here, NOT at end_time (F5)
+    assert res["end_time"] != res["overflow_time"]
