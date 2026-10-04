@@ -101,3 +101,13 @@ def test_card_json_body_is_ordered_keys_compact():
     card = decode_card(encode_card(level=LEVEL2, seed=1, policy="fifo"))
     assert card["policy"] == "fifo" and "kata" not in card
     json.dumps(card)  # decodes to plain JSON types
+
+
+def test_card_without_hash_is_not_verified():
+    """Review 7b: dropping the `hash` key must NOT yield a green 'verified replay'."""
+    card = decode_card(encode_card(level=LEVEL2, seed=LEVEL2["seed"], policy="fifo"))
+    card.pop("hash", None)
+    out = replay_card(card)
+    assert out["ok"] is False and out["expected_hash"] is None
+    assert replay_card(decode_card(encode_card(level=LEVEL2, seed=LEVEL2["seed"],
+                                               policy="fifo")))["ok"] is True

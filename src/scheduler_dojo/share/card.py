@@ -92,7 +92,11 @@ def replay_card(card_or_payload: str | dict, *, level: dict | None = None) -> di
                        kata=card.get("kata"), validate=False)
     got = trajectory_hash(result)
     expected = card.get("hash")
-    out = {"ok": expected is None or got == expected, "metrics": scoring.metrics_from_run(result),
+    # A card with NO promised hash is NOT verified: "the replay succeeded" is not the claim a share
+    # card makes — "the engine reproduced the promised trajectory" is. `encode_card` always writes
+    # `hash`, so its absence means the payload was hand-edited (review 7b: stripping `hash` used to
+    # verify with a green badge quoting a hash the card never promised).
+    out = {"ok": expected is not None and got == expected, "metrics": scoring.metrics_from_run(result),
            "trajectory_hash": got, "expected_hash": expected}
     if lvl.get("score_weights") and lvl.get("score_anchors"):
         out["score"] = scoring.score(out["metrics"], lvl["score_weights"], lvl["score_anchors"])

@@ -239,6 +239,19 @@ def _or_stopped(step_returned: bool, sched) -> bool:
     return bool(step_returned) or sched.is_stopped()
 
 
+def step_close(handle: int) -> dict:
+    """End a stepped session WITHOUT draining it: pop the registries, run nothing. `step_result`
+    runs the remainder to build a summary — correct at the end of a run, but thumbnails end
+    sessions mid-flight whose summary nobody reads, and the drain (a whole 30-day endless stream
+    on a single worker thread) froze the visible campus for seconds per board open (review 7b)."""
+    sched = _SESSIONS.pop(handle, None)
+    _SESSION_LEVELS.pop(handle, None)
+    _SESSION_POLICIES.pop(handle, None)
+    if sched is None:
+        return {"ok": False, "reason": "no such session"}
+    return {"ok": True, "now": sched.now}
+
+
 def step_result(handle: int) -> dict:
     """Finish the run (drain remaining events) and return the same payload as `run` — including
     the engine-computed `score`/`bars` (so no client ever mirrors `scoring.score`)."""
@@ -564,7 +577,7 @@ def share_replay(payload: str, level: Any | None = None) -> dict:
 
 _DISPATCH = {
     "ping": ping, "version": version, "run": run, "start": start, "step_n": step_n,
-    "step_until": step_until, "step_result": step_result, "check_kata": check_kata,
+    "step_until": step_until, "step_result": step_result, "step_close": step_close, "check_kata": check_kata,
     "hand_start": hand_start, "hand_place": hand_place, "hand_tick": hand_tick,
     "hand_result": hand_result,
     "progression_view": progression_view, "progression_completion": progression_completion,

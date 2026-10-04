@@ -187,3 +187,15 @@ def test_hand_result_reports_the_hand_policy():
     h = bridge.hand_start(lvl)["handle"]
     bridge.hand_place(h, "A", ["n0"])
     assert bridge.hand_result(h)["policy"] == "hand"
+
+
+def test_step_close_ends_a_session_without_draining():
+    lvl = {"id": "sc", "title": "sc", "duration": 4000,
+           "cluster": {"nodes": [{"id": "n0", "cpus": 8}]},
+           "jobs": [{"id": "A", "user": "u", "submit_time": 0, "nodes_req": 1,
+                     "walltime_req": 100, "actual_runtime": 100}]}
+    h = bridge.start(lvl, seed=0)["handle"]
+    bridge.step_until(h, 1000)
+    out = bridge.step_close(h)
+    assert out["ok"] and out["now"] == 1000
+    assert bridge.step_close(h)["ok"] is False  # session is gone; step_result would have run 3.9k
