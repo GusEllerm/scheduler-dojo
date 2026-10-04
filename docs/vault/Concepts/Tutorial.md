@@ -59,11 +59,12 @@ tags: [concept, phase-two]
 - **city1 — "Four bays"** (`city1.json`): patch = one neighbourhood (alice), slow arrivals. Pure
   hand: tap vehicle, tap bays (guided `welcome` → `adjacency` when the first convoy needs all four
   bays). On **day 3** the patch's second neighbourhood is revealed via `reveal ring:bob`, arrivals
-  step up (`accelerate`), and only when the player falls behind does `staff_booth` reveal the booth
+  step up (the patch raises `jobs_per_day`), and only when the player falls behind does the
+  `staff-booth` beat's `reveal` open the booth
   with three order rule-cards (oldest / shortest / biggest first). `end` at week end → the first
   two-offer choice.
-- **city2 — "You cannot keep up"** (`city2.json`): booth staffed from the start; `swap_card` guided;
-  mid-week `edit_line` opens the one-line editor on a card's `key` line with the full card text
+- **city2 — "You cannot keep up"** (`city2.json`): booth staffed from the start; `swap-cards` guided;
+  mid-week `edit-line` opens the one-line editor on a card's `key` line with the full card text
   beside it — the player sees the card *is* the kata ([[Decision Log]] cards-are-katas).
 - **city3 — "The convoy that never parks"** (`city3.json`): starvation. Reservations arrive as the
   week-end choice (offered first); guided hand-placement of one cone, then the `place` card with a
@@ -173,6 +174,22 @@ screenshots and the per-city `weeks` ledger after taking an offer: see
 
 ## Help drawer
 
-The drawer lists exactly the concepts/builtins the player has unlocked (from save state), each a
-paragraph + "show me" (`highlight` reused). It reads the same step vocabulary — one language for
-guided and unprompted teaching.
+The help drawer (`web/src/help.ts`) is a constant, not a simulation read: `SHORTCUTS` (the table
+`web/src/main.ts` registers its global key handler from, so the drawer cannot promise a key the
+handler does not answer), `MODE_NOTES` and the token vocabulary rows. It is **not** the tutorial —
+the beats above teach in place; the drawer is the reference you open from anywhere. `web/scripts/art8_a11y.mjs`
+presses every key the table lists and asserts its effect, which is what keeps the promise honest.
+
+## Where this lives (anchors for the TypeScript/data claims above)
+
+The resolver indexes Python, so a script's beats and their `when`/`do`/`wait_for` vocabulary names
+data and browser code, not symbols. Nine scripts, one per city — `levels/tutorials/city1.json`,
+`levels/tutorials/city2.json`, `levels/tutorials/city3.json`, `levels/tutorials/city4.json`,
+`levels/tutorials/city5.json`, `levels/tutorials/city6.json`, `levels/tutorials/city7.json`,
+`levels/tutorials/city8.json`, `levels/tutorials/city9.json` — validated engine-side by
+`src/scheduler_dojo/sim/tutorial.py` and by `scripts/check_tutorials.py`. The runner that reads them
+against a live campus is `web/src/tutorial.ts`, the panels it drives are `web/src/booth.ts` (cards,
+slots, the one-line editor) and `web/src/campus-play.ts`, and the shell that attaches a script to a
+city run is `web/src/main.ts`. Every beat id and trigger named in this note is a key in one of those
+nine files: `grep` the file for it. A name this page uses that the JSON does not contain is a stale
+claim — fix the page.

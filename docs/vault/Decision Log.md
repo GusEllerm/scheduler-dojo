@@ -30,8 +30,9 @@ should make, so we switched to the public sources instead.
 **Why pin drift + why livedocs is pinned to Python 3.12:** CI initially reported all 12 code-mentioning
 notes CHANGED (all *benign*, members unchanged) where a clean local checkout reported fresh — the
 totals matched (23 notes, snapshot 6, unknown 5), only fresh→changed differed. `drift` was ruled out
-(it recomputes 0/96 non-fresh identically on macOS and Linux). The real cause: `livedocs` computes
-`astdiff.member_hash` via `ast.dump`, which is **CPython-minor-version-sensitive** — the same source
+(it recomputes 0/96 non-fresh identically on macOS and Linux). The real cause: the fingerprinter
+hashes each symbol by parsing it and dumping the tree (`ast.dump`), which is
+**CPython-minor-version-sensitive** — the same source
 hashed `4cf0419e…` on 3.12 vs `04d98fa8…` on 3.13. My stamps were written by a livedocs running on
 3.13 while CI ran livedocs on 3.12, so every symbol hash mismatched (but the symbol *signature*
 hashed equal → classified benign). Fix: run livedocs on the project's Python (**3.12**) in CI
@@ -238,8 +239,9 @@ livedocs gate.
 ## 2026-10-01 — Weekly two-offer choices replace the credit shop; credits/belts survive as lifetime record `[agent decision]`
 End of week = freeze + pick 1 of 2 eligible upgrades (drawn deterministically from (save, city, week)
 so a share card can replay an upgrade path). Credits stop being purchase currency but remain the
-lifetime score record behind belts and share cards, exactly as `progression.credits_for` already
-computes them; the old shop dialog retires behind a save migration. Trade-off: players lose
+lifetime score record behind belts and share cards, exactly as `apply_completion` already
+computes them (score ÷ `CREDIT_DIVISOR`, plus a first-gold bonus); the old shop dialog retires behind
+a save migration. Trade-off: players lose
 "save up and buy what I want" agency; in exchange every purchase moment is a taught moment. See
 [[Concepts/Progression]].
 
@@ -276,3 +278,32 @@ closing two of its three exit paths (`_snapshot.end` leaked the true runtime mid
 (review F1–F6 in `tests/test_pressure_trace.py`). Goldens byte-identical — none of this moves a
 canonical trajectory.
 
+## 2026-10-03 — City-board tile frames are coloured by the LEVEL's bars, not the lifetime belt `[agent decision]`
+The board (`web/src/board.ts`) had to say something about the player's standing on each city, and the
+two candidate facts disagree: the belt is lifetime credits across every level ([[Progression]]) and
+says nothing about *this* city, while each level file carries its own `bars` block that
+`validate_level` checks and `scripts/calibrate_levels.py` writes ([[Levels]]). Chose the level's verdict on the player's best for that
+level: earned gold ⇒ the gold frame, passed ⇒ the palette's *pass* role, played below the bar ⇒ the
+warn role, never played ⇒ dim. Every colour is repeated in a text label so hue never carries the
+meaning alone ([[Accessibility]]). Trade-off: two screens can legitimately disagree (a gold city
+inside a white belt) — accepted, because the question each screen answers is different. The frame
+itself is a real engine frame from `web/src/campus-thumb.ts`, never a placeholder.
+
+## 2026-10-03 — Endless runs get NO share card; the tile and review say so instead `[agent decision]`
+The brief wants every run shareable, and an endless run cannot be: the growth stream is materialized
+into thousands of jobs by `bridge.endless_level`, so no URL-sized envelope can carry what the run
+actually was, and a card embedding only the growth recipe would replay a *different* run and print a
+✓ over a lie. Chose absence + honesty: `campusShareContext` (in `web/src/main.ts`) returns null for
+endless, so `web/src/review.ts` renders no share button at all and the board tile states the
+limitation. Trade-off: endless is a leaderboard of one with no export. If endless ever becomes
+competitive, the fix is a stream digest the engine can re-derive, not a bigger URL. See
+[[Concepts/Campus]] §5.7/§5.8.
+
+## 2026-10-03 — A card that promises no hash can never be verified, in the client too `[agent decision]`
+Review 7b found that `share_replay` answers `ok: false` for a payload with no `hash`, but the client
+had been rendering the engine's `ok` alone — so against an older engine a hash-stripped card could
+still greet a player with a ✓. Fixed on both sides: the banner in `web/src/share-scene.ts` computes
+`ok = replay.ok && expected_hash !== ""`, i.e. the client refuses to display a verdict it cannot
+support, and the card view offers no replay path at all for such a card. Trade-off: the page now
+second-guesses the engine's `ok` in exactly one case — chosen because "verified" is the one claim the
+page must never make on its own. See [[scheduler_dojo-share-card]], [[Concepts/Campus]] §5.8.

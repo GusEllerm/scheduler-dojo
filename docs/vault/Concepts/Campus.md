@@ -59,8 +59,8 @@ rings and their hashes are byte-identical to phase one.
 ## Days, weeks, offers
 
 At each week boundary the engine freezes (the run pauses at that sim time); the offer pair is
-`deterministic_save_city_week_offers(save, city, week)` — the eligible, unowned, prereq-satisfied
-upgrades sorted by id, seeded draw of two — **in the engine/progression module**, so a share card
+`progression.offers(state, city, week)` — the eligible, unowned, prereq-satisfied upgrades
+sorted by id, seeded draw of two — **in the engine/progression module**, accepted for free by `offer_accept`, so a share card
 replays the upgrade path (§5.8). Credits/belts stay lifetime record, not currency
 ([[Progression]], [[Decision Log]]).
 
@@ -286,7 +286,7 @@ those jobs are in no `unseen` list: the viewer seeds its job union from a decide
 
 **The why-panel** (`web/src/campus-play.ts` + `web/src/campus-why.ts`) is a collapsible `<details>`
 in the campus stage over the engine's decision trace. A live campus run asks for it —
-`bridge.start(..., trace=24)` (`start_run` → `_trace_event`), and every `step_n`/`step_until` result
+`bridge.start(..., trace=24)` (that call's tracer closure → `_trace_event`), and every `step_n`/`step_until` result
 carries the ring buffer (`_step_out`); `run`, `hand_start` and the CLI pay nothing. Rows are keyed by
 the record's `seq`, appended only when new and dropped when they fall out of the ring, so the
 `role="log"` region announces what happened rather than re-reading the panel. Phrasing is per
@@ -344,3 +344,16 @@ updated by the hit-test under the cursor — the DOM tooltip path [[Accessibilit
 mouse drives — they are deliberate no-ops in the hand campus (taps/arrows are its keyboard story)
 and in the visual harness. Nothing new decides: the drawer, the welcome card and the tooltips all
 read engine facts that were already on screen.
+
+## Where this lives (anchors for the TypeScript claims above)
+
+The gate's index is Python-only, so most of the claims above name browser code the resolver cannot
+resolve — they are still checkable, by file. The campus is `web/src/campus.ts` (the scene projection
+of an engine snapshot) painted by `web/src/campus-render.ts`, run by `web/src/campus-play.ts`
+(pacing, Step, the clock, the hand bar, the keyboard entry points); the booth is `web/src/booth.ts`,
+the offer cards `web/src/offers.ts`, the board `web/src/board.ts`, the review `web/src/review.ts`,
+the share card `web/src/share-scene.ts` with the frames from `web/src/campus-thumb.ts`, the welcome
+card `web/src/welcome.ts`, the help drawer `web/src/help.ts`, the shell that wires the modes and the
+global keys `web/src/main.ts`, and the save `web/src/persistence.ts`. Every one of those files is
+small enough to read in one sitting; if a claim above disagrees with the file it names, the note is
+wrong, not the code.

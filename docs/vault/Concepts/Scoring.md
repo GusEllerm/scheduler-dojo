@@ -14,7 +14,7 @@ FIFO *baseline* (~300) and *reference kata* (~800) so bars are comparable across
   supplies `node_seconds_busy` incrementally and `node_seconds_total = num_nodes * (end - t0)`.
   The window's `end` is the run's makespan (`_max_end`), not the level's declared `duration`, so the
   denominator differs slightly per policy — this is a deliberate choice and is **anchor-consistent**:
-  `calibrate_levels` solves `baseline→300`/`reference→800` with the *same* formula for both, so the
+  `scripts/calibrate_levels.py` solves `baseline→300`/`reference→800` with the *same* formula for both, so the
   bars stay comparable even though absolute utilization isn't measured over a fixed declared window.
 - **bounded_slowdown** = mean of `max(wait+run, 10)/max(run, 10)` (lower better), measured over all
   submitted jobs at the run horizon (a never-started job is pure wait; a still-running job is open
