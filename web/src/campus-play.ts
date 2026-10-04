@@ -147,6 +147,11 @@ export class CampusPlay {
   private tokens: Record<string, string> = {};
   private pauseBtn: HTMLButtonElement | null = null;
   private stepBtn: HTMLButtonElement | null = null;
+  /** Art 8: the speed select, kept so the 1/2/3 shortcuts move the REAL control (one truth) */
+  private speedSel: HTMLSelectElement | null = null;
+  /** Art 8: hides the tap-shown detail card on the live campus after a calm beat (touch has no
+   *  pointerleave to hide it with) */
+  private detailTimer = 0;
   private stepMode = false;
   private stepBusy = false;
   /** viewer-side hand cones ("Cone it"); decay on sim time, never wall clock, never engine truth */
@@ -417,7 +422,39 @@ export class CampusPlay {
       this.speed = Number(speed.value);
       this.rebase();  // continue from `now` — a slowdown must not rewind the wall target
     });
+    this.speedSel = speed;
     this.controls.append(pauseBtn, stepBtn, speed);
+  }
+
+  /* ------------------------------- Art 8: global keyboard shortcut targets ------ */
+
+  /**
+   * Space — pause/resume the live campus. The pause BUTTON is the entry point, so the week-freeze
+   * guard and the aria-pressed flip are the same code the mouse drives. Deliberate no-ops on the
+   * hand campus (it has no clock — taps and the canvas arrow keys are its keyboard story, and the
+   * help drawer says exactly that) and in the visual harness.
+   */
+  keyTogglePlay(): boolean {
+    if (!this.pauseBtn || this.manual) return false;
+    this.pauseBtn.click();
+    return true;
+  }
+
+  /** S — the Step ▸ button (one event batch; the rAF clock stands still while stepping). */
+  keyStep(): boolean {
+    if (!this.stepBtn || this.manual || this.stepBtn.disabled) return false;
+    this.stepBtn.click();
+    return true;
+  }
+
+  /** 1/2/3 — speed 1x/2x/4x, moved through the speed SELECT (dispatching change keeps the UI,
+   *  `this.speed` and the rebase in one path). Returns false for any other digit. */
+  keySpeed(nth: number): boolean {
+    const speed = { 1: "1", 2: "2", 3: "4" }[nth];
+    if (!this.speedSel || this.manual || !speed) return false;
+    this.speedSel.value = speed;
+    this.speedSel.dispatchEvent(new Event("change"));
+    return true;
   }
 
   /* ------------------------------------------- Art 6a: week end + buildings -- */
@@ -459,6 +496,16 @@ export class CampusPlay {
       const view = await bridge.progressionView(getProgression());
       this.buildingDefs = view.buildings ?? [];
     } catch { /* keep the last known set — a failed read must not empty the campus */ }
+    // Art 8: the canvas NAMES its buildings (hover/tap tooltips and the canvas aria-label, not
+    // only the pixels — [[Accessibility]] rule 2's "never the only carrier").
+    if (!this.handMode) {
+      const shown = this.buildingDefs
+        .filter((b) => !this.revealedBuildings || this.revealedBuildings.has(b.id))
+        .map((b) => b.name);
+      this.canvas.setAttribute("aria-label",
+        "Live campus: neighbourhoods, road of queued jobs, lots"
+        + (shown.length ? `; buildings on this campus: ${shown.join(", ")}` : ""));
+    }
     this.repaint();
   }
 
@@ -983,16 +1030,20 @@ export class CampusPlay {
 
   /* ---------------------------------------------------------------- paint -- */
 
-  private onPointer(ev: PointerEvent): void {
+  private onPointer(ev: MouseEvent): void {
     if (!this.pair) return;
     const box = this.canvas.getBoundingClientRect();
     const hit = hitTest(this.pair.cur, { x: ev.clientX - box.left, y: ev.clientY - box.top });
     if (!hit) {
       this.detailEl.hidden = true;
+      this.canvas.removeAttribute("title");
       return;
     }
     this.detailEl.hidden = false;
     this.detailEl.textContent = `${hit.label} — ${hit.detail}`;
+    // Art 8: the DOM tooltip (a `title` on the canvas, updated under the cursor) — the detail
+    // card is painted chrome; a title attribute/aria path is what AT and hover-tool users get.
+    this.canvas.title = `${hit.label} — ${hit.detail}`;
     this.detailEl.style.left = `${Math.min(box.width - 180, hit.x + 12)}px`;
     this.detailEl.style.top = `${Math.max(8, hit.y - 28)}px`;
   }
@@ -1138,7 +1189,18 @@ export class CampusPlay {
 
   /** tap vehicle → select; tap bay → stage; tap booth → rule cards (hand mode only). */
   private onCanvasClick(ev: MouseEvent): void {
-    if (!this.handMode || this.finished || !this.pair) return;
+    // Art 8 §7 ("no hover-only affordances"): on touch there is no hover, so a TAP on the live
+    // campus shows the detail card the mouse gets from hovering (it fades after a calm beat —
+    // touch never sends the pointerleave that hides it for a mouse).
+    if (!this.handMode) {
+      this.onPointer(ev);
+      window.clearTimeout(this.detailTimer);
+      this.detailTimer = window.setTimeout(() => {
+        this.detailEl.hidden = true;
+      }, 2500);
+      return;
+    }
+    if (this.finished || !this.pair) return;
     const box = this.canvas.getBoundingClientRect();
     const hit = hitTest(this.pair.cur, { x: ev.clientX - box.left, y: ev.clientY - box.top });
     if (hit?.kind === "vehicle") {

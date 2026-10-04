@@ -107,6 +107,11 @@ export function mountTimeline(
   }
   const scrub = el("input", "dojo-tl-scrub", controls);
   scrub.type = "range";
+  // Art 8 a11y audit (real fix, not suppression): the strip's scrub carried no name when the
+  // timeline mounted OUTSIDE main.ts's `labelTimelineRegion` path — the review panel's strip
+  // (`web/src/review.ts`) mounts directly, and the audit sweep caught a nameless slider there.
+  scrub.setAttribute("aria-label", "Playhead position in seconds");
+  speed.setAttribute("aria-label", "Playback speed");
   scrub.min = "0";
   scrub.max = String(horizon);
   scrub.step = "1";

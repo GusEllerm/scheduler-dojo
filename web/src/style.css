@@ -1350,7 +1350,10 @@ ul.kata-errors {
 /* The why-panel reads the engine's decision trace: calm rows, time first, owner color second. It
    sits below the clock so the canvas geometry (and every Art 3 baseline) is untouched. */
 .campus-why { margin-top: 6px; border: 1px solid var(--sd-line); border-radius: 10px;
-  padding: 2px 10px 6px; background: var(--sd-panel); }
+  padding: 2px 10px 6px; background: var(--sd-panel); color: var(--sd-ink); }  /* the campus-paper
+  card must set its OWN ink — the page's `--text` is a light ink for the dark chrome, and the row
+  text was light-on-paper (1.22:1) until the Art 8 contrast sweep caught it (rule 8, same fix
+  `.campus-fairness` got in Art 6b) */
 .campus-why > summary { cursor: pointer; font-size: 12px; color: var(--sd-ink-soft);
   text-transform: uppercase; letter-spacing: 0.08em; padding: 4px 0; }
 .campus-why-list { display: grid; gap: 2px; max-height: 140px; overflow: auto; margin-top: 2px; }
@@ -1433,9 +1436,9 @@ ul.kata-errors {
   background: var(--sd-ink); }
 .fairness-text { font-size: 11px; color: var(--sd-ink-soft); }
 
-/* The chaining chips: "Next city ▸" (only while a chain is pending) and Endless availability. */
+/* The chaining chips: "Next city ▸" (only while a chain is pending) and Endless availability.
+   (Art 8 moved the locked-chip treatment off `opacity` onto muted ink — see the Art 8 block.) */
 .campus-next-chip { border-color: var(--sd-gold); font-weight: 600; }
-.campus-endless-chip[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
 .campus-endless-seed { border-radius: 999px; font-size: 11px; }
 .campus-endless-seed[hidden] { display: none; }
 .kata-back-chip { margin: 0 0 6px; }
@@ -1457,6 +1460,10 @@ ul.kata-errors {
 /* The readout's stat card, restated for the panel (`.readout .stat` is scoped, and a bare
    number+label otherwise runs together as "15037.10bounded slowdown"). */
 .review-stats .stat { display: grid; gap: 2px; min-width: 0; }
+/* Art 8 contrast sweep (real fix): the strip is phase-one dark chrome mounted on CAMPUS PAPER —
+   its muted clock/legend text was 2.29:1 on the panel. Inside the paper dialog the strip's own
+   labels use the paper's secondary ink (the strip's squares already carry the state colours). */
+.review-panel .dojo-tl-clock, .review-panel .dojo-tl-legend { color: var(--sd-ink-soft); }
 .review-stats .stat b { font-size: 17px; font-variant-numeric: tabular-nums; }
 .review-stats .stat span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em;
   color: var(--sd-ink-soft); }
@@ -1518,8 +1525,42 @@ ul.kata-errors {
   background: var(--sd-panel); display: block; }
 .share-card-text { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 4px 0;
   font-size: 12px; }
-.share-card-text dt { color: var(--sd-ink-soft); }
+/* The card dialog is the dark phase-one chrome (`--panel`), so its labels are the dark-theme
+   muted ink — the light-theme `--sd-ink-soft` the Art 7b card shipped with read 2.65:1 here
+   (Art 8 contrast sweep). */
+.share-card-text dt { color: var(--muted); }
 .share-card-text dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ---- phase two, Art 8: welcome card, help drawer, tooltips, touch targets ---- */
+/* The welcome card (web/src/welcome.ts) and the help drawer (web/src/help.ts) join the
+   review/board family: fixed, scrollable, one at a time, campus-paper card language. Neither has
+   motion of its own — the global reduced-motion block already zeroes transitions, so under
+   `prefers-reduced-motion` they simply appear ([[Accessibility]] rules 5 and 7). */
+.welcome-overlay { display: flex; align-items: center; justify-content: center;
+  padding: 4vh 16px; overflow: auto; z-index: 46; }
+.welcome-panel { position: static; width: min(440px, 100%); }
+.help-overlay { z-index: 44; }
+.help-drawer { position: static; width: min(560px, 100%); max-height: 92vh; overflow: auto; }
+.help-drawer h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--sd-ink-soft); }
+.help-drawer p, .help-note { font-size: 12px; color: var(--sd-ink-soft); }
+.help-drawer ul { font-size: 12px; padding-left: 18px; margin: 0; }
+.help-read { list-style: none; padding: 0; display: grid; gap: 4px; }
+.help-read li { display: flex; gap: 8px; align-items: baseline; }
+.help-swatch { flex: none; width: 12px; height: 12px; border-radius: 3px;
+  border: 1px solid var(--sd-line); }
+.help-keys { border-collapse: collapse; font-size: 12px; width: 100%; }
+.help-keys th { text-align: left; padding: 2px 10px 2px 0; white-space: nowrap; font-weight: 600; }
+.help-keys td { padding: 2px 0; }
+.help-keys kbd { font-family: ui-monospace, monospace; font-size: 11px;
+  border: 1px solid var(--sd-line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px;
+  background: var(--sd-ground); color: var(--sd-ink); }
+.help-button { min-width: 30px; height: 30px; border-radius: 50%; font-weight: 700; padding: 0; }
+/* The locked Endless chip: dimmed by MUTED INK, not by opacity — translucent text over the panel
+   is the one trick that quietly breaks the AA floor the rest of the palette holds
+   ([[Accessibility]] rule 8; the Art 8 audit's contrast sweep is what caught it). */
+.campus-endless-chip[aria-disabled="true"] { color: var(--muted); border-color: var(--line);
+  cursor: not-allowed; }
 
 /* 820 px (and anything narrower): every campus bar wraps, the rail drops under the canvas, and the
    offers panel goes one-per-row. All layout — no behaviour, no canvas geometry. */
@@ -1532,4 +1573,9 @@ ul.kata-errors {
   .offers-panel { width: min(520px, calc(100% - 16px)); }
   .campus-toast { max-width: min(320px, 60%); }
   .mode-level-pickers { align-items: flex-start; }
+  /* Art 8 §7 (touch pass): where the promise applies — the chips and buttons a thumb is told to
+     press — targets grow to 40 px at narrow widths. Layout only: no geometry, no behaviour. */
+  .campus-controls button, .campus-hand-bar button, .campus-variant-bar button,
+  .tutorial-skip, .callout-panel button, .help-button { min-height: 40px; }
+  .campus-controls select { min-height: 40px; }
 }

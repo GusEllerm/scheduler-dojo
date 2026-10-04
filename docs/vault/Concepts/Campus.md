@@ -329,3 +329,18 @@ motion: the edge only), and a reason line under the bar — see [[Accessibility]
 
 Keyboard play, the canvas's `tabindex`, and which live regions announce what: [[Accessibility]]. See
 `Sessions/2026-10-02 Phase 2 Art 5.md`.
+
+## Reading the campus out loud (Art 8)
+
+The help drawer's *how to read the campus* list is this note's mapping table come to the UI: one
+row per scene token (`readTokens` — the same CSS custom properties `campus-render.ts` paints with,
+so the drawer's swatches cannot drift from the picture), and a sentence per row. Buildings stay
+named by the picture itself: hover/tap already shows the name + blurb + `buildingHint` detail card,
+and since Art 8 the canvas `aria-label` NAMES the owned buildings on campus and carries a `title`
+updated by the hit-test under the cursor — the DOM tooltip path [[Accessibility]] rule 2 promises
+([[Accessibility]] rule 13). The live campus canvas also *answers taps* with that detail card
+(touch has no hover; hand-mode taps keep playing the game), and the keyboard entry points
+(`keyTogglePlay`/`keyStep`/`keySpeed` on `CampusPlay`) drive the SAME Pause/Step/speed controls the
+mouse drives — they are deliberate no-ops in the hand campus (taps/arrows are its keyboard story)
+and in the visual harness. Nothing new decides: the drawer, the welcome card and the tooltips all
+read engine facts that were already on screen.

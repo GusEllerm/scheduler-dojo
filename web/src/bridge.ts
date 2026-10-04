@@ -286,6 +286,14 @@ export class DojoBridge {
     return this.call("step_result", { handle });
   }
 
+  /** Review 7b-F3: END a stepping session without computing a result (`step_close`) — pops the
+   *  handle and costs one dict lookup. Thumbnail drawers used to release their handle with a
+   *  `step_result` drain, which re-ran the rest of the level (seconds per board tile, for a
+   *  frame nobody is scoring). */
+  stepClose(handle: number): Promise<{ ok: boolean; now?: number; reason?: string }> {
+    return this.call("step_close", { handle });
+  }
+
   /** Renderer pacing facts (sim-step between snapshots, sun stride) — engine-owned (§5.6). */
   watchPlan(level: Level | string): Promise<WatchPlan> {
     return this.call("watch_plan", { level });

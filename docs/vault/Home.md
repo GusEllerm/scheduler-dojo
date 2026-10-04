@@ -126,8 +126,8 @@ adversarial) and hardened. Repo live at https://github.com/GusEllerm/scheduler-d
 | Art 4 | Hand play + city-1 tutorial + first booth reveal | ✅ done (untagged; city 1 driven end to end) |
 | Art 5 | Booth: cards→editor, why-panel, step mode, cones | 🟡 5a booth panels + 5b why-panel/step/cones/misfit/keyboard shipped (`Sessions/2026-10-02 Phase 2 Art 5.md`); playtest report + `art-5` tag pending |
 | Art 6 | Weeks/offers/buildings, cities 4–9, save migration | 🟡 6a week end + offers-as-buildings + free grants, 6b campaign chaining + fairness rail + 820 px pass shipped (`Sessions/2026-10-02 Phase 2 Art 6.md`); a human playtest report + `art-6` tag pending |
-| Art 7 | Endless, city board, strip review, share redraw | 🟡 7a endless campus + review screen + best scores, 7b city board (real per-city thumbnails, bars-based frames, frontier locks) + share cards in the campus art (`#card=` route, engine-verified, campus thumbnail) shipped (`Sessions/2026-10-02 Phase 2 Art 7.md`); playtest report + `art-7` tag pending |
-| Art 8 | Onboarding polish, a11y audit, help drawer, sound | ⬜ |
+| Art 7 | Endless, city board, strip review, share redraw | 🟡 7a endless campus + review screen + best scores, 7b city board (real per-city thumbnails, bars-based frames, frontier locks) + share cards in the campus art (`#card=` route, engine-verified, campus thumbnail) shipped (`Sessions/2026-10-02 Phase 2 Art 7.md`); review-7b fixes landed with Art 8 (hashless cards never verify, `#card=` routes in-tab, thumbnails close with `step_close` + one promise per frame); playtest report + `art-7` tag pending |
+| Art 8 | Onboarding polish, a11y audit, help drawer, keyboard, touch pass | ✅ welcome card, help drawer (the shortcut table is the handler's constant, pressed by the audit), global topmost-Escape dialog stack, DOM tooltips, 40 px touch targets + tap-inspect, automated audit `web/scripts/art8_a11y.mjs` (names/contrast/traps/static-chrome/touch — five real fixes found) shipped (`Sessions/2026-10-03 Phase 2 Art 8.md`); optional sound NOT done; playtest evidence still pending |
 | Art 9 | Ship: README/GIF, vault sweep, final playtest, Final Report | ⬜ |
 
 ## Deferred

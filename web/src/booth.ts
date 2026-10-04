@@ -151,9 +151,48 @@ export function getBoothChoice(): BoothChoice | null {
 
 // --- shared dialog plumbing ---------------------------------------------------------------
 
+/**
+ * Art 8: the open-dialog stack. Every `trapDialog` panel registers here so a GLOBAL Escape
+ * closes the topmost dialog even when focus never entered it (a click on the canvas, a tap,
+ * a fresh page load with the offers panel already up). Entries self-prune by `isConnected`;
+ * the per-panel handler below still fires first when focus IS inside the dialog (it cancels
+ * the event, and the global listener skips cancelled ones — so a dialog never double-closes).
+ */
+const dialogStack: { panel: HTMLElement; close: () => void }[] = [];
+let escapeHooked = false;
+
+/** Close the topmost still-connected dialog; true when one closed. */
+function closeTopmostDialog(): boolean {
+  for (let i = dialogStack.length - 1; i >= 0; i--) {
+    const entry = dialogStack[i]!;
+    if (!entry.panel.isConnected) {
+      dialogStack.splice(i, 1);
+      continue;
+    }
+    entry.close();
+    return true;
+  }
+  return false;
+}
+
 /** Shared modal-dialog keyboard plumbing (Concepts/Accessibility rule 5): Escape closes and Tab
- *  stays inside the panel. Openers own focus move-in and focus restore. */
+ *  stays inside the panel. Openers own focus move-in and focus restore. Art 8 adds the global
+ *  Escape for the topmost dialog (Concepts/Accessibility rule 13). */
 export function trapDialog(panel: HTMLElement, onClose: () => void): void {
+  dialogStack.push({
+    panel,
+    close: () => {
+      if (!panel.isConnected) return; // already dismissed (button, Later, teardown)
+      onClose();
+    },
+  });
+  if (!escapeHooked) {
+    escapeHooked = true;
+    window.addEventListener("keydown", (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      closeTopmostDialog();
+    });
+  }
   panel.addEventListener("keydown", (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -499,6 +538,10 @@ export function openBoothDialog(options: BoothDialogOptions): BoothDialogHandle 
   paintHead();
   if (serializeBooth(arr)) void checkOnly(serializeBooth(arr));
   applyMode({ mode: options.mode, slot: options.focusSlot, card: options.focusCard });
+  // Art 8 a11y audit (real fix): the booth was the one dialog that never took initial focus —
+  // every other panel here opens with focus inside. Unless `applyMode` already placed it (the
+  // one-line editor beats), the close button takes it, and closing restores `previously`.
+  if (!panel.contains(document.activeElement)) close.focus({ preventScroll: true });
   overlay.addEventListener("click", (event) => {
     if (event.target === overlay) handle.close();
   });

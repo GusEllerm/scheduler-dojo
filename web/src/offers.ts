@@ -67,6 +67,7 @@ export function openOffersPanel(opts: OffersPanelOptions): OffersPanelHandle {
   for (const card of opts.cards) {
     const el = document.createElement("div");
     el.className = "offer-card";
+    el.title = `${card.name} \u2014 ${card.blurb}`;   // Art 8: the DOM tooltip, not only the card text
     const text = document.createElement("div");
     text.className = "offer-text";
     const name = document.createElement("b");

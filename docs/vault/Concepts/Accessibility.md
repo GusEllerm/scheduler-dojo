@@ -34,16 +34,18 @@ a mouse, because a scheduling lesson you cannot read is not a lesson.
    the share controls (`mountShareButton` and its modal). Pickers are `role="group"` with a label
    ("Levels", "Play mode", "Run variants") and mode/level buttons keep `aria-pressed`.
 5. **Modals are dialogs and are closable by keyboard.** The upgrade shop, the share modal, the campus
-   booth (`web/src/booth.ts` `openBoothDialog`), the week-end offers panel (`web/src/offers.ts`,
-   Art 6a — Take/Later are real buttons, the verdict line is `role="status"`, and a focusable
+   booth (`web/src/booth.ts` `openBoothDialog`; since Art 8 it also takes INITIAL focus — the audit
+   caught it as the one dialog that opened with focus left outside), the week-end offers panel
+   (`web/src/offers.ts`, Art 6a — Take/Later are real buttons, the verdict line is `role="status"`, and a focusable
    pending-offers button in the campus controls reopens it while traffic is frozen), the run review
    panel (`web/src/review.ts` `openReviewPanel`, Art 7a — one at a time, its "Back to the campus"
    button takes initial focus and Escape/`trapDialog` closes it), the city board
    (`web/src/board.ts` `openCityBoard`, Art 7b — one at a time, its close button focused with
    `preventScroll` so the heading stays on screen), the share card (`web/src/share-scene.ts`, Art 7b —
-   the minted card and the `#card=` card view are the same dialog) and the tutorial
-   callouts (`web/src/tutorial.ts`, and the booth dialog in `web/src/booth.ts` via the shared
-   `trapDialog`)
+   the minted card and the `#card=` card view are the same dialog; since Art 8 it rides `trapDialog`
+   with `aria-labelledby` on its heading like every other panel, and `destroyModes` closes it), the
+   welcome card (`web/src/welcome.ts`, Art 8 — the fresh-save doorway) and the help drawer
+   (`web/src/help.ts`, Art 8 — the "?" button, one at a time)
    are `role="dialog" aria-modal="true" aria-labelledby=<their heading>`;
    Escape closes them, Tab is kept inside the panel (`trapDialog` is the shared trap), and focus
    returns to the control that opened them. The tutorial's "Skip tutorial" button sits above the
@@ -97,6 +99,42 @@ discoverable.
      A received card is one `role="status"` banner ("verified replay ✓ …" / "card tampered ✗ …" with
      both hashes spelled out) over a `dl` of the card's facts, and only the verified one offers a
      replay button. Evidence: `web/scripts/art7b_evidence.mjs`.
+13. **The doorway, the drawer and the keys (Art 8).** A save with no prefs, no progress and no
+     progression gets ONE welcome card (`web/src/welcome.ts` — labelled dialog, two doors: the
+     city-1 script through the same chain path as "Next city ▸", or the live campus; it teaches
+     nothing the city-1 script does not teach better in place). The "?" button (`mountHelpButton`,
+     in the header from every mode) opens the help drawer (`web/src/help.ts`) — how to read the
+     campus (token swatches from `readTokens`, one row per mapping), the controls, one line per
+     mode, and the shortcut table. **The table cannot lie:** it is the constant `SHORTCUTS`, the
+     same array `main.ts`'s global handler answers, and `web/scripts/art8_a11y.mjs` presses every
+     row and asserts its effect. The keys: `?` toggles the drawer (any other open card wins until
+     Escape closes it), `Space` pauses/resumes and `S` steps and `1/2/3` set 1x/2x/4x on the LIVE
+     campus (the hand campus answers taps and the canvas arrow keys instead, and the table says
+     so), `Escape` closes the topmost dialog from anywhere — `trapDialog` keeps a stack and a
+     focused panel cancels the event so nothing double-closes. The guards: keys never fire while
+     typing (`input, textarea, select, [contenteditable], .cm-editor`), never while a card is up,
+     and (Space/S/digits) never over a focused button/link, which keeps its own press. Tooltips
+     are DOM, not canvas-only: the canvas carries a `title` from the hit-test under the cursor and
+     NAMES its owned buildings in its `aria-label`; chips, mode buttons and offer cards carry
+     `title`s (`MODE_NOTES` titles the mode picker from the drawer's own copy); fairness rows
+     already had their sentence and their `title`. Touch: under 860 px the chips/buttons the
+     player is told to press reach 40 px, and the live campus shows its detail card on TAP (no
+     hover-only affordance; hand taps play, live taps inspect).
+
+## Art 8's automated audit (and what it found for real)
+
+`web/scripts/art8_a11y.mjs` runs the built app in headless Chromium and logs one table:
+accessible NAMES over every visible control (city-1 tutorial mid-state, board, offers, review,
+share card, help, welcome); CONTRAST of every visible text node against its actual composited
+background — ancestor backgrounds alpha-composited under accumulated `opacity`, the same
+luminance maths as `scripts/check_contrast.mjs`, thresholds 4.5 (3.0 for large) — TRAP in/out for
+every dialog that exists, reduced-motion PAUSED-CAMPUS redraw ≈0 (the counter proves itself alive
+with one Step press first — headless rAF does not tick), and the TOUCH/small-screen promises.
+It exempts `disabled` controls' dimmed labels (WCAG 1.4.3's inactive-component exception) and says
+so. It found, and the commit fixed, four real bugs: the why-panel's rows (`--sd-panel` paper
+never setting `--sd-ink`, 1.22:1), the review strip's phase-one muted labels on that same paper
+(2.29:1), the share card's `dt` dark-on-dark (2.65:1), the locked Endless chip's `opacity: 0.55`
+text, and a booth dialog that opened with focus left outside.
 
 ## Verifying an a11y change
 
@@ -116,6 +154,10 @@ discoverable.
 A `MutationObserver` on `#readout` fires once per run-variant switch, which is the announcement the
 screen reader would make.
 
+Art 8: `cd web && npm run build && npm run preview && node scripts/art8_a11y.mjs` — the whole
+promise set in one table (see "Art 8's automated audit" above); screenshots in
+docs/screenshots/campus/ — art8-welcome.png, art8-help.png, art8-820.png, art8-390.png.
+
 ## Known gaps
 
 - Hand/kata modes mount their own timelines (`web/src/hand.ts`, `web/src/kata-play.ts`) and do not read
@@ -123,12 +165,18 @@ screen reader would make.
 - The campus canvas explains itself through announcements, not structure: a screen reader hears the
   selection/staging state and the booth's decisions, but there is no per-vehicle list to browse (the
   strip's job table would be that). The Art 6b fairness rail is the first *structural* campus readout.
-- The 820 px pass (Art 6b) is measured — boxes and a clipped-text sweep at 820 and 1280 — but the
-  campus has had no screen-reader reader test; the offers dialog's focus order was checked with Tab
-  only (`Sessions/2026-10-02 Phase 2 Art 6.md`).
+- The Art 8 audit is an automated PROXY: names, contrast, traps, static chrome, taps. There is
+  still no screen-reader reader test (VoiceOver/NVDA) of the campus, and the playtest evidence
+  promised by §9 (a fresh playtester reaching city 3 with no instructions) is still playtest work,
+  not this script. Closed by Art 8: the offers dialog's focus order is now machine-verified in and
+  out (was "checked with Tab only").
 - The hand campus is keyboard-playable; the *live* campus intentionally has no focus target (nothing
-  to choose while the booth decides), so its only controls are the Pause/Step/speed buttons.
+  to choose while the booth decides), so its controls are the Pause/Step/speed buttons plus the
+  Art 8 shortcuts (`Space`/`S`/`1/2/3`) and the help drawer — the drawer's table is the promise,
+  the audit presses it.
 - Share-card PNGs are images with an `aria-label` summary; the card's own text is not selectable.
+- The welcome card appears only for a truly fresh save; a player who clears only `prefs` can see it
+  again. Deliberate: it is a doorway, not a tutorial gate.
 
 ## Related
 

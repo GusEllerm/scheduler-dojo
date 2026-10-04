@@ -21,6 +21,9 @@ import { closeCityBoard, openCityBoard } from "./board";
 import { mountHud, type HudHandle } from "./hud";
 import { mountShop, type ShopHandle } from "./shop";
 import { closeReview, mountReviewButton, openReviewPanel, type ReviewEndless } from "./review";
+import { closeShareCard } from "./share-scene";
+import { MODE_NOTES, SHORTCUTS, closeHelp, isHelpOpen, mountHelpButton, toggleHelp } from "./help";
+import { openWelcome } from "./welcome";
 import { formatTime, mountTimeline, type TimelineHandle } from "./render/timeline";
 import type { Stage, WorkerEvent } from "./worker";
 
@@ -217,7 +220,12 @@ async function fetchText(path: string): Promise<string> {
 }
 
 async function main(): Promise<void> {
-  const prefs = loadStore().prefs;
+  const doc = loadStore();
+  const prefs = doc.prefs;
+  // Art 8: a save is FRESH when nothing has ever been chosen — no prefs, no progress, no engine
+  // progression. Read BEFORE `applyDriftOnBoot` (which may write a progression dict of its own).
+  const freshSave = Object.keys(prefs).length === 0
+    && Object.keys(doc.progress).length === 0 && doc.progression === undefined;
   const savedMode = prefs.mode as string | undefined;
   mode = savedMode === "hand" || savedMode === "kata" || savedMode === "campus" ? savedMode : "watch";
   if (cityNum !== null) {
@@ -254,6 +262,25 @@ async function main(): Promise<void> {
   else if (campusCard) {
     await shareScene.openShareCardView({ payload: campusCard, onReplay: showCardReplay });
   }
+  // Art 8: the fresh-save welcome — ONE calm card, two doors, nothing the city-1 script will not
+  // teach better in place. A `?city=` boot or any card link is not a first visit.
+  if (freshSave && cityNum === null && !cardParam && !campusCard) {
+    openWelcome({
+      onStartCity: () => startCampaignCity(1),
+      onWalk: () => startCampusWalk(),
+    });
+  }
+  // Art 8 review-7b: a `#card=` link PASTED into an already-open tab must route (phase one's `?c=`
+  // navigated; a hash alone fires no reload). Clearing the hash closes the card view cleanly.
+  window.addEventListener("hashchange", () => {
+    const incoming = shareScene.shareCardParam();
+    if (incoming) {
+      void shareScene.openShareCardView({ payload: incoming, onReplay: showCardReplay })
+        .catch(fail);
+    } else closeShareCard();
+  });
+  // Art 8: the shortcuts the help drawer promises (`SHORTCUTS` is that table — one source).
+  window.addEventListener("keydown", onGlobalKey);
 }
 
 /**
@@ -285,6 +312,81 @@ async function showCardReplay(run: RunResult): Promise<void> {
 
 function levelId(): string {
   return String(level.id ?? "level1");
+}
+
+/* ---------------- Art 8: the shortcuts the help drawer promises ---------------------------- */
+
+/** The one source: whatever the drawer's table lists, this handler must answer. If this assert
+ *  ever fires, the table was edited without the handler (and `art8_a11y.mjs` presses every row). */
+const PROMISED_KEYS = new Set(SHORTCUTS.map(([key]) => key));
+console.assert(
+  ["?", "Esc", "Space", "S", "1 / 2 / 3"].every((key) => PROMISED_KEYS.has(key)),
+  "help SHORTCUTS drifted from the global key handler",
+);
+
+/** Typing is never a shortcut: form fields, CodeMirror — and for the keys a control ALREADY
+ *  consumes (Space presses a focused button, digits home a focused select), the controls too.
+ *  "?" is not a control key, so only real text fields veto it (Art 8 audit, guard rows). */
+function isTypingTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return !!el?.closest?.(
+    "input, textarea, select, [contenteditable], [contenteditable='true'], .cm-editor");
+}
+
+/** Keys a focused BUTTON/A would eat itself (Space = press, Enter = press): never steal those. */
+function isControlTarget(target: EventTarget | null): boolean {
+  const el = target as HTMLElement | null;
+  return !!el?.closest?.("button, a[href], [role=button]");
+}
+
+/** Any open modal card (the overlays here all carry their own class; help reuses review-overlay). */
+function anyDialogOpen(): boolean {
+  return !!document.querySelector(
+    ".callout-overlay, .review-overlay, .board-overlay, .booth-overlay, .share-overlay");
+}
+
+function onGlobalKey(event: KeyboardEvent): void {
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) return;
+  if (isTypingTarget(event.target)) return;
+  if (event.key === "?") {
+    // "?" toggles its OWN drawer; while any OTHER card is up the topmost rule applies (Esc
+    // closes that one) — the table in the drawer says exactly this.
+    if (isHelpOpen() || !anyDialogOpen()) toggleHelp();
+    return;
+  }
+  if (anyDialogOpen() || isControlTarget(event.target)) return;  // cards first; a focused button
+                                                 // keeps its own Space/Enter, a select its digits
+  if (!campus || mode !== "campus") return;      // the campus clock is what these keys drive
+  if (event.key === " ") {
+    event.preventDefault();                      // no page-scroll under the Space shortcut
+    campus.keyTogglePlay();
+  } else if (event.key === "s" || event.key === "S") {
+    campus.keyStep();
+  } else if (event.key === "1" || event.key === "2" || event.key === "3") {
+    campus.keySpeed(Number(event.key));
+  }
+}
+
+/** The welcome card's campaign door — the same chain path the board's tiles and "Next city ▸" use. */
+function startCampaignCity(city: number): void {
+  campusCity = `city${city}`;
+  campusTutorial = true;
+  campusVariant = "hand";
+  campusEndless = false;
+  campusNextCity = null;
+  saveStore({ prefs: { mode: "campus" as "watch", city } });
+  if (mode === "campus") void startCampusRun().catch(fail);
+  else void setMode("campus").catch(fail);
+}
+
+/** The welcome card's calm door: the live campus, traffic driving itself. */
+function startCampusWalk(): void {
+  campusTutorial = false;
+  campusVariant = "live";
+  campusEndless = false;
+  saveStore({ prefs: { mode: "campus" as "watch" } });
+  if (mode === "campus") void startCampusRun().catch(fail);
+  else void setMode("campus").catch(fail);
 }
 
 /** The campaign city the campus is currently showing (city editions keep the canonical level id). */
@@ -326,6 +428,9 @@ function buildChrome(): void {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = text;
+    // Art 8: the picker buttons carry the help drawer's one-line meanings (the SAME constant the
+    // drawer renders — a hover tooltip cannot disagree with the table).
+    button.title = MODE_NOTES.find(([name]) => name === text)?.[1] ?? "";
     button.addEventListener("click", () => void setMode(key).catch(fail));
     modePicker.append(button);
     modeButtons.set(key, button);
@@ -343,6 +448,7 @@ function buildChrome(): void {
   hudBox.setAttribute("role", "group");
   hudBox.setAttribute("aria-label", "Player progress");
   header.append(hudBox);
+  mountHelpButton(header instanceof HTMLElement ? header : dom.app);   // Art 8: "?" — the drawer is reachable from every mode
 
   handPanel = document.createElement("section");
   handPanel.className = "panel";
@@ -572,6 +678,8 @@ function destroyModes(): void {
   campus = null;
   closeReview();   // Art 7: a review panel never outlives the run view that opened it
   closeCityBoard();   // Art 7b: nor does the board
+  closeHelp();        // Art 8: nor the help drawer…
+  closeShareCard();   // …nor a share card mid-mint (review 7b: nothing re-lands after teardown)
   campusRunShare = null;
   campusStage.textContent = "";
   campusRail.textContent = "";
@@ -648,6 +756,10 @@ function buildCampusToolbar(): void {
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = text;
+    // Art 8: chips carry their meaning as a title tooltip too (cheap DOM, never canvas-only).
+    button.title = variant === "live"
+      ? "the city drives itself under its policy — Pause, Step \u25b8 and the speed select are yours"
+      : "you park every vehicle — tap a vehicle, tap bays, Park it (or arrows + Enter on the canvas)";
     button.addEventListener("click", () => {
       if (campusVariant === variant && campus && !campusEndless) return;
       campusVariant = variant;
@@ -661,6 +773,7 @@ function buildCampusToolbar(): void {
   chip.type = "button";
   chip.className = "campus-tutorial-chip";
   chip.textContent = `Tutorial: ${campusCity.replace("city", "city ")}`;
+  chip.title = "run this city with its guided script — hand traffic, the beats teach as you play";
   chip.addEventListener("click", () => {
     campusTutorial = !campusTutorial;
     if (campusTutorial) campusVariant = "hand"; // the script drives hand traffic

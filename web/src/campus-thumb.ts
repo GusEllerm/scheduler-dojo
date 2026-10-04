@@ -20,10 +20,11 @@
  * layout needs that much room for its lots and road band (`x = width - PAD - 300`,
  * `roadY = height - PAD - 150`); a 240 px canvas would push both off-frame.
  *
- * COST / lifetime: one partial run per frame, cached for the page session. The stepping handle is
- * released with `step_result` (the bridge has no other close) — a full drain of a city level costs
- * about what a watch-mode run of it costs, which is worth it for not leaking a scheduler per tile.
- * If the drain fails (the run already ended at the frame) the handle is simply left behind: nine
+ * COST / lifetime: one partial run per frame, cached for the page session — and the cache holds
+ * the PROMISE, not the finished canvas (review 7b-F3: two board opens while one frame was still
+ * drawing used to START the run twice). The stepping handle is released with `step_close`
+ * (review 7b: `step_result` drained the rest of the level to build a summary nobody reads —
+ * seconds of frozen campus per tile). A handle whose close fails is simply left behind: nine
  * per page at worst, freed by a reload.
  */
 
@@ -55,7 +56,7 @@ export interface ThumbRequest {
   buildings?: BuildingView;
 }
 
-const frames = new Map<string, HTMLCanvasElement>();
+const frames = new Map<string, Promise<HTMLCanvasElement>>();
 
 /** Drop every cached frame (a theme/token change or a test harness reset). */
 export function clearThumbCache(): void {
@@ -64,7 +65,9 @@ export function clearThumbCache(): void {
 
 /**
  * The frame canvas for a request (cached per session by everything that can affect the pixels:
- * level id + seed + duration + policy + kata length + frame time + owned buildings).
+ * level id + seed + duration + policy + kata length + frame time + owned buildings). The CACHE
+ * HOLDS THE PROMISE (review 7b-F3): concurrent requests for the same frame await one draw, and
+ * a failed draw evicts itself so a later open can retry.
  */
 export async function campusThumbFrame(req: ThumbRequest): Promise<HTMLCanvasElement> {
   const plan = await bridge.watchPlan(req.level);
@@ -76,7 +79,16 @@ export async function campusThumbFrame(req: ThumbRequest): Promise<HTMLCanvasEle
     + `${policy}|${req.kata?.length ?? 0}|${t}|${buildings}`;
   const cached = frames.get(key);
   if (cached) return cached;
+  const drawing = drawThumbFrame(req, t, policy, plan.stride).catch((error: unknown) => {
+    if (frames.get(key) === drawing) frames.delete(key);   // never cache a failed frame
+    throw error;
+  });
+  frames.set(key, drawing);
+  return drawing;
+}
 
+async function drawThumbFrame(req: ThumbRequest, t: number, policy: string, stride: number):
+  Promise<HTMLCanvasElement> {
   const nodes: { id: string; partition: string; site?: string }[] = [];
   const jobs = new Map<string, JobView>();
   const started = await bridge.startRun(req.level, { policy, kata: req.kata ?? null });
@@ -99,16 +111,13 @@ export async function campusThumbFrame(req: ThumbRequest): Promise<HTMLCanvasEle
   renderer.resize(THUMB_W, THUMB_H);
   renderer.render(buildScene({
     width: THUMB_W, height: THUMB_H, nodes, jobs: snap.jobs, snap,
-    clock: cityClock(snap.now, plan.stride),
+    clock: cityClock(snap.now, stride),
     buildings: req.buildings,
   }), null, 1);
   renderer.destroy();
 
-  // Free the stepping session (see the header note); a run that already ended raises, which is
-  // the same outcome — the handle is gone from the page's point of view either way.
-  await bridge.stepResult(started.handle).catch(() => undefined);
-
-  frames.set(key, off);
+  // End the stepping session (see the header note): `step_close`, not a `step_result` drain.
+  await bridge.stepClose(started.handle).catch(() => undefined);
   return off;
 }
 
@@ -117,6 +126,10 @@ export async function paintCampusThumbnail(
   canvas: HTMLCanvasElement, req: ThumbRequest,
 ): Promise<void> {
   const frame = await campusThumbFrame(req);
+  // Review 7b-F3: a board closed while this tile was drawing left a DETACHED canvas — painting
+  // into it measured 0×0 and drew a scaled lie into whatever inherited the context. If the tile
+  // is gone, so is this paint.
+  if (!canvas.isConnected) return;
   const w = Math.max(1, Math.round(canvas.clientWidth || canvas.width || THUMB_W / 2));
   const h = Math.max(1, Math.round(canvas.clientHeight || w * (THUMB_H / THUMB_W)));
   const dpr = window.devicePixelRatio || 1;

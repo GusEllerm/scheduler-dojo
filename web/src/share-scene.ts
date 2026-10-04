@@ -26,6 +26,7 @@
 
 import { bridge, BridgeError, type Level, type RunResult } from "./bridge";
 import { cardLevelId, decodeShareCard, encodableLevel, type DecodedShareCard } from "./share";
+import { trapDialog } from "./booth";
 import { paintCampusThumbnail, type ThumbRequest } from "./campus-thumb";
 import { ownedBuildings } from "./board";
 import { formatTime } from "./render/timeline";
@@ -116,17 +117,27 @@ export function mountCampusShareButton(host: HTMLElement, ctx: CampusShareContex
 export async function openShareCardDialog(
   ctx: CampusShareContext, mint: { payload: string; url: string },
 ): Promise<void> {
-  const panel = cardShell("Share card", ctx.title, mint.payload);
+  const { panel, dismiss } = cardShell("Share card", ctx.title, mint.payload);
   panel.append(cardText(ctx, ctx.run, ctx.run.score));
   // The minted card is drawn in the PLAYER'S campus (their owned buildings sprite the thumbnail);
   // a card being VIEWED gets the bare campus — the card cannot carry the minter's save, and the
   // art must not imply it can.
-  await addThumbnail(panel, {
-    level: ctx.level, policy: ctx.policy, ...(ctx.kata ? { kata: ctx.kata } : {}),
-    t: thumbnailTime(ctx.run, ctx.level), buildings: await ownedBuildings(),
-  }, ctx);
+  // Review 7b-F5: closing the card while its thumbnail is still stepping must not resurrect it —
+  // every append after an await checks the dialog is still on the page.
+  if (panel.isConnected) {
+    await addThumbnail(panel, {
+      level: ctx.level, policy: ctx.policy, ...(ctx.kata ? { kata: ctx.kata } : {}),
+      t: thumbnailTime(ctx.run, ctx.level), buildings: await ownedBuildings(),
+    }, ctx);
+  }
+  if (!panel.isConnected) return;
   addLinkRow(panel, mint.url);
-  addClose(panel);
+  addClose(panel, dismiss);
+}
+
+/** Close an open share card (mode switches / `destroyModes`, like `closeReview`). */
+export function closeShareCard(): void {
+  dismissTop?.();
 }
 
 /** The mint dialog's own close row stays a plain Close. */
@@ -147,11 +158,11 @@ export interface CardViewOptions {
  */
 export async function openShareCardView(opts: CardViewOptions): Promise<void> {
   const card = decodeShareCard(opts.payload);
-  const panel = cardShell("Share card", card?.level?.id ? String(cardLevelId(card)) : "run",
-                           opts.payload);
+  const { panel, dismiss } = cardShell("Share card",
+    card?.level?.id ? String(cardLevelId(card)) : "run", opts.payload);
   if (!card) {
     banner(panel, false, "malformed share card — the payload did not decode");
-    addClose(panel);
+    addClose(panel, dismiss);
     return;
   }
   const levelId = cardLevelId(card);
@@ -162,7 +173,10 @@ export async function openShareCardView(opts: CardViewOptions): Promise<void> {
   if (resolved.level) {
     try {
       replay = await bridge.shareReplay(opts.payload, resolved.level);
-      ok = replay.ok;
+      // Review 7b-F1: a card that promises NO hash can never be verified — the engine already
+      // answers ok=False for those; the client gates on the same fact, so a hash-stripped card
+      // can never greet a player with a ✓ even against an older engine.
+      ok = replay.ok && String(replay.expected_hash ?? "") !== "";
       detail = ok ? replay.trajectory_hash
         : `got ${replay.trajectory_hash} \u2260 ${replay.expected_hash ?? "?"}`;
       console.log(`${REPLAY_LOG} level=${levelId} seed=${card.seed} ok=${ok} `
@@ -176,7 +190,7 @@ export async function openShareCardView(opts: CardViewOptions): Promise<void> {
   banner(panel, ok, ok ? `verified replay — the engine re-ran it and the trajectory hash matches `
     + `(${detail})` : `tampered or unreplayable card — ${detail}`);
 
-  panel.append(cardTextFromCard(card, replay));
+  panel.append(cardTextFromCard(card, replay, resolved.level));
   await addThumbnail(panel, {
     level: resolved.level ?? withoutNulls((card.level ?? null) as Level | null),
     policy: card.kata ? "kata" : card.policy ?? "fifo",
@@ -184,7 +198,7 @@ export async function openShareCardView(opts: CardViewOptions): Promise<void> {
     t: Math.max(1, Math.round(Number((resolved.level ?? card.level)?.duration ?? 1) * 0.55)),
   });
   // A verified card opens in watch mode; a tampered one offers no replay at all (Close only).
-  addClose(panel, ok
+  addClose(panel, dismiss, ok
     ? { label: "Watch the replay \u25b8", onRun: async () => {
       const run = await bridge.runLevel(resolved.level!, {
         seed: card.seed,
@@ -242,25 +256,20 @@ function withoutNulls(level: Record<string, unknown> | null): Level {
 
 /* ------------------------------------------------------------------ parts -- */
 
-let top: HTMLElement | null = null;
+let dismissTop: (() => void) | null = null;
 
-function closeTop(): void {
-  top?.remove();
-  top = null;
-}
-
-function cardShell(heading: string, title: string, payload: string): HTMLElement {
-  closeTop();
+function cardShell(heading: string, title: string,
+                   payload: string): { panel: HTMLElement; dismiss: () => void } {
+  dismissTop?.();   // replace any card already up (replacement — its opener keeps focus)
   const overlay = document.createElement("div");
   overlay.className = "share-overlay";
   const panel = document.createElement("section");
   panel.className = "share-modal campus-share-card";
   panel.setAttribute("role", "dialog");
   panel.setAttribute("aria-modal", "true");
-  panel.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key === "Escape") closeTop();
-  });
   const h = document.createElement("h3");
+  h.id = "share-card-title";
+  panel.setAttribute("aria-labelledby", "share-card-title");
   h.textContent = `${heading} — ${title}`;
   const line = document.createElement("p");
   line.className = "share-payload hash";
@@ -268,11 +277,24 @@ function cardShell(heading: string, title: string, payload: string): HTMLElement
   panel.append(h, line);
   overlay.append(panel);
   document.body.append(overlay);
-  top = panel;
+  // Art 8: the card is a dialog like every other panel here — the shared trap (Tab stays in,
+  // Escape closes, global topmost-Escape) and focus returns to the control that opened it
+  // (Concepts/Accessibility rule 5).
+  const previously = document.activeElement as HTMLElement | null;
+  let open = true;
+  const dismiss = (): void => {
+    if (!open) return;
+    open = false;
+    overlay.remove();
+    if (dismissTop === dismiss) dismissTop = null;
+    previously?.focus?.();
+  };
+  dismissTop = dismiss;
+  trapDialog(panel, dismiss);
   overlay.addEventListener("click", (event) => {
-    if (event.target === overlay) closeTop();
+    if (event.target === overlay) dismiss();
   });
-  return panel;
+  return { panel, dismiss };
 }
 
 function banner(panel: HTMLElement, ok: boolean, text: string): HTMLElement {
@@ -304,10 +326,14 @@ function cardText(ctx: CampusShareContext, run: RunResult, score: number | undef
 }
 
 function cardTextFromCard(card: DecodedShareCard,
-                          replay: Awaited<ReturnType<typeof bridge.shareReplay>> | null): HTMLElement {
+                          replay: Awaited<ReturnType<typeof bridge.shareReplay>> | null,
+                          level: Level | null): HTMLElement {
   const m = replay?.metrics;
-  const end = card.level && typeof card.level.duration === "number"
-    ? `${formatTime(card.level.duration)} horizon` : "";
+  // Review 7b-F4: the horizon line comes from the MERGED level the engine just replayed (file ∪
+  // card), never from the card's raw `duration` field — a tampered duration must not get to
+  // label the run beside the verdict.
+  const horizon = Number(level?.duration ?? 0);
+  const end = Number.isFinite(horizon) && horizon > 0 ? `${formatTime(horizon)} horizon` : "";
   return textCard([
     ["city", cardLevelId(card) || String(card.level_id ?? "?")],
     ["seed", String(card.seed)],
@@ -394,13 +420,14 @@ function addLinkRow(panel: HTMLElement, url: string): void {
  * The card's action row. `run` (only for a VERIFIED card) is a second button that re-runs the
  * card's own level + seed + policy and hands the finished run to the shell's watch presentation.
  */
-function addClose(panel: HTMLElement, run?: { label: string; onRun: () => Promise<void> }): void {
+function addClose(panel: HTMLElement, dismiss: () => void,
+                  run?: { label: string; onRun: () => Promise<void> }): void {
   const actions = document.createElement("div");
   actions.className = "share-actions callout-actions";
   const close = document.createElement("button");
   close.type = "button";
   close.textContent = "Close";
-  close.addEventListener("click", closeTop);
+  close.addEventListener("click", () => dismiss());
   actions.append(close);
   if (run) {
     const watch = document.createElement("button");
@@ -410,7 +437,7 @@ function addClose(panel: HTMLElement, run?: { label: string; onRun: () => Promis
       watch.disabled = true;
       watch.textContent = "running\u2026";
       void run.onRun()
-        .then(() => closeTop())
+        .then(() => dismiss())
         .catch((error: unknown) => {
           watch.textContent = "replay failed";
           watch.disabled = false;

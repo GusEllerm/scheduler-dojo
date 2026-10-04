@@ -38,6 +38,14 @@ edges the browser now handles (`web/src/share-scene.ts`; see [[Campus]]):
 - the link lives in the **hash** (`#card=…`), which Pages serves with no server, where phase one used
   the `?c=` query. Both routes still work, and a pre-Art-7b card literal is replayed in CI evidence to
   prove the envelope never broke. Minting it needs `kata` OMITTED, not null ([[Pyodide Bridge]]).
+  A hash pasted into an ALREADY-OPEN tab routes too (Art 8, review 7b: a `hashchange` listener opens
+  the card view, and clearing the hash closes it — phase one's `?c=` navigated, a hash alone does not).
+
+Review-7b tightened the VERDICT: `replay_card` answers `ok=False, expected_hash=null` for a card
+with the hash STRIPPED (a card that promises nothing verifies nothing), and the card view gates the
+same way client-side (`ok && expected_hash !== ""`) — verified live against a stripped literal. The
+view's horizon line reads the MERGED level, so a tampered `duration` can never label the run beside
+the verdict (Art 8, `web/src/share-scene.ts`).
 
 ## Depends on / used by
 

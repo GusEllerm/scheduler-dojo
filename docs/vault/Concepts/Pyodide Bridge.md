@@ -38,7 +38,10 @@ page (bridge.ts)  --postMessage {id,call,args}-->  worker.ts
 `_advance` loop as a full `run`, so pausing, animating, or hand-placing at any speed produces a run
 bit-for-bit identical to the CLI/golden run — phase-two ticks and rings ride that same loop, so a
 stepped run on a ring level equals a full one. `step_result` drains and finalizes (the drain respects
-the level horizon, so ticks cannot spin it). Snapshots carry the campus picture: real `placed` node
+the level horizon, so ticks cannot spin it), and `step_close` (TS `bridge.stepClose`) ENDS a session
+without draining — pop the handle, run nothing — which is what thumbnail drawers use: a frame
+mid-flight has no summary worth computing, and the old `step_result` drain re-ran the rest of the
+level per tile (review 7b, Art 8 commit). Snapshots carry the campus picture: real `placed` node
 ids, `reserved` cones, per-user `pressure` and `overflow`, and `horizon_end` (t0 + horizon) — the
 floor for a browser step-target cap, so a driver's ceiling can never sit below the horizon and
 pin the clock (review F1). Stepped runs END at the horizon (done on the stop frame; stepping past
