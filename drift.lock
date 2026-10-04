@@ -28,7 +28,7 @@ sig = "1b724c2208f1510f"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/booth.ts"
-sig = "d1f4f91cd3e5cb6f"
+sig = "62799674a621320c"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -73,7 +73,7 @@ sig = "ccaa771d761b5027"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/share-scene.ts"
-sig = "f0d71fa29c186fee"
+sig = "b44b84c84492ea37"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -238,7 +238,7 @@ sig = "d05d0c7c678135ff"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/share/card.py"
-sig = "c99c46ed1ba252ea"
+sig = "a1be1ed87c9f02b6"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -248,7 +248,7 @@ sig = "cb4f710672e5947d"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/share/card.py#replay_card"
-sig = "547c8ce9823556a9"
+sig = "784955f4aa999a70"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -307,6 +307,11 @@ sig = "2728adb840ec72c5"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "web/scripts/art7b_evidence.mjs"
+sig = "e267ca5287071440"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/board.ts"
 sig = "1b724c2208f1510f"
 
@@ -339,6 +344,11 @@ sig = "e1855274fae72a4b"
 doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/review.ts"
 sig = "ccaa771d761b5027"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "web/src/share-scene.ts"
+sig = "b44b84c84492ea37"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Determinism.md"
@@ -633,7 +643,7 @@ sig = "e35aaf442d8b4139"
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
 target = "web/src/booth.ts"
-sig = "d1f4f91cd3e5cb6f"
+sig = "62799674a621320c"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Tutorial.md"
@@ -1148,7 +1158,7 @@ sig = "4df8eb7daa7b9e4e"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
 target = "src/scheduler_dojo/share/card.py#replay_card"
-sig = "547c8ce9823556a9"
+sig = "784955f4aa999a70"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-cli.md"
@@ -1693,7 +1703,7 @@ sig = "fdd1925a1b8a917b"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
 target = "src/scheduler_dojo/share/card.py"
-sig = "c99c46ed1ba252ea"
+sig = "a1be1ed87c9f02b6"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
@@ -1708,7 +1718,7 @@ sig = "cb4f710672e5947d"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
 target = "src/scheduler_dojo/share/card.py#replay_card"
-sig = "547c8ce9823556a9"
+sig = "784955f4aa999a70"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
@@ -1723,7 +1733,7 @@ sig = "2728adb840ec72c5"
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
 target = "web/src/share-scene.ts"
-sig = "f0d71fa29c186fee"
+sig = "b44b84c84492ea37"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-cluster.md"
