@@ -51,7 +51,13 @@ export function openWelcome(opts: WelcomeOptions): WelcomeHandle {
   walk.type = "button";
   walk.textContent = "Take a walk";
   walk.title = "watch the live campus drift by \u2014 nothing to do, just look";
-  actions.append(city, walk);
+  // Review 8-F6: every exit here used to START something. A player who just wants to look at
+  // the app behind needs a Later (and the backdrop click every other panel honours).
+  const later = document.createElement("button");
+  later.type = "button";
+  later.textContent = "Later";
+  later.title = "close this card; the campus is already behind it";
+  actions.append(city, walk, later);
   panel.append(title, line, actions);
   overlay.append(panel);
   (opts.host ?? document.body).append(overlay);
@@ -71,6 +77,10 @@ export function openWelcome(opts: WelcomeOptions): WelcomeHandle {
   walk.addEventListener("click", () => {
     dismiss();
     opts.onWalk();
+  });
+  later.addEventListener("click", dismiss);
+  overlay.addEventListener("click", (event) => {
+    if (event.target === overlay) dismiss();
   });
   city.focus();
   trapDialog(panel, dismiss);

@@ -179,13 +179,23 @@ function closeTopmostDialog(): boolean {
  *  stays inside the panel. Openers own focus move-in and focus restore. Art 8 adds the global
  *  Escape for the topmost dialog (Concepts/Accessibility rule 13). */
 export function trapDialog(panel: HTMLElement, onClose: () => void): void {
-  dialogStack.push({
+  // Review 8-F5: entries DROP THEMSELVES on any close path. Pruning only happened inside the
+  // ESC scan (which stops at the first connected entry), so every closed dialog stayed in the
+  // array for the whole page session — pinning detached panels and their closures (a CodeMirror
+  // EditorView per booth dialog ever opened) until reload.
+  const entry: { panel: HTMLElement; close: () => void } = {
     panel,
     close: () => {
+      drop();
       if (!panel.isConnected) return; // already dismissed (button, Later, teardown)
       onClose();
     },
-  });
+  };
+  const drop = () => {
+    const i = dialogStack.indexOf(entry);
+    if (i >= 0) dialogStack.splice(i, 1);
+  };
+  dialogStack.push(entry);
   if (!escapeHooked) {
     escapeHooked = true;
     window.addEventListener("keydown", (event: KeyboardEvent) => {
@@ -196,6 +206,7 @@ export function trapDialog(panel: HTMLElement, onClose: () => void): void {
   panel.addEventListener("keydown", (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
+      drop();
       onClose();
       return;
     }

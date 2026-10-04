@@ -226,6 +226,7 @@ async function caseShare(browser) {
   fresh.on("console", (msg) => {
     if (/dojo-share-(mint|replay)/.test(msg.text())) freshLogs.push(msg.text());
   });
+  fresh.on("pageerror", (e) => freshLogs.push("PAGEERROR " + String(e).slice(0, 300)));
   await fresh.goto(card.url, { waitUntil: "load" });
   await fresh.waitForSelector(".campus-share-card .share-banner", { timeout: 180_000 });
   const view = await fresh.evaluate(`(() => ({
@@ -253,10 +254,16 @@ async function caseShare(browser) {
   await clickButton(fresh, "Watch the replay", ".campus-share-card button");
   // Wait on the replay's OWN hash (the boot page already shows a hash line for whatever level it
   // loaded, so "some hash is on screen" would resolve before the replay lands).
-  await fresh.waitForFunction(
-    `[...document.querySelectorAll("#readout .hash")].map((x) => x.textContent).join(" ")
-      .includes(${JSON.stringify(replayHash)})`,
-    null, { timeout: 240_000 });
+  try {
+    await fresh.waitForFunction(
+      `[...document.querySelectorAll("#readout .hash")].map((x) => x.textContent).join(" ")
+        .includes(${JSON.stringify(replayHash)})`,
+      null, { timeout: 240_000 });
+  } catch (e) {
+    // failure diagnostics only — what the fresh tab saw before the replay landed
+    say(`fresh logs at timeout: ${freshLogs.join(" ;; ")}`);
+    throw e;
+  }
   const readout = await fresh.evaluate(
     `[...document.querySelectorAll("#readout .hash")].map((x) => x.textContent).join(" | ")`);
   say(`watch readout: ${readout}`);

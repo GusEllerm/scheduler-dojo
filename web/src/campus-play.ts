@@ -384,7 +384,11 @@ export class CampusPlay {
     pauseBtn.textContent = "Pause";
     pauseBtn.setAttribute("aria-pressed", "false");
     pauseBtn.addEventListener("click", () => {
-      if (this.weekFrozen && !this.paused) {
+      if (this.weekFrozen) {
+        // Review 8-F2: the freeze vetoes Pause/Play REGARDLESS of `paused` — stepping to a
+        // boundary while paused left "frozen AND paused", and the old `&& !this.paused` let
+        // Space resume the wall-clock driver against an engine refusing to advance traffic.
+        // The only way out of a frozen week is an offer choice (or its hatch), never the clock.
         this.showToast("Traffic waits: take one of the week's two offers first.", false);
         void this.openWeekOffers(this.frozenWeek);
         return;

@@ -272,12 +272,16 @@ async function main(): Promise<void> {
   }
   // Art 8 review-7b: a `#card=` link PASTED into an already-open tab must route (phase one's `?c=`
   // navigated; a hash alone fires no reload). Clearing the hash closes the card view cleanly.
+  let routedHash = location.hash;
   window.addEventListener("hashchange", () => {
     const incoming = shareScene.shareCardParam();
     if (incoming) {
       void shareScene.openShareCardView({ payload: incoming, onReplay: showCardReplay })
         .catch(fail);
-    } else closeShareCard();
+    } else if (routedHash.startsWith("#card=")) {
+      closeShareCard();  // only a card→nothing transition closes the view (review 8-F4);
+    }                    // an unrelated fragment change is none of the card router's business
+    routedHash = location.hash;
   });
   // Art 8: the shortcuts the help drawer promises (`SHORTCUTS` is that table — one source).
   window.addEventListener("keydown", onGlobalKey);
@@ -341,8 +345,17 @@ function isControlTarget(target: EventTarget | null): boolean {
 
 /** Any open modal card (the overlays here all carry their own class; help reuses review-overlay). */
 function anyDialogOpen(): boolean {
-  return !!document.querySelector(
-    ".callout-overlay, .review-overlay, .board-overlay, .booth-overlay, .share-overlay");
+  // `.shop-overlay` (review 8-F1) is the one modal outside trapDialog — it registers its own
+  // Escape; here it must equally veto space/s/speed, or keys fire behind the shop. The shop
+  // hides its overlay (`overlay.hidden`) instead of removing it, so the check is visibility-
+  // aware — a permanently-mounted hidden overlay must not veto every key forever.
+  return [...document.querySelectorAll(
+    ".callout-overlay, .review-overlay, .board-overlay, .booth-overlay, .share-overlay,"
+    + " .shop-overlay",
+  )].some((el) => {
+    const cs = getComputedStyle(el);
+    return cs.display !== "none" && cs.visibility !== "hidden";
+  });
 }
 
 function onGlobalKey(event: KeyboardEvent): void {

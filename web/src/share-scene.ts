@@ -167,6 +167,7 @@ export async function openShareCardView(opts: CardViewOptions): Promise<void> {
   }
   const levelId = cardLevelId(card);
   const resolved = await resolveReplayLevel(card);
+  if (!panel.isConnected) return;  // review 8-F7: dismissed mid-resolve must not resurrect
   let ok = false;
   let detail = "";
   let replay: Awaited<ReturnType<typeof bridge.shareReplay>> | null = null;
@@ -187,6 +188,8 @@ export async function openShareCardView(opts: CardViewOptions): Promise<void> {
   } else {
     detail = resolved.note ?? "the card does not carry a level this build can replay";
   }
+  if (!panel.isConnected) return;  // review 8-F7: no banner/landings after dismissal
+  if (!panel.isConnected) return;  // review 8-F7
   banner(panel, ok, ok ? `verified replay — the engine re-ran it and the trajectory hash matches `
     + `(${detail})` : `tampered or unreplayable card — ${detail}`);
 
@@ -205,6 +208,11 @@ export async function openShareCardView(opts: CardViewOptions): Promise<void> {
         policy: card.kata ? "kata" : card.policy ?? "fifo",
         ...(card.kata ? { kata: String(card.kata) } : {}),
       });
+      // Review 8-F3: the button does NOT dismiss on click — so `panel.isConnected` here means
+      // "nobody pressed Esc/mode-switched while the run computed". A card dismissed mid-flight
+      // retires instead of hijacking whatever mode the player chose next; a live card dismisses
+      // as the replay lands (addClose's `.then(dismiss)`).
+      if (!panel.isConnected) return;
       await opts.onReplay(run, card);
     } }
     : undefined);
@@ -287,6 +295,19 @@ function cardShell(heading: string, title: string,
     open = false;
     overlay.remove();
     if (dismissTop === dismiss) dismissTop = null;
+    // Review 8-F4: a card link clicked AGAIN in this tab fires no hashchange while the fragment
+    // sits in the URL — dismissing clears it, so a repeat navigation is a real change.
+    // Review 8-F4: a card link clicked AGAIN in this tab fires no hashchange while the fragment
+    // sits in the URL — dismissing clears it, so a repeat navigation is a real change. The clear
+    // is DEFENSIVE (review 7b replay regression): it must never take down the dismiss→replay
+    // promise chain (a throw here once swallowed "Watch the replay" whole).
+    try {
+      if (location.hash.startsWith("#card=")) {
+        history.replaceState(null, "", location.pathname + location.search);
+      }
+    } catch (error) {
+      console.warn("dojo-share: could not clear the card fragment", error);
+    }
     previously?.focus?.();
   };
   dismissTop = dismiss;

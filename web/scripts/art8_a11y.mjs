@@ -276,9 +276,10 @@ async function caseWelcome(browser) {
              buttons: [...p.querySelectorAll("button")].map((b) => b.textContent.trim()),
              focusInside: p.contains(document.activeElement) };
   })()`);
-  check("welcome", "card", "one labelled dialog with exactly the two doors",
-    shape.role === "dialog" && shape.labelled && shape.buttons.length === 2
-    && /city 1/i.test(shape.buttons[0]) && /walk/i.test(shape.buttons[1]),
+  check("welcome", "card", "one labelled dialog: two doors + a Later",
+    shape.role === "dialog" && shape.labelled && shape.buttons.length === 3
+    && /city 1/i.test(shape.buttons[0]) && /walk/i.test(shape.buttons[1])
+    && /later/i.test(shape.buttons[2] ?? ""),  // review 8-F6: a dismiss affordance is required
     JSON.stringify(shape));
   check("welcome", "card", "initial focus inside", shape.focusInside, JSON.stringify(shape));
   await sweep(page, "welcome", "card");
