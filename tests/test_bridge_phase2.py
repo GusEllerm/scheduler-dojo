@@ -175,3 +175,15 @@ def test_empty_heap_done_lands_the_clock_on_the_horizon():
     h = bridge.start(_t0_pressure_level("f1b", False), seed=0)["handle"]
     out = bridge.step_until(h, 3000)
     assert out["done"] and out["state"]["now"] == 900 + 2000  # last event ~1850, horizon 2900
+
+
+def test_hand_result_reports_the_hand_policy():
+    """Review 7a-F2: a run the player placed entirely by hand must not report the level default."""
+    lvl = {"id": "hp", "title": "hp", "duration": 3000,
+           "cluster": {"nodes": [{"id": "n0", "cpus": 8}]},
+           "jobs": [{"id": "A", "user": "u", "submit_time": 0, "nodes_req": 1,
+                     "walltime_req": 100, "actual_runtime": 100}],
+           "default_policy": "shortest_first"}
+    h = bridge.hand_start(lvl)["handle"]
+    bridge.hand_place(h, "A", ["n0"])
+    assert bridge.hand_result(h)["policy"] == "hand"

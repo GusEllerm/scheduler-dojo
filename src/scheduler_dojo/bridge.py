@@ -302,6 +302,7 @@ def hand_start(level: Any, seed: int | None = None) -> dict:
     # every hand-mode snapshot pins `week: 1` and the UI cannot see a week end (Art 6a found the
     # symptom and worked around it in the frontend; this is the root-cause fix).
     _SESSION_LEVELS[handle] = lvl
+    _SESSION_POLICIES[handle] = "hand"  # review 7a-F2: a hand run's result must not claim "fifo"
     sched.step_events(1)  # process the t=min-submit arrivals so there is a queue to act on
     return {"handle": handle, "state": _snapshot(sched, lvl),
             "suggestions": _suggestions(sched), "nodes": _nodes_json(sched.cluster)}
