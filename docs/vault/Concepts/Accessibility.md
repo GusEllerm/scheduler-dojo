@@ -38,7 +38,10 @@ a mouse, because a scheduling lesson you cannot read is not a lesson.
    Art 6a — Take/Later are real buttons, the verdict line is `role="status"`, and a focusable
    pending-offers button in the campus controls reopens it while traffic is frozen), the run review
    panel (`web/src/review.ts` `openReviewPanel`, Art 7a — one at a time, its "Back to the campus"
-   button takes initial focus and Escape/`trapDialog` closes it) and the tutorial
+   button takes initial focus and Escape/`trapDialog` closes it), the city board
+   (`web/src/board.ts` `openCityBoard`, Art 7b — one at a time, its close button focused with
+   `preventScroll` so the heading stays on screen), the share card (`web/src/share-scene.ts`, Art 7b —
+   the minted card and the `#card=` card view are the same dialog) and the tutorial
    callouts (`web/src/tutorial.ts`, and the booth dialog in `web/src/booth.ts` via the shared
    `trapDialog`)
    are `role="dialog" aria-modal="true" aria-labelledby=<their heading>`;
@@ -84,6 +87,16 @@ discoverable.
     booth's why-panel list is `role="log" aria-live="polite"` and appends only NEW decision records
     keyed by the engine's `seq`, so a stepping player hears what changed rather than the whole
     panel per frame. Per-frame canvas motion stays out of live regions entirely.
+12. **The board and the card say in words what they show in pixels (Art 7b).** Each city tile is a
+     button whose `aria-label` carries the whole verdict — "City 4. Below pass. Locked — finish city 3
+     first." — because the thumbnail canvas is `aria-hidden` decoration and the frame colour
+     (gold/`ok`/`warn`/dim) is a restatement of the `.board-verdict` text line, never the only
+     carrier (rule 8). A locked tile is a real button that answers in the board's status line
+     (`role="status"`, `aria-live="polite"`) with how to unlock, so "why can't I play this?" has a
+     spoken answer.
+     A received card is one `role="status"` banner ("verified replay ✓ …" / "card tampered ✗ …" with
+     both hashes spelled out) over a `dl` of the card's facts, and only the verified one offers a
+     replay button. Evidence: `web/scripts/art7b_evidence.mjs`.
 
 ## Verifying an a11y change
 

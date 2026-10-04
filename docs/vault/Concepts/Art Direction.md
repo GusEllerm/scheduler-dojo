@@ -30,7 +30,13 @@ tags: [concept, phase-two]
   as much as hue; `veh-chosen` also gets the wave-mark.
 - **Bay material** — default (asphalt), GPU (fine hatch), high-mem (dots), remote-site, idle, plus
   the **dark bay** = wasted capacity (the game's most important negative space).
-- **Judgement** — pass/gold/warning/overflow, used only on verdicts: rings, bars, week pips.
+- **Judgement** — pass/gold/warning/overflow, used only on verdicts: rings, bars, week pips. The city
+  board's tile frames are judgement marks too ([[Campus]] "The city board and the share card"), and
+  they read the LEVEL's `pass_score`/`gold_score` — [agent decision] Art 7b: gold bar ⇒ `gold`, pass
+  bar ⇒ `ok`, below pass ⇒ `warn`, never played ⇒ dim. The brief's wording ("silver" for a pass, "bronze"
+  for below) was NOT implemented as two new hues: silver and bronze are not roles in
+  `web/tokens/palette.json`, and inventing them would break the one-source rule for two borders that
+  `ok`/`warn` already describe. Every frame colour is restated as a text label ([[Accessibility]] 12).
 - **Chrome** — clock, week band, review playhead.
 
 ## Type & scale

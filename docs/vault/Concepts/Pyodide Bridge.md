@@ -20,6 +20,15 @@ page (bridge.ts)  --postMessage {id,call,args}-->  worker.ts
   CPython 3.12) appears; the wheel and the CDN runtime must agree on the CPython minor for compiled
   deps — ours is pure, so it is version-independent, but we still pin to the 3.12 line for consistency
   with `livedocs`/stamps (see [[Decision Log]]).
+- **A JS `null` is not Python `None`.** At this pin (0.29.5) a `null` inside posted args arrives as a
+  `JsNull` *proxy* — truthy, without `.get`, and `str()`-ing to `"jsnull"` — so it is not the `None`
+  a bridge function's default is. Every optional kwarg in
+  `web/src/bridge.ts` is **omitted when unset** rather than sent as null (`runLevel`, `startRun`,
+  `shareEncode`, `shareReplay`, `progressionView`). That is not pedantry: `share_encode` shipped
+  `kata: null` since Stage 9, so sharing a NON-kata run made the engine parse the word `jsnull` as
+  kata source (`expected a module (jsnull by name:) or def`), and a null `state` broke
+  `progression_view` the same way (`'JsNull' object has no attribute 'get'`). Both found the honest way
+  while minting the Art 7b campus card — see [[Campus]].
 - **Progress, not a spinner.** The worker reports real load progress (runtime bytes, then wheel) so the
   loading screen is honest; the wheel is cached.
 

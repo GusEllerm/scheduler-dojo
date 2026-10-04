@@ -85,7 +85,7 @@ export function shareUrl(payload: string): string {
 }
 
 /** A level dict the card encoder can embed (explicit-jobs levels need a `generator` key). */
-function encodableLevel(level: Level): Level {
+export function encodableLevel(level: Level): Level {
   if (!("generator" in level) && Array.isArray(level.jobs)) return { ...level, generator: {} };
   return level;
 }

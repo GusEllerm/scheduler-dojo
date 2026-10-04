@@ -16,6 +16,7 @@
 import { fairnessShares } from "./campus";
 import type { RunResult } from "./bridge";
 import { trapDialog } from "./booth";
+import { mountCampusShareButton, type CampusShareContext } from "./share-scene";
 import { formatTime, mountTimeline, type TimelineHandle } from "./render/timeline";
 import { readTokens } from "./tokens";
 
@@ -37,6 +38,12 @@ export interface ReviewOptions {
   run: RunResult;
   title?: string;
   endless?: ReviewEndless;
+  /**
+   * Art 7b: what a card for THIS run needs (level dict, seed, policy/kata). Absent ⇒ no share
+   * button — which is how the endless review (and a run whose level a card could not carry) says
+   * "this run cannot be shared" instead of minting a card that could not replay it.
+   */
+  share?: Omit<CampusShareContext, "run">;
   onClose?: () => void;
 }
 
@@ -68,6 +75,11 @@ function shareJobs(run: RunResult) {
 export function mistakesOf(run: RunResult): MistakeRow[] {
   const rows: MistakeRow[] = [];
   const end = run.end_time || 0;
+  // Review 7a-F1: an overflow stops the run at `overflow_time`, but `end_time` is the last
+  // vehicle's END and `_max_end` is set at PLACEMENT — so it LEADS the stop by up to ~1.6 ks.
+  // Traffic that submits inside that lead never reached the road at all: the road was already
+  // frozen. Every cutoff below reads the STOP, not the horizon.
+  const stop = run.overflow ? Math.min(end, run.overflow_time ?? end) : end;
   if (run.overflow) {
     rows.push({
       user: run.overflow,
@@ -84,7 +96,7 @@ export function mistakesOf(run: RunResult): MistakeRow[] {
     m.set(user, (m.get(user) ?? 0) + 1);
   };
   for (const job of [...(run.jobs ?? [])].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
-    if (job.submit > end) continue;                 // never reached the road — not a miss
+    if (job.submit > stop) continue;                 // never reached the road — not a miss
     if (job.state === "timeout") bump(timedOut, job.user);
     else if (job.start === null || job.start === undefined) bump(neverParked, job.user);
   }
@@ -103,7 +115,8 @@ export function mistakesOf(run: RunResult): MistakeRow[] {
     });
   }
   // Starved shares — the same `fairnessShares` verdict the campus rail shows (§2.4), not a mood.
-  for (const share of fairnessShares(shareJobs(run), end)) {
+  // Read at `stop` too: claims that arrived after the freeze are not a claim on a frozen campus.
+  for (const share of fairnessShares(shareJobs(run), stop)) {
     if (!share.starved) continue;
     rows.push({
       user: share.user,
@@ -128,6 +141,9 @@ export function openReviewPanel(opts: ReviewOptions): ReviewHandle {
   const run = opts.run;
   const jobs = run.jobs ?? [];
   const end = run.end_time || 0;
+  // Review 7a-F1: same stop-instead-of-horizon cutoff as `mistakesOf` — the share bars read the
+  // instant the run froze, not the last finish that trailed it.
+  const stop = run.overflow ? Math.min(end, run.overflow_time ?? end) : end;
   const overlay = document.createElement("div");
   overlay.className = "review-overlay";
   const panel = document.createElement("section");
@@ -205,7 +221,7 @@ export function openReviewPanel(opts: ReviewOptions): ReviewHandle {
   fair.append(fairHead, fairList);
   panel.append(fair);
   const tokens = readTokens();
-  for (const r of fairnessShares(shareJobs(run), end)) {
+  for (const r of fairnessShares(shareJobs(run), stop)) {
     const li = document.createElement("li");
     const who = document.createElement("span");
     who.className = "fairness-who";
@@ -272,6 +288,9 @@ export function openReviewPanel(opts: ReviewOptions): ReviewHandle {
   closeBtn.textContent = "Back to the campus";
   closeBtn.addEventListener("click", () => dismiss());
   actions.append(closeBtn);
+  // Art 7b §5.8: the review is also where a run becomes a card — minted from the level dict the run
+  // actually ran (a city edition embeds its own patch), replayed and hash-checked by the engine.
+  if (opts.share) mountCampusShareButton(actions, { ...opts.share, run });
   panel.append(actions);
 
   const previously = document.activeElement as HTMLElement | null;

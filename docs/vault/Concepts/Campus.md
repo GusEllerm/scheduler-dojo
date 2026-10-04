@@ -182,6 +182,78 @@ on the "Endless ▸" chip. Evidence (default seed `20261002`): the run overflows
 density goes 0-on-campus (day 2) to ~10 queued at the day-16 jam at 60 fps —
 `Sessions/2026-10-02 Phase 2 Art 7.md`.
 
+## The city board and the share card (Art 7b)
+
+**A tile is an engine frame, not an icon.** `web/src/board.ts` (`openCityBoard`) puts nine city tiles
+plus Endless in one dialog, and each tile's thumbnail is produced by `web/src/campus-thumb.ts`:
+`start(level, policy)` → **`SLICES` (6) × `step_until`** up to 30 % of the level's horizon → the same
+job-union `collect` the live loop does → `buildScene` → `CampusRenderer`. The slices are not
+politeness — `_snapshot.unseen` only lists jobs that have not submitted *yet*, so a single jump
+leaves every job that submitted between 0 and the frame as an unknown-owner, zero-length shell (the
+`user: "?"` fallback) and the tile would draw a campus the live view never shows. The frame is
+painted into an **offscreen** canvas at 640×320 (`campus.ts`' layout needs that much room: its lots
+start at `width - PAD - 300` and its road band at `height - PAD - 150`) and `drawImage`d into the tile, so the
+board never mounts a canvas `CampusPlay.resizeNow()` could measure — the Art 3 baselines are
+byte-identical with the board shipped (verified, level1/level3). Frames are cached per page session
+by everything that can move a pixel, and the stepping handle is freed with `step_result` (the bridge
+has no other close; a drain costs about one watch-mode run of that level, which is cheaper than
+leaking a scheduler per tile — if the run already ended at the frame the handle is simply left
+behind: ≤ 10 per page, gone on reload). Tiles that are still drawing say "drawing…", and a failed
+frame says so; there is no placeholder art anywhere in the board.
+
+**Tile frames read the LEVEL's bars, not the belt** ([agent decision], Art 7b): `tileVerdict` maps
+the save's best for that level against that level's own `pass_score`/`gold_score` — gold bar ⇒
+`--sd-gold`, pass bar ⇒ `--sd-ok` (the palette's *pass* role), played below pass ⇒ `--sd-warn`, never
+played ⇒ dim dashed. The lifetime belt was rejected: it is a function of credits across every level
+([[Progression]]) and would paint a city the player never finished in the colour of an unrelated
+record. `--sd-ok`/`--sd-warn` rather than invented silver/bronze hues, because those two verdicts are
+already judgement roles in the one-source palette ([[Art Direction]]). Every colour is restated as
+text ("gold bar" / "pass bar" / "below pass" / "not played · 🔒 locked").
+
+**Locks are the owned frontier:** `frontierCity` is the first city with no recorded pass; a tile is
+locked when its level has never been completed *and* it is not that frontier. A locked tile stays a
+focusable button that answers in the board's `role="status"` line with the way out ("complete city 3,
+the next city in the chain") instead of doing nothing. Tapping an unlocked tile starts the city
+through the SAME Art 6b chaining rules as "Next city ▸" (its edition, hand traffic, script attached,
+`prefs.city` remembered) — the board is a shortcut to the chain, never a second way through it.
+
+**Share cards in the new art** (`web/src/share-scene.ts`, §5.8/§7). The review screen's "Share this
+run" mints with one engine call, `share_encode(level, seed, policy|kata)`, which *runs* the level and
+embeds that run's `trajectory_hash`; the card element carries a compact text card plus a **campus
+thumbnail** drawn by the same painter at 55 % of the run's own traffic. The link is
+`<origin><pathname>#card=<base64url body>` — the **hash**, not the query, because Pages serves any
+hash with no server rewrite (phase one's `?c=` needed the query). Opening one decodes it client-side
+for metadata, then lets the engine decide: `share_replay` re-runs and compares hashes, so the badge
+says "verified replay ✓" or the banner says "card tampered ✗" with both hashes spelled out, and only
+a verified card offers "Watch the replay ▸".
+
+- **The envelope did not change** (`CARD_VERSION` 1, `share/card.py` untouched). A city run rides it
+  because `encode_card` embeds the dict it is handed, and the mint hands it the **city edition** (the
+  patched `duration`/`generator` of the level the tutorial system loads), so the card replays the
+  week the player watched. Phase-one cards still verify, both directions (evidence: a literal card
+  minted before Art 7b, replayed on the old `?c=` route).
+- **Explicit-`jobs` levels (7 and 8) cannot carry their jobs in a URL.** On replay the shipped
+  `levels/levelN.json` is merged **UNDER** the card's embedded fields — jobs from the file, every
+  asserted fact from the card. The merge drops the card's `null`s (`withoutNulls`): `encode_card`
+  writes `level.get("sensors")`, so a level without sensors embeds `sensors: null`, which
+  `replay_card` tolerates (it runs `validate=False`) but `run` rejects outright — a card that
+  *verified* and then died on "sensors must be a subset of …" was the honest way this was found.
+- **A hand-played city shares the city, not the placements**: the envelope has no room for them, so
+  the card replays that level's own policy at the same seed and says so in its tag line (the phase-one
+  precedent, `shareContextFor`).
+- **Endless shares nothing** ([agent decision], Art 7b): its stream is materialized (a 30-day horizon,
+  ~1.9 k jobs) and no URL-sized card can carry it, so the endless review and the endless tile offer
+  no share button at all, and the tile says "no share card (the stream is not URL-sized)". A minted
+  `level_id: "endless"` card would also break `share_encode`'s level_id branch (it cannot hash a
+  level it was not given).
+- **A card view never completes a level**: the boot path nulls the pending watch-run record, so
+  opening someone's link cannot farm credits or move the board's frontier.
+
+Evidence: `web/scripts/art7b_evidence.mjs` (board with a gold + a pass + six locked tiles and ten
+pixel-checked thumbnails; mint → fresh browser → badge → hash equality logged as
+`dojo-share-mint`/`dojo-share-replay` → replay opened in watch mode; a one-character flip; and a
+committed phase-one card literal) — `Sessions/2026-10-02 Phase 2 Art 7.md`.
+
 ## Scene vocabulary (renderer contract)
 
 The TS scene layer owns *sprites and layout only*: `vehicle` (job + state: queued/chosen/reserved/

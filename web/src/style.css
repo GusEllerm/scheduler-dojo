@@ -1479,9 +1479,52 @@ ul.kata-errors {
   to   { box-shadow: 0 0 0 14px color-mix(in srgb, var(--sd-overflow) 0%, transparent); }
 }
 
+/* Art 7b — the city board (§7: nine city tiles with a live thumbnail, best score, locks; endless
+   with its best). An overlay in the review/offers family: fixed, scrollable, one dialog per boot. */
+.board-overlay { position: fixed; inset: 0; z-index: 45; display: flex; align-items: flex-start;
+  justify-content: center; padding: 4vh 16px; background: rgba(0, 0, 0, 0.4); overflow: auto; }
+.campus-board { position: static; width: min(920px, 100%); max-height: 92vh; overflow: auto;
+  display: flex; flex-direction: column; gap: 8px; }
+.campus-board h3 { margin: 0; }
+.board-note, .board-status { margin: 0; font-size: 12px; color: var(--sd-ink-soft); }
+.board-status { min-height: 16px; color: var(--sd-ink); }
+.board-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px; }
+.board-tile { display: flex; flex-direction: column; gap: 4px; padding: 6px; text-align: left;
+  border-radius: 10px; border: 3px solid var(--sd-line); background: var(--sd-ground);
+  color: var(--sd-ink); cursor: pointer; }
+.board-tile:focus-visible { outline: 2px solid var(--sd-ink); outline-offset: 2px; }
+.board-thumb { width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--sd-line);
+  background: var(--sd-panel); display: block; }
+.board-pending { font-size: 11px; color: var(--sd-ink-soft); }
+.board-pending[hidden] { display: none; }
+.board-tile-name { font-size: 14px; }
+.board-verdict, .board-best, .board-tile-note { font-size: 11px; color: var(--sd-ink-soft); }
+.board-tile-note { font-family: ui-monospace, monospace; }
+/* The frame colour is the LEVEL's verdict on the save's best (its own pass/gold bars), not the
+   lifetime belt — and every one of them is restated in the `.board-verdict` text, because colour
+   never carries meaning alone (Art Direction, Accessibility rule 8). Locked tiles are dimmed AND
+   say "locked" AND explain the unlock in the status line when tapped. */
+.board-tile.frame-gold { border-color: var(--sd-gold); }
+.board-tile.frame-pass { border-color: var(--sd-ok); }
+.board-tile.frame-below { border-color: var(--sd-warn); }
+.board-tile.frame-none { border-style: dashed; }
+.board-tile.frame-none .board-thumb { opacity: 0.55; }   /* never played: the frame says "not yours yet" */
+
+/* Art 7b — the share card in campus art: the campus thumbnail inside the card, and the compact
+   text card (a definition list, so the labels are read out with the values). */
+.campus-share-card { max-width: min(560px, 92vw); }
+.share-scene-thumb { width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--sd-line);
+  background: var(--sd-panel); display: block; }
+.share-card-text { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 4px 0;
+  font-size: 12px; }
+.share-card-text dt { color: var(--sd-ink-soft); }
+.share-card-text dd { margin: 0; overflow-wrap: anywhere; }
+
 /* 820 px (and anything narrower): every campus bar wraps, the rail drops under the canvas, and the
    offers panel goes one-per-row. All layout — no behaviour, no canvas geometry. */
 @media (max-width: 860px) {
+  .board-grid { grid-template-columns: minmax(0, 1fr); }
   .campus-body { flex-direction: column; }
   .campus-rail { flex: 1 1 auto; width: 100%; }
   .campus-controls, .campus-hand-bar, .campus-variant-bar { flex-wrap: wrap; }

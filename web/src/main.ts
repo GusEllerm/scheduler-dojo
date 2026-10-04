@@ -16,6 +16,8 @@ import { mountKataPlay, type KataPlayHandle } from "./kata-play";
 import { levelProgress, load as loadStore, save as saveStore } from "./persistence";
 import * as progression from "./progression";
 import * as share from "./share";
+import * as shareScene from "./share-scene";
+import { closeCityBoard, openCityBoard } from "./board";
 import { mountHud, type HudHandle } from "./hud";
 import { mountShop, type ShopHandle } from "./shop";
 import { closeReview, mountReviewButton, openReviewPanel, type ReviewEndless } from "./review";
@@ -138,6 +140,8 @@ let campusNextChip: HTMLButtonElement | null = null;
 let campusEndlessChip: HTMLButtonElement | null = null;
 /** Art 7: the campus currently running is the endless city (own best, own calendar, no offers). */
 let campusEndless = false;
+/** Art 7b: what a card for the last finished campus run needs (null = no card can promise it). */
+let campusRunShare: Omit<shareScene.CampusShareContext, "run"> | null = null;
 let campusSeedBtn: HTMLButtonElement | null = null;
 /**
  * Art 7: the default endless growth curve (§5.7). Tuned against the real engine (see
@@ -233,6 +237,8 @@ async function main(): Promise<void> {
   // Stage 9: a `?c=`/`#c=` link takes priority — boot straight into the card's level, then replay.
   const cardParam = share.shareParam();
   const cardMeta = cardParam ? share.decodeShareCard(cardParam) : null;
+  // Art 7b: the campus card link (`#card=…`, hash so Pages serves it with no server rewrite).
+  const campusCard = cardParam ? null : shareScene.shareCardParam();
   const cardLevel = cardMeta ? share.cardLevelId(cardMeta) : "";
   const start = LEVELS.includes(cardLevel)
     ? cardLevel
@@ -242,8 +248,39 @@ async function main(): Promise<void> {
   await loadLevel(start);
   dom.app.hidden = false;
   dom.loader.hidden = true;
-  flushPendingWatchRecord();
+  if (campusCard) pendingWatchRecord = null;   // opening a card must not complete the boot level
+  else flushPendingWatchRecord();
   if (cardParam) await replayShareCard(cardParam, cardMeta);
+  else if (campusCard) {
+    await shareScene.openShareCardView({ payload: campusCard, onReplay: showCardReplay });
+  }
+}
+
+/**
+ * Art 7b: the card view's "Watch the replay ▸" — the replayed run (already produced from the
+ * card's own level + seed + policy) opens in the watch presentation, so the strip shows exactly
+ * what the card promised. The banner repeats the hash the engine just checked.
+ */
+async function showCardReplay(run: RunResult): Promise<void> {
+  const id = String(run.level_id ?? "");
+  if (LEVELS.includes(id) && id !== levelId()) {
+    level = await fetchJson<Level>(`levels/${id}.json`);
+    baseTiers = Array.isArray(level.unlocks) ? [...(level.unlocks as string[])] : ["core"];
+    await applyProgressionUnlocks().catch(() => undefined);
+    levelDuration = Number(level.duration ?? 0);
+    dom.title.textContent = String(level.title ?? level.id ?? "Level");
+    dom.story.textContent = String(level.story ?? "");
+  }
+  mode = "watch";
+  saveStore({ prefs: { mode: mode as "watch" } });
+  destroyModes();
+  timeline?.destroy();
+  timeline = null;
+  variants = [{ key: "share", label: "share replay", run }];
+  paintControls();
+  show(0);
+  share.showShareBanner(dom.readout, true, run.trajectory_hash.slice(0, 12));
+  paint(`share replay of ${id || "card"} — hash ${run.trajectory_hash.slice(0, 12)}`, 0);
 }
 
 function levelId(): string {
@@ -534,6 +571,8 @@ function destroyModes(): void {
   campus?.destroy();
   campus = null;
   closeReview();   // Art 7: a review panel never outlives the run view that opened it
+  closeCityBoard();   // Art 7b: nor does the board
+  campusRunShare = null;
   campusStage.textContent = "";
   campusRail.textContent = "";
   campusRail.hidden = true;
@@ -601,8 +640,7 @@ function buildCampusToolbar(): void {
   campusVariantButtons.clear();
   campusTutorialChip = null;
   campusNextChip = null;
-  campusEndlessChip = null;
-  campusToolbar = document.createElement("div");
+  campusEndlessChip = null;  campusToolbar = document.createElement("div");
   campusToolbar.className = "campus-variant-bar";
   campusToolbar.setAttribute("role", "group");
   campusToolbar.setAttribute("aria-label", "Campus run variant");
@@ -631,7 +669,8 @@ function buildCampusToolbar(): void {
   });
   campusToolbar.append(chip);
   campusTutorialChip = chip;
-  campusToolbar.append(buildNextCityChip(), buildEndlessChip(), buildEndlessSeedButton());
+  campusToolbar.append(buildNextCityChip(), buildEndlessChip(), buildEndlessSeedButton(),
+    buildBoardChip());
   campusPanel.insertBefore(campusToolbar, campusBody);
   void paintCampusToolbar().catch(() => undefined);
 }
@@ -692,6 +731,72 @@ function buildEndlessSeedButton(): HTMLButtonElement {
   return seed;
 }
 
+/**
+ * Art 7b: the "City board ▸" chip — the campaign view (nine city tiles + endless, each with a real
+ * campus frame as its thumbnail). The board starts cities through the SAME chaining rules as
+ * "Next city ▸" (the city's edition, hand traffic, its script attached); a locked tile explains the
+ * way out instead of doing nothing.
+ */
+function buildBoardChip(): HTMLButtonElement {
+  const board = document.createElement("button");
+  board.type = "button";
+  board.className = "campus-tutorial-chip campus-board-chip";
+  board.textContent = "City board \u25b8";
+  board.title = "every city at a glance: a live campus frame, your best, what is locked";
+  board.addEventListener("click", () => showCityBoard());
+  return board;
+}
+
+function showCityBoard(): void {
+  openCityBoard({
+    host: document.body,
+    onStartCity: (city) => {
+      campusCity = `city${city}`;
+      campusTutorial = true;
+      campusVariant = "hand";
+      campusEndless = false;
+      campusNextCity = null;
+      saveStore({ prefs: { mode: "campus" as "watch", city } });
+      void startCampusRun().catch(fail);
+    },
+    onStartEndless: () => startEndlessRun(),
+    endless: {
+      unlocked: loadStore().prefs.endlessUnlocked === true || cityNumber() > 3,
+      best: endlessBest(),
+      seed: endlessSeed(),
+      level: (seed) => bridge.endlessLevel(ENDLESS_GROWTH, seed),
+    },
+  });
+}
+
+/**
+ * Art 7b §5.8: the card context for a finished campus run — the level dict it ACTUALLY ran (a city
+ * edition embeds its own patch, so the card replays the week the player watched). Returns null when
+ * no card could promise the run back:
+ *  - endless ([agent decision], Art 7b): the stream is materialized by the thousands and does not
+ *    fit a URL-sized card, so the endless review offers no share button at all;
+ *  - a hand-played city: the player's placements are not in any envelope, so the card replays the
+ *    city's OWN policy at the same seed and says exactly that in its tag line (the phase-one
+ *    precedent, `shareContextFor`).
+ */
+function campusShareContext(level: Level, policy: string | undefined,
+                            run: RunResult): Omit<shareScene.CampusShareContext, "run"> | null {
+  if (campusEndless) return null;
+  const hand = run.policy === "hand";
+  const levelId = String(run.level_id ?? level.id ?? "level1");
+  return {
+    level,
+    levelId,
+    title: String(level.title ?? levelId),
+    seed: run.seed,
+    policy: hand
+      ? String(level.default_policy ?? "fifo")
+      : String(run.policy ?? policy ?? level.default_policy ?? "fifo"),
+    ...(hand ? { tag: "played by hand \u2014 this card replays the city's own policy at the same "
+      + "seed, not the placements you made" } : {}),
+  };
+}
+
 /** The endless stream's seed: from the save (stable per player), persisted on first read. */
 function endlessSeed(): number {
   const saved = loadStore().prefs.endlessSeed;
@@ -709,7 +814,10 @@ function endlessBest(): { days: number; served: number } | null {
 
 /** Record an endless finish against the best (days first, served as tie-break); UI arithmetic. */
 function recordEndlessBest(run: RunResult): ReviewEndless {
-  const days = Math.floor((run.end_time || 0) / 86_400);   // full literal days survived
+  // Review 7a-F3: days SURVIVED is the STOP instant. A patience overflow ends the run at
+  // `overflow_time`, while `end_time` is the last vehicle's END (set at placement, so it can lead
+  // the stop) — 22.998 days must not record as 23 survived.
+  const days = Math.floor((run.overflow_time ?? run.end_time ?? 0) / 86_400);
   const served = (run.jobs ?? []).filter((j) => j.state === "done").length;
   const prev = endlessBest();
   const isNew = !prev || days > prev.days || (days === prev.days && served > prev.served);
@@ -792,6 +900,7 @@ async function startCampusRun(): Promise<void> {
   campus?.destroy();
   campus = null;
   closeReview();   // Art 7: a stale review never rides along into the next run
+  campusRunShare = null;   // Art 7b: nor does a stale card context
   campusStage.textContent = "";
   campusRail.textContent = "";
   campusRail.hidden = true;
@@ -831,6 +940,9 @@ async function startCampusRun(): Promise<void> {
     // Art 5: the booth's "Open the full editor" hands its serialization to the kata editor.
     onOpenEditor: (kata) => { void handoffToKata(kata).catch(fail); },
     onFinish: (run) => {
+      // Art 7b: the card context for THIS run (the level dict it actually ran, city edition and
+      // all) is set before the readout paints, so both review paths offer the same share button.
+      campusRunShare = campusShareContext(runLevel, policy, run);
       renderReadout({ key: "campus", label: "campus", run });
       if (campusEndless) {
         // Endless is the leaderboard-of-one (§2.5): days survived + served, not belt logic —
@@ -840,7 +952,7 @@ async function startCampusRun(): Promise<void> {
         if (!tutorialRunner) {
           openReviewPanel({ host: document.body, run, title: "Endless", endless });
         }
-        return;
+        return;   // endless reviews carry no share button — see campusShareContext
       }
       // A city edition's run records against the edition's level (`level6`), not the level the
       // picker last happened to load — the chain never touches the picker.
@@ -848,7 +960,8 @@ async function startCampusRun(): Promise<void> {
       // Art 7: the run review (strip + shares + mistakes). A script still on stage owns its own
       // endings — the readout's "Review ▸" button is there whenever the player wants the panel.
       if (!tutorialRunner) {
-        openReviewPanel({ host: document.body, run, title: String(run.level_id || levelId()) });
+        openReviewPanel({ host: document.body, run, title: String(run.level_id || levelId()),
+                          ...(campusRunShare ? { share: campusRunShare } : {}) });
       }
     },
     onStatus: (text) => paint(text, 0),
@@ -1020,7 +1133,13 @@ function renderReadout(variant: Variant): void {
   share.mountShareButton(shareRow, shareContextFor(variant));
   // Art 7: and a Review button — the same panel a campus run opens itself, for every other
   // finished run (a watch run "ends" the instant a page loads; no modal for that).
-  mountReviewButton(shareRow, () => ({ run, title: String(run.level_id ?? levelId()) }));
+  mountReviewButton(shareRow, () => ({
+    run,
+    title: String(run.level_id ?? levelId()),
+    // Art 7b: a campus run's review carries its share button even when a script owned the ending
+    // (that path never opens the panel itself) — the same context, the same card.
+    ...(variant.key === "campus" && campusRunShare ? { share: campusRunShare } : {}),
+  }));
   if (run.policy === "hand") renderHandReadout();
 }
 

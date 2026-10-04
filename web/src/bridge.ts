@@ -359,7 +359,11 @@ export class DojoBridge {
 
   /** Read-only HUD snapshot. `state` null ⇒ the engine migrates a fresh one for the view. */
   progressionView(state: ProgressionState | null, now = 0): Promise<ProgressionView> {
-    return this.call<ProgressionView>("progression_view", { state, now });
+    // Omit rather than send a null: `progression_view(state=None, *, now)` defaults the state, and
+    // a JS null would arrive as a JsNull proxy (see `shareEncode`).
+    const args: Record<string, unknown> = { now };
+    if (state !== undefined && state !== null) args.state = state;
+    return this.call<ProgressionView>("progression_view", args);
   }
 
   /** Record a finished level run; returns the NEW state (credits awarded) to persist. */
@@ -383,20 +387,26 @@ export class DojoBridge {
 
   /** Run + mint a replayable `#c=` card (the engine embeds the run's trajectory hash). */
   shareEncode(args: ShareEncodeArgs): Promise<ShareMint> {
-    return this.call<ShareMint>("share_encode", {
-      level: args.level ?? null,
-      seed: args.seed ?? null,
-      policy: args.policy ?? "fifo",
-      kata: args.kata ?? null,
-      level_id: args.levelId ?? null,
-    });
+    // Pyodide turns a JS **null** into a `JsNull` PROXY, not `None` (`undefined` is what maps to
+    // None), so optional kwargs are OMITTED when unset — the convention `runLevel`/`startRun`
+    // already follow. Sending `kata: null` made the engine parse the string "jsnull" as kata
+    // source, which is how sharing a NON-kata run had been broken since Stage 9 (found minting
+    // campus cards; `Sessions/2026-10-02 Phase 2 Art 7.md`).
+    const kwargs: Record<string, unknown> = { policy: args.policy ?? "fifo" };
+    if (args.level !== undefined && args.level !== null) kwargs.level = args.level;
+    if (args.seed !== undefined && args.seed !== null) kwargs.seed = args.seed;
+    if (args.kata !== undefined && args.kata !== null) kwargs.kata = args.kata;
+    if (args.levelId !== undefined && args.levelId !== null) kwargs.level_id = args.levelId;
+    return this.call<ShareMint>("share_encode", kwargs);
   }
 
   /** Re-run a card payload and check its hash. `level` is needed for cards that only reference a
    *  level_id — and for shipped levels with an explicit `jobs` list, whose job data the card
    *  itself does not embed (the engine's card schema carries generator/cluster only). */
   shareReplay(payload: string, level?: Level | null): Promise<ShareReplayResult> {
-    return this.call<ShareReplayResult>("share_replay", { payload, level: level ?? null });
+    const args: Record<string, unknown> = { payload };
+    if (level !== undefined && level !== null) args.level = level;   // JsNull ≠ None, as above
+    return this.call<ShareReplayResult>("share_replay", args);
   }
 
   /** Tear the worker down (page teardown / tests). */

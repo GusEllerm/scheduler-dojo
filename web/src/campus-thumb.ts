@@ -105,7 +105,7 @@ export async function campusThumbFrame(req: ThumbRequest): Promise<HTMLCanvasEle
   renderer.destroy();
 
   // Free the stepping session (see the header note); a run that already ended raises, which is
-  // the same outcome — the handle is gone from the page's point either.
+  // the same outcome — the handle is gone from the page's point of view either way.
   await bridge.stepResult(started.handle).catch(() => undefined);
 
   frames.set(key, off);

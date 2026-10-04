@@ -140,7 +140,9 @@ export function openCityBoard(opts: BoardOptions): BoardHandle {
   if (opts.endless) endlessTile(grid, status, opts);
 
   close.addEventListener("click", () => dismiss());
-  close.focus();
+  // preventScroll: the panel is a scroll container, and focusing the LAST control would scroll the
+  // heading out of view (the board's own screenshot caught it).
+  close.focus({ preventScroll: true });
   trapDialog(panel, () => dismiss());
   current = handle;
   return handle;
@@ -294,8 +296,8 @@ function setVerdict(button: HTMLElement, verdict: TileVerdict, locked: boolean):
 }
 
 /** Owned upgrades as campus sprites — the same table the live campus paints (cached per session). */
-let buildings: BuildingInfo[] | null = null;
-function ownedBuildings(): Promise<BuildingInfo[]> {
+let buildings: Promise<BuildingInfo[]> | null = null;
+export function ownedBuildings(): Promise<BuildingInfo[]> {
   buildings ??= bridge.progressionView(getProgression())
     .then((view) => view.buildings ?? [])
     .catch(() => [] as BuildingInfo[]);

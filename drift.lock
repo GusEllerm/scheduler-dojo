@@ -17,13 +17,23 @@ sig = "e9ea1263dc50d9a6"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/scripts/art7b_evidence.mjs"
+sig = "e267ca5287071440"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/board.ts"
+sig = "1b724c2208f1510f"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/booth.ts"
 sig = "d1f4f91cd3e5cb6f"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/campus-play.ts"
-sig = "312d4a8c78593f9a"
+sig = "b057866596f68079"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -48,7 +58,7 @@ sig = "c3c1f2a41308a7c3"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/main.ts"
-sig = "705d9d04ff7325f9"
+sig = "a44057a1c94e0107"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -58,17 +68,22 @@ sig = "e1855274fae72a4b"
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/review.ts"
-sig = "ab63135824de21dc"
+sig = "ccaa771d761b5027"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Accessibility.md"
+target = "web/src/share-scene.ts"
+sig = "f0d71fa29c186fee"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/share.ts"
-sig = "b581ee11e56b2792"
+sig = "3291662d6503593f"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
 target = "web/src/style.css"
-sig = "afad1176f778ccc6"
+sig = "c4cf3b0e94ef248c"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Accessibility.md"
@@ -157,6 +172,16 @@ sig = "c0c5118d6f875203"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#share_encode"
+sig = "fdd1925a1b8a917b"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#share_replay"
+sig = "8ebcd406eb2b54eb"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/bridge.py#start"
 sig = "2488fd70e7800608"
 
@@ -164,6 +189,11 @@ sig = "2488fd70e7800608"
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/bridge.py#step_n"
 sig = "e99455d5758fc644"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/bridge.py#step_result"
+sig = "a8f05ccb7c6cd7b5"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -204,6 +234,21 @@ sig = "125a5f519d469cf1"
 doc = "docs/vault/Concepts/Campus.md"
 target = "src/scheduler_dojo/progression.py#offers"
 sig = "d05d0c7c678135ff"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/share/card.py"
+sig = "c99c46ed1ba252ea"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/share/card.py#encode_card"
+sig = "cb4f710672e5947d"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/share/card.py#replay_card"
+sig = "547c8ce9823556a9"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -257,8 +302,23 @@ sig = "e8534d29c115e0c7"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
+target = "src/scheduler_dojo/sim/trajectory.py#trajectory_hash"
+sig = "2728adb840ec72c5"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "web/src/board.ts"
+sig = "1b724c2208f1510f"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/campus-play.ts"
-sig = "312d4a8c78593f9a"
+sig = "b057866596f68079"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Campus.md"
+target = "web/src/campus-thumb.ts"
+sig = "3b9eece173b8c3a9"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
@@ -278,7 +338,7 @@ sig = "e1855274fae72a4b"
 [[bindings]]
 doc = "docs/vault/Concepts/Campus.md"
 target = "web/src/review.ts"
-sig = "ab63135824de21dc"
+sig = "ccaa771d761b5027"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Determinism.md"
@@ -402,8 +462,18 @@ sig = "06861949a637fb12"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
+target = "src/scheduler_dojo/bridge.py#progression_view"
+sig = "bdb3ec24dae74d0b"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Pyodide Bridge.md"
 target = "src/scheduler_dojo/bridge.py#run"
 sig = "c0c5118d6f875203"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Pyodide Bridge.md"
+target = "src/scheduler_dojo/bridge.py#share_encode"
+sig = "fdd1925a1b8a917b"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
@@ -434,6 +504,11 @@ sig = "71234d3e76362c30"
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
 target = "src/scheduler_dojo/sim/scheduler.py#Scheduler"
 sig = "e35aaf442d8b4139"
+
+[[bindings]]
+doc = "docs/vault/Concepts/Pyodide Bridge.md"
+target = "web/src/bridge.ts"
+sig = "1b9df83cb60db9e8"
 
 [[bindings]]
 doc = "docs/vault/Concepts/Pyodide Bridge.md"
@@ -1612,6 +1687,11 @@ sig = "23677cc7591cff26"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "src/scheduler_dojo/bridge.py#share_encode"
+sig = "fdd1925a1b8a917b"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
 target = "src/scheduler_dojo/share/card.py"
 sig = "c99c46ed1ba252ea"
 
@@ -1632,8 +1712,18 @@ sig = "547c8ce9823556a9"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "src/scheduler_dojo/sim/level.py#validate_level"
+sig = "d0250ce74322dd3c"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
 target = "src/scheduler_dojo/sim/trajectory.py#trajectory_hash"
 sig = "2728adb840ec72c5"
+
+[[bindings]]
+doc = "docs/vault/Modules/scheduler_dojo-share-card.md"
+target = "web/src/share-scene.ts"
+sig = "f0d71fa29c186fee"
 
 [[bindings]]
 doc = "docs/vault/Modules/scheduler_dojo-sim-cluster.md"

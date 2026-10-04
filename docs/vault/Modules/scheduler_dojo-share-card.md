@@ -22,6 +22,23 @@ shipped level passed in.
   cards (stable share links). Reuses `trajectory_hash`. See [[Determinism]], [[scheduler_dojo-sim-trajectory]].
 - `replay_card` runs with `validate=False` (the hash, not the schema gate, is the integrity check).
 
+## Art 7b: the same envelope, three client edges
+
+`CARD_VERSION` is still 1 and this module did not change — a city run rides the v1 envelope because
+`encode_card` embeds the dict it is handed, and the browser hands it the **city edition** (the level
+plus the tutorial's whitelisted patch), so the card replays the week that was played. The three
+edges the browser now handles (`web/src/share-scene.ts`; see [[Campus]]):
+
+- levels whose `jobs` are an explicit list (7, 8) cannot fit them in a URL, so the shipped
+  `levels/levelN.json` is merged **under** the card's embedded fields — and the card's `null`s are
+  dropped first (`withoutNulls`), because `encode_card` writes `level.get("sensors")` and a
+  `sensors: null` fails `validate_level` even though `replay_card` tolerates it;
+- **endless runs are not minted at all** — a 30-day materialized stream (~1.9 k jobs) is not
+  URL-sized, and `share_encode` cannot hash a `level_id`-only card in the first place;
+- the link lives in the **hash** (`#card=…`), which Pages serves with no server, where phase one used
+  the `?c=` query. Both routes still work, and a pre-Art-7b card literal is replayed in CI evidence to
+  prove the envelope never broke. Minting it needs `kata` OMITTED, not null ([[Pyodide Bridge]]).
+
 ## Depends on / used by
 
 Uses `sim.level.run_level`, `sim.scoring`, `sim.trajectory`. Used by `dojo verify-card` and the share UI

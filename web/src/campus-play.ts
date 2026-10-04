@@ -114,6 +114,12 @@ export class CampusPlay {
   private readonly endlessMode: boolean;
   /** the overflow moment's one-shot hold before `finish` (reduced motion: no hold) */
   private flashTimer = 0;
+  /**
+   * Review 7a-F4: `afterDone` runs on EVERY snapshot that reports `done`, and `finished` is only
+   * set inside `finish()` — so during the 900 ms deferral the flash re-fired each frame (a storm of
+   * divs and a toast timer that never expired). One flash per run, latched here.
+   */
+  private flashed = false;
   private suggestions: HandSuggestions = {};
   private selected: string | null = null;
   private staged: string[] = [];
@@ -899,9 +905,10 @@ export class CampusPlay {
 
   /** Flash the overflowing neighbour's road vehicles; true = finish is deferred to the flash. */
   private overflowMoment(user: string): boolean {
-    if (this.harnessMode || this.finished || !user) return false;
+    if (this.harnessMode || this.finished || this.flashed || !user) return false;
     const s = this.pair?.cur;
     if (!s) return false;
+    this.flashed = true;
     const mine = s.vehicles.filter((v) => v.user === user
       && (v.state === "queued" || v.state === "chosen" || v.state === "reserved"));
     for (const v of mine.slice(0, 16)) {
